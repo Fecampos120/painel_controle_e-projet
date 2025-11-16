@@ -132,6 +132,8 @@ export interface Contract {
     discountValue: number;
     mileageDistance?: number;
     mileageCost?: number;
+    downPaymentDate: Date;
+    firstInstallmentDate: Date;
 }
 
 export interface ProjectStage {

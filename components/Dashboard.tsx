@@ -341,67 +341,13 @@ interface DashboardProps {
     setInstallments: (installments: PaymentInstallment[]) => void;
     contracts: Contract[];
     schedules: ProjectSchedule[];
+    projectProgress: ProjectProgress[];
     otherPayments: OtherPayment[];
     onAddOtherPayment: (newPayment: Omit<OtherPayment, 'id'>) => void;
 }
 
-const generateProjectProgressFromSchedules = (
-    schedules: ProjectSchedule[],
-    contracts: Contract[]
-): ProjectProgress[] => {
-    const stageMapping: { [key: string]: string[] } = {
-        'Briefing': ['Reunião de Briefing', 'Medição'],
-        'Layout': ['Apresentação do Layout Planta Baixa', 'Revisão 01 (Planta Baixa)', 'Revisão 02 (Planta Baixa)', 'Revisão 03 (Planta Baixa)'],
-        '3D': ['Apresentação de 3D', 'Revisão 01 (3D)', 'Revisão 02 (3D)', 'Revisão 03 (3D)'],
-        'Executivo': ['Executivo'],
-        'Entrega': ['Entrega'],
-    };
 
-    const activeSchedules = schedules.filter(s => 
-        contracts.some(c => c.id === s.contractId && c.status === 'Ativo')
-    );
-
-    return activeSchedules.map(schedule => {
-        const progressStages: StageProgress[] = GANTT_STAGES_CONFIG.map(ganttStage => {
-            const detailedStageNames = stageMapping[ganttStage.name] || [];
-            const relevantDetailedStages = schedule.stages.filter(s => detailedStageNames.includes(s.name));
-            
-            if (relevantDetailedStages.length === 0) {
-                return { name: ganttStage.name, status: 'pending' };
-            }
-
-            const completedCount = relevantDetailedStages.filter(s => s.completionDate).length;
-            
-            let status: 'completed' | 'in_progress' | 'pending';
-            if (completedCount === relevantDetailedStages.length) {
-                status = 'completed';
-            } else if (completedCount > 0) {
-                status = 'in_progress';
-            } else {
-                const firstStageOfGroup = relevantDetailedStages[0];
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                const stageStartDate = firstStageOfGroup.startDate ? new Date(firstStageOfGroup.startDate) : null;
-                if(stageStartDate && stageStartDate <= today){
-                    status = 'in_progress';
-                } else {
-                    status = 'pending';
-                }
-            }
-            return { name: ganttStage.name, status };
-        });
-
-        return {
-            contractId: schedule.contractId,
-            projectName: schedule.projectName,
-            clientName: schedule.clientName,
-            stages: progressStages,
-        };
-    });
-};
-
-
-const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, contracts, schedules, otherPayments, onAddOtherPayment }) => {
+const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, contracts, schedules, projectProgress, otherPayments, onAddOtherPayment }) => {
     const today = new Date();
     today.setHours(0,0,0,0);
 
@@ -482,8 +428,6 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
 
         return points.sort((a, b) => a.daysRemaining - b.daysRemaining);
     }, [schedules, contracts, installments]);
-
-    const projectProgress = useMemo(() => generateProjectProgressFromSchedules(schedules, contracts), [schedules, contracts]);
     
     const { receivedThisMonth, receivedThisYear, toReceive } = useMemo(() => {
         const currentMonth = today.getMonth();

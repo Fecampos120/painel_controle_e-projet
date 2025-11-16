@@ -495,6 +495,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
             discountValue: parseFloat(financialInputs.discountValue) || 0,
             mileageDistance: mileage.enabled ? parseFloat(mileage.distance) || 0 : 0,
             mileageCost: financials.mileageCost,
+            downPaymentDate: new Date(`${formProps.downPaymentDate}T00:00:00`),
+            firstInstallmentDate: formProps.firstInstallmentDate ? new Date(`${formProps.firstInstallmentDate}T00:00:00`) : new Date(),
         };
         
         if (isEditing) {
@@ -810,8 +812,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                        <FormField label="Data de Pagamento da Entrada" id="downPaymentDate" type="date" required/>
-                        <FormField label="Data da Primeira Parcela" id="firstInstallmentDate" type="date" />
+                        <FormField label="Data de Pagamento da Entrada" id="downPaymentDate" type="date" required defaultValue={editingContract?.downPaymentDate ? new Date(editingContract.downPaymentDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}/>
+                        <FormField label="Data da Primeira Parcela" id="firstInstallmentDate" type="date" defaultValue={editingContract?.firstInstallmentDate ? new Date(editingContract.firstInstallmentDate).toISOString().split('T')[0] : ''} />
                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 items-end">
                         <FormField label="Número de Parcelas" id="installments">
