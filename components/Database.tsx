@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppData, Client, Contract, Reminder, PaymentInstallment } from '../types';
-import { PencilIcon, TrashIcon, XIcon, PlusIcon, ExclamationTriangleIcon } from './Icons';
+import { PencilIcon, TrashIcon, XIcon, PlusIcon, ExclamationTriangleIcon, DownloadIcon, UploadIcon } from './Icons';
 
 type TableKey = 'clients' | 'contracts' | 'reminders' | 'installments';
 
@@ -60,6 +60,8 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
     const [editingItem, setEditingItem] = useState<Item | null>(null);
     const [formData, setFormData] = useState<Partial<Item>>({});
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const importInputRef = useRef<HTMLInputElement>(null);
+
 
     useEffect(() => {
         setSelectedIds(new Set());
@@ -215,6 +217,67 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
             return newSelection;
         });
     };
+
+    const handleExportData = () => {
+        try {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            link.download = `e-projet_backup_${date}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Erro ao exportar dados:", error);
+            alert("Não foi possível exportar os dados.");
+        }
+    };
+
+    const handleImportClick = () => {
+        importInputRef.current?.click();
+    };
+
+    const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!window.confirm('Tem certeza que deseja importar este arquivo? Todos os dados atuais serão substituídos. Esta ação não pode ser desfeita.')) {
+            if(importInputRef.current) importInputRef.current.value = "";
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result;
+                if (typeof text !== 'string') throw new Error("O arquivo não pôde ser lido.");
+                
+                const importedData = JSON.parse(text);
+
+                if (importedData && typeof importedData === 'object' && 'contracts' in importedData && 'clients' in importedData) {
+                    setAppData(importedData);
+                    alert('Dados importados com sucesso!');
+                } else {
+                    throw new Error("O arquivo de backup parece ser inválido ou está corrompido.");
+                }
+            } catch (error) {
+                console.error("Erro ao importar dados:", error);
+                alert(`Não foi possível importar os dados. Erro: ${error instanceof Error ? error.message : String(error)}`);
+            } finally {
+                if(importInputRef.current) importInputRef.current.value = "";
+            }
+        };
+        reader.onerror = () => {
+             alert('Erro ao ler o arquivo.');
+             if(importInputRef.current) importInputRef.current.value = "";
+        }
+        reader.readAsText(file);
+    };
+
 
     const renderCell = (item: Item, columnKey: string) => {
         let value = (item as any)[columnKey];
@@ -387,6 +450,37 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
                     </div>
                 </div>
             </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+                <h2 className="text-lg font-semibold text-slate-800">Backup e Restauração de Dados</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                    Salve todos os seus dados em um arquivo seguro no seu computador. Você pode usar este arquivo para restaurar seus dados em outro dispositivo ou como um backup.
+                </p>
+                <div className="mt-6 flex flex-col sm:flex-row gap-4 border-t border-slate-200 pt-6">
+                    <button
+                        onClick={handleExportData}
+                        className="inline-flex items-center justify-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                        <DownloadIcon className="w-5 h-5 mr-2" />
+                        Exportar Dados
+                    </button>
+                    <button
+                        onClick={handleImportClick}
+                        className="inline-flex items-center justify-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                        <UploadIcon className="w-5 h-5 mr-2" />
+                        Importar Dados
+                    </button>
+                    <input
+                        type="file"
+                        ref={importInputRef}
+                        onChange={handleImportData}
+                        className="hidden"
+                        accept=".json"
+                    />
+                </div>
+            </div>
+
 
             <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-xl shadow-lg">
                 <div className="flex">
