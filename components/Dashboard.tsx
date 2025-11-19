@@ -9,8 +9,7 @@ import {
   DocumentIcon,
   SendIcon,
 } from './Icons';
-import { GANTT_STAGES_CONFIG } from '../constants';
-import { PaymentInstallment, AttentionPoint, Contract, ProjectProgress, OtherPayment, ProjectSchedule, StageProgress } from '../types';
+import { PaymentInstallment, AttentionPoint, Contract, ProjectProgress, OtherPayment, ProjectSchedule } from '../types';
 import PaymentReminderModal from './PaymentReminderModal';
 
 const formatCurrency = (value: number) => {
@@ -30,7 +29,7 @@ const ProjectStatusChart: React.FC<{ contracts: Contract[], schedules: ProjectSc
     const projectStatusData = useMemo(() => {
         const statuses = {
             'No Prazo': 0,
-            'Em Risco': 0,
+            'Em Andamento': 0,
             'Atrasado': 0,
         };
 
@@ -38,27 +37,31 @@ const ProjectStatusChart: React.FC<{ contracts: Contract[], schedules: ProjectSc
 
         activeContracts.forEach(contract => {
             const schedule = schedules.find(s => s.contractId === contract.id);
-            let status: 'No Prazo' | 'Em Risco' | 'Atrasado' = 'No Prazo';
+            let status: 'No Prazo' | 'Em Andamento' | 'Atrasado' = 'No Prazo';
             
             if (schedule) {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                for (const stage of schedule.stages) {
+                const isDelayed = schedule.stages.some(stage => {
                     if (!stage.completionDate && stage.deadline) {
-                        const deadline = new Date(stage.deadline);
-                        deadline.setHours(0, 0, 0, 0);
-                        const diffTime = deadline.getTime() - today.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const deadline = new Date(`${stage.deadline}T00:00:00`);
+                        return deadline < today;
+                    }
+                    return false;
+                });
 
-                        if (diffDays < 0) {
-                            status = 'Atrasado';
-                            break; // Once a project is late, it's late.
-                        }
-                        if (diffDays <= 7) {
-                            status = 'Em Risco';
-                            // Don't break, continue checking for a late stage
-                        }
+                if (isDelayed) {
+                    status = 'Atrasado';
+                } else {
+                    const hasCompletedStages = schedule.stages.some(stage => !!stage.completionDate);
+                    const projectStartDate = schedule.startDate ? new Date(`${schedule.startDate}T00:00:00`) : today;
+                    const hasStarted = projectStartDate <= today;
+
+                    if (hasStarted || hasCompletedStages) {
+                        status = 'Em Andamento';
+                    } else {
+                        status = 'No Prazo';
                     }
                 }
             }
@@ -66,9 +69,9 @@ const ProjectStatusChart: React.FC<{ contracts: Contract[], schedules: ProjectSc
         });
 
         return [
-            { name: 'No Prazo', value: statuses['No Prazo'], color: '#22c55e' }, // green-500
-            { name: 'Em Risco', value: statuses['Em Risco'], color: '#f97316' }, // orange-500
             { name: 'Atrasado', value: statuses['Atrasado'], color: '#ef4444' }, // red-500
+            { name: 'Em Andamento', value: statuses['Em Andamento'], color: '#facc15' }, // yellow-400
+            { name: 'No Prazo', value: statuses['No Prazo'], color: '#22c55e' }, // green-500
         ];
     }, [contracts, schedules]);
     
@@ -115,107 +118,6 @@ const ProjectStatusChart: React.FC<{ contracts: Contract[], schedules: ProjectSc
     );
 };
 
-
-const ProjectStageChart: React.FC<{
-  projectProgress: ProjectProgress[];
-  contracts: Contract[];
-}> = ({ projectProgress, contracts }) => {
-  const [filterStage, setFilterStage] = useState<string>('all');
-  const stageNames = GANTT_STAGES_CONFIG.map(s => s.name);
-
-  const filteredProjects = useMemo(() => {
-    const activeProjects = projectProgress.filter(p =>
-      contracts.some(c => c.id === p.contractId && c.status === 'Ativo')
-    );
-
-    if (filterStage === 'all') {
-      return activeProjects.filter(p => p.stages.some(s => s.status === 'in_progress'));
-    }
-
-    return activeProjects.filter(project =>
-      project.stages.some(stage => stage.name === filterStage && stage.status === 'in_progress')
-    );
-  }, [filterStage, projectProgress, contracts]);
-  
-  const gridColsTemplate = `minmax(120px, 1.5fr) repeat(${stageNames.length}, minmax(0, 2fr))`;
-
-  return (
-    <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-2 sm:mb-0">Posição dos Projetos por Etapa</h2>
-          <div className="flex items-center">
-              <label htmlFor="stage-filter" className="text-sm font-medium text-slate-600 mr-2 whitespace-nowrap">Filtrar por etapa em progresso:</label>
-              <select
-                  id="stage-filter"
-                  value={filterStage}
-                  onChange={(e) => setFilterStage(e.target.value)}
-                  className="rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-3 bg-white"
-              >
-                  <option value="all">Mostrar Tudo</option>
-                  {stageNames.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                  ))}
-              </select>
-          </div>
-      </div>
-      
-      <div className="grid gap-x-2 gap-y-1" style={{ gridTemplateColumns: gridColsTemplate }}>
-        {/* Header Row using 'contents' so its children are direct grid items */}
-        <div className="contents">
-          <div className="text-left text-sm font-semibold text-slate-800 pb-2 self-end">Cliente</div>
-          {stageNames.map(name => (
-            <div key={name} className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider pb-2">
-              {name}
-            </div>
-          ))}
-        </div>
-
-        {/* Separator */}
-        <div className="col-span-full border-b border-slate-200 mb-2" style={{ gridColumn: `1 / span ${stageNames.length + 1}` }}></div>
-
-
-        {/* Project Rows */}
-        {filteredProjects.map(project => (
-          <div key={project.contractId} className="contents">
-            <div className="text-sm font-medium text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis pr-2 self-center py-2">
-              {project.clientName}
-            </div>
-            {stageNames.map(stageName => {
-              const stage = project.stages.find(s => s.name === stageName);
-              
-              let barStyle = 'bg-slate-100'; // Pending
-              let title = `${stageName}: Pendente`;
-
-              if (stage) {
-                if (stage.status === 'completed') {
-                  barStyle = 'bg-green-500';
-                  title = `${stageName}: Concluído`;
-                } else if (stage.status === 'in_progress') {
-                  barStyle = 'bg-yellow-400';
-                  title = `${stageName}: Em Progresso`;
-                }
-              }
-              
-              return (
-                <div key={stageName} className="h-6 rounded my-1" title={title}>
-                   <div className={`h-full w-full rounded-sm ${barStyle} transition-colors duration-300`}></div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-        {filteredProjects.length === 0 && (
-            <div className="text-center text-slate-500 py-4 mt-2" style={{ gridColumn: `1 / span ${stageNames.length + 1}` }}>
-                {filterStage === 'all'
-                    ? 'Nenhum projeto em andamento para exibir.'
-                    : `Nenhum projeto ativo na etapa "${filterStage}".`
-                }
-            </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 const PaymentRegistration: React.FC<{
     installments: PaymentInstallment[];
@@ -367,21 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
     const attentionPoints: AttentionPoint[] = useMemo(() => {
         const points: AttentionPoint[] = [];
         
-        // 1. Overdue Installments
-        installments.forEach(inst => {
-            if (inst.status === 'Pendente' && new Date(inst.dueDate) < today) {
-                const diffTime = today.getTime() - new Date(inst.dueDate).getTime();
-                const daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                points.push({
-                    clientName: inst.clientName,
-                    description: `Parcela ${inst.installment} (${formatCurrency(inst.value)}) vencida há ${daysOverdue} dia(s).`,
-                    daysRemaining: -daysOverdue, // Negative for sorting
-                    type: 'payment',
-                });
-            }
-        });
-
-        // 2. Upcoming Stage Deadlines (next 7 days)
+        // Upcoming Stage Deadlines (next 7 days)
         schedules.forEach(schedule => {
             const contractIsActive = contracts.some(c => c.id === schedule.contractId && c.status === 'Ativo');
             if (!contractIsActive) return;
@@ -404,30 +292,43 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
                 }
             }
         });
+
+        return points.sort((a, b) => a.daysRemaining - b.daysRemaining);
+    }, [schedules, contracts]);
+
+    const financialAttentionPoints: AttentionPoint[] = useMemo(() => {
+        const points: AttentionPoint[] = [];
         
-        // 3. Upcoming Contract Expirations (next 30 days)
-        contracts.forEach(contract => {
-            if (contract.status === 'Ativo') {
-                const contractDate = new Date(contract.date);
-                const expirationDate = new Date(contractDate.setMonth(contractDate.getMonth() + contract.durationMonths));
-                expirationDate.setHours(0,0,0,0);
-                if(expirationDate >= today) {
-                    const diffTime = expirationDate.getTime() - today.getTime();
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    if (diffDays <= 30) {
-                        points.push({
-                            clientName: contract.clientName,
-                            description: `Contrato "${contract.projectName}" vence em ${diffDays} dia(s).`,
-                            daysRemaining: diffDays,
-                            type: 'contract',
-                        });
-                    }
+        installments.forEach(inst => {
+            if (inst.status === 'Pendente') {
+                const dueDate = new Date(inst.dueDate);
+                dueDate.setHours(0,0,0,0);
+                const diffTime = dueDate.getTime() - today.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                // Overdue
+                if (diffDays < 0) {
+                     points.push({
+                        clientName: inst.clientName,
+                        description: `Parcela ${inst.installment} (${formatCurrency(inst.value)}) vencida.`,
+                        daysRemaining: diffDays,
+                        type: 'payment',
+                    });
+                } 
+                // Upcoming (next 7 days)
+                else if (diffDays <= 7) {
+                    points.push({
+                        clientName: inst.clientName,
+                        description: `Parcela ${inst.installment} (${formatCurrency(inst.value)}) vence em ${diffDays} dia(s).`,
+                        daysRemaining: diffDays,
+                        type: 'payment',
+                    });
                 }
             }
         });
 
         return points.sort((a, b) => a.daysRemaining - b.daysRemaining);
-    }, [schedules, contracts, installments]);
+    }, [installments]);
     
     const { receivedThisMonth, receivedThisYear, toReceive } = useMemo(() => {
         const currentMonth = today.getMonth();
@@ -556,32 +457,40 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
           <h2 className="text-lg font-semibold text-slate-800">Status dos Projetos Ativos</h2>
           <ProjectStatusChart contracts={contracts} schedules={schedules} />
         </div>
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-lg font-semibold text-slate-800">Pontos de Atenção</h2>
+        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+          <h2 className="text-lg font-semibold text-slate-800">Prazos de Etapas</h2>
           <ul className="mt-4 space-y-4">
             {attentionPoints.length > 0 ? attentionPoints.map((point: AttentionPoint, index: number) => {
-              const getIconColor = () => {
-                 if (point.daysRemaining < 0) return 'bg-red-500'; // Overdue payment
-                 if (point.type === 'stage') return 'bg-orange-500';
-                 if (point.type === 'contract') return 'bg-yellow-500';
-                 return 'bg-slate-500';
-              }
+              const iconColor = 'bg-orange-500'; // For stages
               return (
               <li key={index} className="flex items-start">
-                <div className={`w-2.5 h-2.5 ${getIconColor()} rounded-full mt-1.5 mr-4 flex-shrink-0`}></div>
+                <div className={`w-2.5 h-2.5 ${iconColor} rounded-full mt-1.5 mr-4 flex-shrink-0`}></div>
                 <div>
                   <p className="font-semibold text-slate-700">{point.clientName}</p>
                   <p className="text-sm text-slate-500">{point.description}</p>
                 </div>
               </li>
               )
-            }) : <p className="text-sm text-slate-500">Nenhum ponto de atenção no momento.</p>}
+            }) : <p className="text-sm text-slate-500">Nenhum prazo próximo nos próximos 7 dias.</p>}
           </ul>
         </div>
-      </section>
-
-      <section>
-        <ProjectStageChart projectProgress={projectProgress} contracts={contracts} />
+        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+          <h2 className="text-lg font-semibold text-slate-800">Atenção Financeira</h2>
+          <ul className="mt-4 space-y-4">
+            {financialAttentionPoints.length > 0 ? financialAttentionPoints.map((point: AttentionPoint, index: number) => {
+              const iconColor = point.daysRemaining < 0 ? 'bg-red-500' : 'bg-amber-500';
+              return (
+              <li key={index} className="flex items-start">
+                <div className={`w-2.5 h-2.5 ${iconColor} rounded-full mt-1.5 mr-4 flex-shrink-0`}></div>
+                <div>
+                  <p className="font-semibold text-slate-700">{point.clientName}</p>
+                  <p className="text-sm text-slate-500">{point.description}</p>
+                </div>
+              </li>
+              )
+            }) : <p className="text-sm text-slate-500">Nenhum pagamento atrasado ou vencendo nos próximos 7 dias.</p>}
+          </ul>
+        </div>
       </section>
 
       <section className="bg-white p-6 rounded-xl shadow-lg">

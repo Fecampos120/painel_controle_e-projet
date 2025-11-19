@@ -1,203 +1,265 @@
 
 
-import React, { useState, useMemo } from 'react';
-import { Contract, Attachment } from '../types';
-import { PencilIcon, TrashIcon, PaperClipIcon, XIcon, DownloadIcon } from './Icons';
 
-interface AttachmentsModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    contract: Contract | null;
+
+import React, { useState, useMemo } from 'react';
+import { Contract, ProjectSchedule, Client } from '../types';
+import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
+
+// This is the new main component for this file, implementing the "Projetos" view.
+interface DisplayProject {
+    id: number;
+    projectName: string;
+    clientName: string;
+    clientLogoUrl?: string;
+    progress: number;
+    startDate: Date;
+    endDate: Date;
+    status: 'Em Andamento' | 'Atrasado' | 'Concluído' | 'Cancelado' | 'No Prazo';
+    isArchived: boolean;
+    originalContract: Contract;
 }
 
-const AttachmentsModal: React.FC<AttachmentsModalProps> = ({ isOpen, onClose, contract }) => {
-    if (!isOpen || !contract) return null;
+interface ProjectsProps {
+    contracts: Contract[];
+    schedules: ProjectSchedule[];
+    clients: Client[];
+    onEditContract: (contract: Contract) => void;
+    onDeleteContract: (id: number) => void;
+    onCreateProject: () => void;
+}
 
-    const attachmentCategories = [
-        { title: 'Contrato Assinado', files: contract.attachments?.signedContract || [] },
-        { title: 'Arquivos da Obra', files: contract.attachments?.workFiles || [] },
-        { title: 'Fotos do Local', files: contract.attachments?.sitePhotos || [] },
-    ].filter(cat => cat.files.length > 0);
-
+const StatusChip: React.FC<{ status: DisplayProject['status'] }> = ({ status }) => {
+    const styles = {
+        'Em Andamento': 'bg-yellow-100 text-yellow-800',
+        'Atrasado': 'bg-red-100 text-red-800',
+        'Concluído': 'bg-green-100 text-green-800',
+        'Cancelado': 'bg-slate-100 text-slate-800',
+        'No Prazo': 'bg-blue-100 text-blue-800',
+    };
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-                <div className="flex justify-between items-center p-4 border-b">
-                    <h3 className="text-lg font-semibold text-slate-800">Anexos - {contract.projectName}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600" aria-label="Fechar">
-                        <XIcon className="w-6 h-6" />
-                    </button>
+        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${styles[status] || styles['Cancelado']}`}>
+            {status}
+        </span>
+    );
+};
+
+const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEditContract, onDeleteContract, onCreateProject }) => {
+    const [activeTab, setActiveTab] = useState<'ativos' | 'arquivados'>('ativos');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const projectsPerPage = 8;
+
+    const displayProjects = useMemo((): DisplayProject[] => {
+        return contracts.map(contract => {
+            const schedule = schedules.find(s => s.contractId === contract.id);
+            const client = clients.find(c => c.name === contract.clientName);
+
+            let progress = 0;
+            let endDate: Date = new Date(contract.date);
+            let status: DisplayProject['status'] = 'No Prazo';
+            const isArchived = contract.status === 'Concluído' || contract.status === 'Cancelado';
+
+            if (schedule) {
+                const totalStages = schedule.stages.length;
+                const completedStages = schedule.stages.filter(s => s.completionDate).length;
+                progress = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
+                
+                if (schedule.stages.length > 0) {
+                     const lastStage = schedule.stages[schedule.stages.length - 1];
+                     if(lastStage.deadline) {
+                        endDate = new Date(`${lastStage.deadline}T00:00:00`);
+                     }
+                }
+
+                if (contract.status === 'Ativo') {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const isDelayed = schedule.stages.some(stage => !stage.completionDate && stage.deadline && new Date(`${stage.deadline}T00:00:00`) < today);
+                    if (isDelayed) {
+                        status = 'Atrasado';
+                    } else {
+                        status = 'Em Andamento';
+                    }
+                }
+            }
+
+            if (isArchived) {
+                status = contract.status;
+                if (status === 'Concluído') progress = 100;
+            }
+            
+            return {
+                id: contract.id,
+                projectName: contract.projectName,
+                clientName: contract.clientName,
+                clientLogoUrl: client?.logoUrl,
+                progress,
+                startDate: new Date(contract.date),
+                endDate,
+                status,
+                isArchived,
+                originalContract: contract,
+            };
+        }).sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+    }, [contracts, schedules, clients]);
+
+    const filteredProjects = useMemo(() => {
+        return displayProjects
+            .filter(p => (activeTab === 'ativos' ? !p.isArchived : p.isArchived))
+            .filter(p => 
+                p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.clientName.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+    }, [displayProjects, activeTab, searchTerm]);
+    
+    const totalPages = Math.ceil(filteredProjects.length / projectsPerPage);
+    const paginatedProjects = filteredProjects.slice((currentPage - 1) * projectsPerPage, currentPage * projectsPerPage);
+
+    const handlePageChange = (page: number) => {
+        if (page > 0 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+    
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-center">
+                <h1 className="text-3xl font-bold text-slate-800">Projetos</h1>
+                <button 
+                    onClick={onCreateProject}
+                    className="flex items-center justify-center px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                   <PlusIcon className="w-5 h-5 mr-2" />
+                   <span>CRIAR PROJETO</span>
+                </button>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 space-y-6">
+                <div>
+                    <div className="border-b border-slate-200">
+                        <nav className="-mb-px flex space-x-6">
+                            <button
+                                onClick={() => { setActiveTab('ativos'); setCurrentPage(1); }}
+                                className={`whitespace-nowrap pb-3 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                                    activeTab === 'ativos'
+                                        ? 'border-blue-600 text-blue-600'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Ativos
+                            </button>
+                            <button
+                                onClick={() => { setActiveTab('arquivados'); setCurrentPage(1); }}
+                                className={`whitespace-nowrap pb-3 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                                    activeTab === 'arquivados'
+                                        ? 'border-blue-600 text-blue-600'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                Arquivados
+                            </button>
+                        </nav>
+                    </div>
                 </div>
-                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                    {attachmentCategories.length > 0 ? (
-                        attachmentCategories.map(category => (
-                            <div key={category.title}>
-                                <h4 className="text-base font-semibold text-slate-700 mb-2">{category.title}</h4>
-                                <ul className="space-y-2">
-                                    {category.files.map((file, index) => (
-                                        <li key={index} className="flex items-center justify-between p-2 bg-slate-50 rounded-md">
-                                            <span className="text-sm text-slate-800 truncate" title={file.name}>{file.name}</span>
-                                            <a
-                                                href={file.content}
-                                                download={file.name}
-                                                className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
-                                            >
-                                                <DownloadIcon className="w-4 h-4 mr-1" />
-                                                Baixar
-                                            </a>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-slate-500 text-center py-4">Nenhum anexo encontrado para este contrato.</p>
+
+                <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                    <p className="text-sm text-slate-600 font-medium w-full sm:w-auto text-center sm:text-left">
+                        {filteredProjects.length} Resultados encontrados
+                    </p>
+                    <div className="flex items-center space-x-4">
+                        <div className="relative">
+                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input
+                                type="text"
+                                placeholder="Pesquisar projeto"
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                className="pl-10 pr-4 py-2 w-64 bg-white rounded-lg border border-slate-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[1024px]">
+                        <thead>
+                            <tr className="border-b-2 border-slate-200">
+                                <th className="p-3 text-sm font-semibold text-slate-500">PROJETO</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500">CLIENTE</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500">PROGRESSO</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500">ASSINATURA</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500">VENC. ENTRADA</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500">DATA DE ENTREGA</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500">STATUS</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500 text-right"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paginatedProjects.map(project => (
+                                <tr key={project.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50">
+                                    <td className="p-3 font-semibold text-slate-800">{project.projectName}</td>
+                                    <td className="p-3">
+                                        <div className="flex items-center space-x-3">
+                                            {project.clientLogoUrl ? 
+                                                <img src={project.clientLogoUrl} alt={project.clientName} className="w-7 h-7 rounded-full object-contain bg-white"/> :
+                                                <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">{project.clientName.charAt(0)}</div>
+                                            }
+                                            <span className="text-sm text-slate-700 font-medium">{project.clientName}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-3">
+                                        <div className="flex items-center space-x-3">
+                                            <div className="w-full bg-slate-200 rounded-full h-1.5">
+                                                <div className="bg-blue-600 h-1.5 rounded-full" style={{width: `${project.progress}%`}}></div>
+                                            </div>
+                                            <span className="text-sm font-medium text-slate-600 w-10 text-right">{project.progress}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-3 text-sm text-slate-600">{project.originalContract.date ? new Date(project.originalContract.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '-'}</td>
+                                    <td className="p-3 text-sm text-slate-600">{project.originalContract.downPaymentDate ? new Date(project.originalContract.downPaymentDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '-'}</td>
+                                    <td className="p-3 text-sm text-slate-600">{project.endDate.toLocaleDateString('pt-BR')}</td>
+                                    <td className="p-3"><StatusChip status={project.status} /></td>
+                                    <td className="p-3 text-right">
+                                        <div className="flex items-center justify-end space-x-1">
+                                            <button onClick={() => {}} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Visualizar"><EyeIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => onEditContract(project.originalContract)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Editar"><PencilIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => onDeleteContract(project.id)} className="p-2 text-slate-500 hover:text-red-600" aria-label="Excluir"><TrashIcon className="w-5 h-5" /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {paginatedProjects.length === 0 && (
+                        <div className="text-center py-10 text-slate-500">Nenhum projeto encontrado.</div>
                     )}
                 </div>
-                 <div className="flex justify-end p-4 bg-slate-50 rounded-b-lg">
-                    <button type="button" onClick={onClose} className="px-6 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50">Fechar</button>
-                </div>
+
+                {totalPages > 1 && (
+                    <div className="flex justify-center items-center space-x-2 pt-4">
+                        <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2 rounded-full disabled:opacity-50 text-slate-600 hover:bg-slate-100">
+                            <ChevronLeftIcon className="w-5 h-5" />
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                onClick={() => handlePageChange(page)}
+                                className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                                    currentPage === page ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="p-2 rounded-full disabled:opacity-50 text-slate-600 hover:bg-slate-100">
+                            <ChevronRightIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-
-interface ContractsProps {
-    contracts: Contract[];
-    onEditContract: (contract: Contract) => void;
-    onDeleteContract: (id: number) => void;
-}
-
-const Contracts: React.FC<ContractsProps> = ({ contracts, onEditContract, onDeleteContract }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [isAttachmentsModalOpen, setIsAttachmentsModalOpen] = useState(false);
-    const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
-
-    const filteredContracts = useMemo(() => {
-        if (!searchTerm) return contracts;
-        return contracts.filter(
-            contract =>
-                contract.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                contract.projectName.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [searchTerm, contracts]);
-    
-    const handleViewAttachments = (contract: Contract) => {
-        setSelectedContract(contract);
-        setIsAttachmentsModalOpen(true);
-    };
-
-    const getStatusChip = (status: Contract['status']) => {
-        switch (status) {
-            case 'Ativo':
-                return 'bg-blue-100 text-blue-800';
-            case 'Concluído':
-                return 'bg-green-100 text-green-800';
-            case 'Cancelado':
-                return 'bg-red-100 text-red-800';
-            default:
-                return 'bg-slate-100 text-slate-800';
-        }
-    };
-
-  return (
-    <div className="space-y-8">
-        <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-            <h1 className="text-3xl font-bold">Contratos</h1>
-            <p className="mt-1 text-blue-100">
-                Busque, visualize e gerencie todos os seus contratos.
-            </p>
-        </header>
-
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-            <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-slate-800">Todos os Contratos</h2>
-                 <div className="w-full max-w-sm">
-                    <input
-                        type="text"
-                        placeholder="Buscar por cliente ou projeto..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
-                    />
-                </div>
-            </div>
-            
-            <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead className="border-b border-slate-200">
-                    <tr>
-                        <th className="p-3 text-sm font-semibold text-slate-500">Cliente</th>
-                        <th className="p-3 text-sm font-semibold text-slate-500">Projeto</th>
-                        <th className="p-3 text-sm font-semibold text-slate-500">Data</th>
-                        <th className="p-3 text-sm font-semibold text-slate-500">Valor Total</th>
-                        <th className="p-3 text-sm font-semibold text-slate-500">Anexos</th>
-                        <th className="p-3 text-sm font-semibold text-slate-500">Status</th>
-                        <th className="p-3 text-sm font-semibold text-slate-500 text-right">Ações</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {filteredContracts.map((contract: Contract) => {
-                        const totalFiles = (contract.attachments?.signedContract?.length || 0) +
-                                           (contract.attachments?.workFiles?.length || 0) +
-                                           (contract.attachments?.sitePhotos?.length || 0);
-                        return (
-                        <tr key={contract.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50">
-                            <td className="p-3 font-medium text-slate-800">{contract.clientName}</td>
-                            <td className="p-3 text-slate-600">{contract.projectName}</td>
-                            <td className="p-3 text-slate-600">{new Date(contract.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
-                            <td className="p-3 text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.totalValue)}</td>
-                            <td className="p-3">
-                                {totalFiles > 0 ? (
-                                    <button onClick={() => handleViewAttachments(contract)} className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                        <PaperClipIcon className="w-4 h-4 mr-1" />
-                                        ({totalFiles})
-                                    </button>
-                                ) : (
-                                    <span className="text-slate-400 text-sm">-</span>
-                                )}
-                            </td>
-                            <td className="p-3">
-                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusChip(contract.status)}`}>
-                                    {contract.status}
-                                </span>
-                            </td>
-                            <td className="p-3 text-right">
-                                <button onClick={() => onEditContract(contract)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Editar">
-                                    <PencilIcon className="w-5 h-5" />
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (window.confirm('Tem certeza que deseja excluir este contrato? Esta ação também excluirá parcelas e cronogramas associados.')) {
-                                            onDeleteContract(contract.id);
-                                        }
-                                    }}
-                                    className="p-2 text-slate-500 hover:text-red-600"
-                                    aria-label="Deletar"
-                                >
-                                    <TrashIcon className="w-5 h-5" />
-                                </button>
-                            </td>
-                        </tr>
-                        );
-                    })}
-                    </tbody>
-                </table>
-                 {filteredContracts.length === 0 && (
-                    <div className="text-center py-6 text-slate-500">
-                        Nenhum contrato encontrado.
-                    </div>
-                )}
-            </div>
-        </div>
-        <AttachmentsModal
-            isOpen={isAttachmentsModalOpen}
-            onClose={() => setIsAttachmentsModalOpen(false)}
-            contract={selectedContract}
-        />
-    </div>
-  );
-};
-
-export default Contracts;
+export default Projects;

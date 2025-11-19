@@ -1,11 +1,13 @@
 
+
 import React, { useState, useMemo } from 'react';
-import { Partner, Address } from '../types';
+import { Partner, Address, Client } from '../types';
 import { PARTNER_TYPES } from '../constants';
 import { UsersIcon, PencilIcon, TrashIcon } from './Icons';
 
 interface PartnersProps {
     partners: Partner[];
+    clients: Client[];
     onAddPartner: (partner: Omit<Partner, 'id'>) => void;
     onUpdatePartner: (partner: Partner) => void;
     onDeletePartner: (id: number) => void;
@@ -17,10 +19,11 @@ const emptyPartner: Omit<Partner, 'id'> = {
     contactPerson: '',
     phone: '',
     email: '',
-    address: { street: '', number: '', complement: '', district: '', city: '', state: '', cep: '' }
+    address: { street: '', number: '', complement: '', district: '', city: '', state: '', cep: '' },
+    clientIds: []
 };
 
-const Partners: React.FC<PartnersProps> = ({ partners, onAddPartner, onUpdatePartner, onDeletePartner }) => {
+const Partners: React.FC<PartnersProps> = ({ partners, clients, onAddPartner, onUpdatePartner, onDeletePartner }) => {
     const [isFormVisible, setIsFormVisible] = useState(false);
     const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
     const [formData, setFormData] = useState<Omit<Partner, 'id'> | Partner>(emptyPartner);
@@ -47,6 +50,15 @@ const Partners: React.FC<PartnersProps> = ({ partners, onAddPartner, onUpdatePar
         }));
     };
     
+    const handleMultiSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        // Fix: Explicitly type `option` as `HTMLOptionElement` to prevent TypeScript from inferring it as `unknown`.
+        const selectedOptions = Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => Number(option.value));
+        setFormData(prev => ({
+            ...prev,
+            clientIds: selectedOptions
+        }));
+    };
+
     const handleEdit = (partner: Partner) => {
         setEditingPartner(partner);
         setFormData(partner);
@@ -115,6 +127,22 @@ const Partners: React.FC<PartnersProps> = ({ partners, onAddPartner, onUpdatePar
                                     <label htmlFor="email" className="block text-sm font-medium text-slate-600">E-mail</label>
                                     <input type="email" name="email" id="email" value={formData.email || ''} onChange={handleInputChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
                                 </div>
+                                <div className="md:col-span-3">
+                                    <label htmlFor="clientIds" className="block text-sm font-medium text-slate-600">Clientes Associados</label>
+                                    <select 
+                                        multiple 
+                                        name="clientIds" 
+                                        id="clientIds" 
+                                        value={formData.clientIds?.map(String) || []} 
+                                        onChange={handleMultiSelectChange} 
+                                        className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-32"
+                                    >
+                                        {clients.map(client => (
+                                            <option key={client.id} value={client.id}>{client.name}</option>
+                                        ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-slate-500">Segure Ctrl (ou Cmd em Mac) para selecionar múltiplos clientes.</p>
+                                </div>
                             </div>
                         </div>
                          <div className="border-b border-slate-200 pb-6">
@@ -180,6 +208,21 @@ const Partners: React.FC<PartnersProps> = ({ partners, onAddPartner, onUpdatePar
                                     {partner.contactPerson && <span>Contato: {partner.contactPerson}</span>}
                                     {partner.phone && <span>Tel: {partner.phone}</span>}
                                 </div>
+                                {partner.clientIds && partner.clientIds.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-slate-200">
+                                        <p className="text-xs font-semibold text-slate-600">Atuando nos projetos de:</p>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {partner.clientIds.map(clientId => {
+                                                const client = clients.find(c => c.id === clientId);
+                                                return client ? (
+                                                    <span key={clientId} className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
+                                                        {client.name}
+                                                    </span>
+                                                ) : null;
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="flex-shrink-0 flex items-center space-x-2">
                                 <button onClick={() => handleEdit(partner)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Editar">

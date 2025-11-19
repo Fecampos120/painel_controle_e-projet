@@ -22,6 +22,7 @@ export interface Partner {
     phone?: string;
     email?: string;
     address?: Address;
+    clientIds?: number[];
 }
 
 
@@ -45,11 +46,12 @@ export interface AppData {
 export interface Client {
   id: number;
   name: string;
+  logoUrl?: string;
 }
 
 export enum ProjectStatus {
   OnTime = 'No Prazo',
-  AtRisk = 'Em Risco',
+  InProgress = 'Em Andamento',
   Delayed = 'Atrasado',
 }
 
@@ -171,6 +173,7 @@ export interface GanttStage {
   startDate: Date;
   endDate: Date;
   status: 'completed' | 'in_progress' | 'pending';
+  progress: number; // Percentage 0-100
 }
 
 export interface GanttProject {
@@ -178,6 +181,8 @@ export interface GanttProject {
   projectName: string;
   clientName: string;
   stages: GanttStage[];
+  schedule: ProjectSchedule; // Include original schedule for editing
+  daysRemaining?: number;
 }
 
 export interface ServicePrice {

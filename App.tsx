@@ -1,5 +1,11 @@
 
 
+
+
+
+
+
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   DashboardIcon, 
@@ -173,8 +179,42 @@ const generateProjectProgressFromSchedule = (schedule: ProjectSchedule): Project
     };
 };
 
+// Recalculates all stage dates based on dependencies, preserving completion status.
+const recalculateScheduleStages = (stages: ProjectStage[], projectStartDate: string): ProjectStage[] => {
+    if (!projectStartDate) return stages;
 
-// Main function to generate all dependent data for a contract
+    const calculatedStages: ProjectStage[] = [];
+    let lastDate = new Date(projectStartDate);
+    // Adjust for timezone offset from date input
+    lastDate.setMinutes(lastDate.getMinutes() + lastDate.getTimezoneOffset());
+
+    stages.forEach((stage, index) => {
+        let currentStageStartDate: Date;
+
+        if (index > 0) {
+            const prevStage = calculatedStages[index - 1];
+            const prevStageEndDate = prevStage.completionDate ? new Date(prevStage.completionDate) : new Date(prevStage.deadline!);
+             // Adjust for timezone offset
+            prevStageEndDate.setMinutes(prevStageEndDate.getMinutes() + prevStageEndDate.getTimezoneOffset());
+            currentStageStartDate = addWorkDays(prevStageEndDate, 1);
+        } else {
+            currentStageStartDate = new Date(lastDate);
+        }
+        
+        const duration = Math.max(0, stage.durationWorkDays > 0 ? stage.durationWorkDays - 1 : 0);
+        const deadline = addWorkDays(new Date(currentStageStartDate), duration);
+
+        calculatedStages.push({
+            ...stage,
+            startDate: currentStageStartDate.toISOString().split('T')[0],
+            deadline: deadline.toISOString().split('T')[0],
+        });
+    });
+    return calculatedStages;
+};
+
+
+// Main function to generate all dependent data for a new contract
 const generateDependentData = (contract: Contract, projectStagesTemplate: ProjectStageTemplateItem[]) => {
     // 1. Generate Installments
     const newInstallments: PaymentInstallment[] = [];
@@ -187,8 +227,7 @@ const generateDependentData = (contract: Contract, projectStagesTemplate: Projec
             installment: 'Entrada',
             dueDate: contract.downPaymentDate,
             value: contract.downPayment,
-            status: 'Pago em dia',
-            paymentDate: contract.downPaymentDate,
+            status: 'Pendente', // Alterado para Pendente conforme solicitação
         });
     }
 
@@ -246,7 +285,7 @@ export default function App() {
     }
   }, [appData]);
 
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>('contracts');
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
 
   const handleAddContract = (newContract: Omit<Contract, 'id'>) => {
@@ -267,11 +306,74 @@ export default function App() {
             ? prev.clients 
             : [{ id: Date.now() + 1, name: contractWithId.clientName }, ...prev.clients]
     }));
-    setView('dashboard');
+    setView('contracts');
   };
   
   const handleUpdateContract = (updatedContract: Contract) => {
-     const { newInstallments, newSchedule, newProgress } = generateDependentData(updatedContract, appData.projectStagesTemplate);
+    // Regenerate installments based on new contract data.
+    const newInstallments: PaymentInstallment[] = [];
+    if (updatedContract.downPayment > 0) {
+        // Check if there was an existing down payment installment that was paid
+        const existingDownPayment = appData.installments.find(i => i.contractId === updatedContract.id && i.installment === 'Entrada');
+        const isPaid = existingDownPayment?.status.includes('Pago');
+
+        newInstallments.push({
+            id: Date.now(),
+            contractId: updatedContract.id,
+            clientName: updatedContract.clientName,
+            projectName: updatedContract.projectName,
+            installment: 'Entrada',
+            dueDate: updatedContract.downPaymentDate,
+            value: updatedContract.downPayment,
+            status: isPaid ? existingDownPayment.status : 'Pendente', // Keep status if paid, otherwise pending
+            paymentDate: isPaid ? existingDownPayment.paymentDate : undefined,
+        });
+    }
+
+    if (updatedContract.installments > 0 && updatedContract.firstInstallmentDate) {
+        const firstDate = new Date(updatedContract.firstInstallmentDate);
+        // Preserve status of existing installments if possible (simplified logic: regenerate pending ones mostly)
+        // For simplicity in this update logic, we regenerate but could check previous IDs if needed. 
+        // Here we will reset installments to match new contract terms.
+        for (let i = 0; i < updatedContract.installments; i++) {
+            const dueDate = new Date(firstDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
+            newInstallments.push({
+                id: Date.now() + i + 1,
+                contractId: updatedContract.id,
+                clientName: updatedContract.clientName,
+                projectName: updatedContract.projectName,
+                installment: `${i + 1}/${updatedContract.installments}`,
+                dueDate: dueDate,
+                value: updatedContract.installmentValue,
+                status: 'Pendente',
+            });
+        }
+    }
+
+    // Find the existing schedule to preserve its stage data (like completion status).
+    const existingSchedule = appData.schedules.find(s => s.contractId === updatedContract.id);
+    
+    // If a schedule exists, use its stages as the base. Otherwise, create from template.
+    // This ensures we don't lose progress.
+    const baseStages = existingSchedule 
+        ? existingSchedule.stages 
+        : createScheduleStages(appData.projectStagesTemplate, new Date(updatedContract.date).toISOString());
+    
+    // Recalculate dates based on the contract's start date, preserving completion data.
+    const updatedStages = recalculateScheduleStages(baseStages, new Date(updatedContract.date).toISOString().split('T')[0]);
+
+    const newSchedule: ProjectSchedule = {
+        id: existingSchedule ? existingSchedule.id : Date.now(), // Preserve ID if it exists
+        contractId: updatedContract.id,
+        clientName: updatedContract.clientName,
+        projectName: updatedContract.projectName,
+        startDate: new Date(updatedContract.date).toISOString().split('T')[0],
+        stages: updatedStages,
+    };
+
+    // Regenerate the high-level progress view from the updated, detailed schedule.
+    const newProgress = generateProjectProgressFromSchedule(newSchedule);
     
     setAppData(prev => ({
         ...prev,
@@ -336,6 +438,11 @@ export default function App() {
     setEditingContract(contract);
     setView('new-contract');
   };
+  
+  const handleCreateProject = () => {
+      setEditingContract(null);
+      setView('new-contract');
+  }
 
   const handleAddOtherPayment = (newPayment: Omit<OtherPayment, 'id'>) => {
     const paymentWithId: OtherPayment = {
@@ -393,8 +500,11 @@ export default function App() {
       case 'contracts':
         return <Contracts 
                     contracts={appData.contracts}
+                    schedules={appData.schedules}
+                    clients={appData.clients}
                     onEditContract={handleStartEditContract}
                     onDeleteContract={handleDeleteContract}
+                    onCreateProject={handleCreateProject}
                 />;
       case 'new-contract':
         return <NewContract 
@@ -409,7 +519,6 @@ export default function App() {
                   schedules={appData.schedules}
                   setSchedules={(newSchedules) => setAppData(prev => ({...prev, schedules: newSchedules}))}
                   contracts={appData.contracts}
-                  projectStagesTemplate={appData.projectStagesTemplate}
                 />;
       case 'projections':
         return <Projections installments={appData.installments} otherPayments={appData.otherPayments} />;
@@ -426,6 +535,7 @@ export default function App() {
        case 'partners':
         return <Partners 
                   partners={appData.partners}
+                  clients={appData.clients}
                   onAddPartner={handleAddPartner}
                   onUpdatePartner={handleUpdatePartner}
                   onDeletePartner={handleDeletePartner}
@@ -479,7 +589,7 @@ export default function App() {
                 />
                 <NavItem
                   icon={<FileTextIcon className="w-5 h-5" />}
-                  label="Contratos"
+                  label="Projetos"
                   isActive={view === 'contracts'}
                   onClick={() => setView('contracts')}
                 />

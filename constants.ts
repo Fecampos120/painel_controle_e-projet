@@ -1,4 +1,4 @@
-import { Client, PaymentInstallment, AttentionPoint, Reminder, Contract, ProjectProgress, Address, ProjectSchedule, ServicePrice, PriceTier, ProjectStageTemplateItem, OtherPayment, ProjectStage, Partner } from './types';
+import { Client, PaymentInstallment, AttentionPoint, Reminder, Contract, ProjectProgress, Address, ProjectSchedule, ServicePrice, PriceTier, ProjectStageTemplateItem, OtherPayment, ProjectStage, Partner, StageProgress } from './types';
 
 export const CLIENTS: Client[] = [];
 
@@ -6,11 +6,8 @@ export const MOCK_ATTENTION_POINTS: AttentionPoint[] = [];
 
 export const MOCK_REMINDERS: Reminder[] = [];
 
-const MOCK_ADDRESS: Address = { street: '', number: '', district: '', city: '', state: '', cep: '' };
+const MOCK_ADDRESS: Address = { street: 'Rua Fictícia', number: '123', district: 'Centro', city: 'São Paulo', state: 'SP', cep: '01000-000' };
 
-export const MOCK_CONTRACTS: Contract[] = [];
-
-export const INITIAL_INSTALLMENTS: PaymentInstallment[] = [];
 
 export const MOCK_OTHER_PAYMENTS: OtherPayment[] = [];
 
@@ -107,6 +104,9 @@ const createScheduleStages = (template: ProjectStageTemplateItem[], startDateStr
 
 export const MOCK_PROJECT_SCHEDULES: ProjectSchedule[] = [];
 
+export const MOCK_CONTRACTS: Contract[] = [];
+
+export const INITIAL_INSTALLMENTS: PaymentInstallment[] = [];
 
 export const GANTT_STAGES_CONFIG: { name: string, duration: number }[] = [
     { name: 'Briefing', duration: 3 },
@@ -116,8 +116,54 @@ export const GANTT_STAGES_CONFIG: { name: string, duration: number }[] = [
     { name: 'Entrega', duration: 2 },
 ];
 
+// Helper to generate project progress from a schedule
+const generateProjectProgressFromSchedule = (schedule: ProjectSchedule): ProjectProgress => {
+    const stageMapping: { [key: string]: string[] } = {
+        'Briefing': ['Reunião de Briefing', 'Medição'],
+        'Layout': ['Apresentação do Layout Planta Baixa', 'Revisão 01 (Planta Baixa)', 'Revisão 02 (Planta Baixa)', 'Revisão 03 (Planta Baixa)'],
+        '3D': ['Apresentação de 3D', 'Revisão 01 (3D)', 'Revisão 02 (3D)', 'Revisão 03 (3D)'],
+        'Executivo': ['Executivo'],
+        'Entrega': ['Entrega'],
+    };
 
-export const MOCK_PROJECT_PROGRESS: ProjectProgress[] = [];
+    const progressStages: StageProgress[] = GANTT_STAGES_CONFIG.map(ganttStage => {
+        const detailedStageNames = stageMapping[ganttStage.name] || [];
+        const relevantDetailedStages = schedule.stages.filter(s => detailedStageNames.includes(s.name));
+        
+        if (relevantDetailedStages.length === 0) {
+            return { name: ganttStage.name, status: 'pending' };
+        }
+
+        const completedCount = relevantDetailedStages.filter(s => s.completionDate).length;
+        
+        let status: 'completed' | 'in_progress' | 'pending';
+        if (completedCount === relevantDetailedStages.length) {
+            status = 'completed';
+        } else if (completedCount > 0) {
+            status = 'in_progress';
+        } else {
+            const firstStageOfGroup = relevantDetailedStages[0];
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const stageStartDate = firstStageOfGroup.startDate ? new Date(firstStageOfGroup.startDate) : null;
+            if(stageStartDate && stageStartDate <= today){
+                status = 'in_progress';
+            } else {
+                status = 'pending';
+            }
+        }
+        return { name: ganttStage.name, status };
+    });
+
+    return {
+        contractId: schedule.contractId,
+        projectName: schedule.projectName,
+        clientName: schedule.clientName,
+        stages: progressStages,
+    };
+};
+
+export const MOCK_PROJECT_PROGRESS: ProjectProgress[] = MOCK_PROJECT_SCHEDULES.map(generateProjectProgressFromSchedule);
 
 export const MOCK_SERVICE_PRICES: ServicePrice[] = [
     { id: 1, name: 'Arquitetônico', unit: 'm²' },

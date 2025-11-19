@@ -1,40 +1,46 @@
+// Fix: Import `useEffect` from react to resolve 'Cannot find name' error.
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { ProjectStage, ProjectSchedule, Contract, GanttProject, GanttStage } from '../types';
+import { GANTT_STAGES_CONFIG } from '../constants';
+import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { CLIENTS } from '../constants';
-import { ProjectStage, ProjectSchedule, Contract, ProjectStageTemplateItem } from '../types';
-import { PencilIcon } from './Icons';
 
-type View = 'list' | 'edit';
-
+// Helper function to add working days to a date, skipping weekends.
 const addWorkDays = (startDate: Date, days: number): Date => {
-    const newDate = new Date(startDate);
-    let dayOfWeek = newDate.getDay();
-    if (dayOfWeek === 6) { newDate.setDate(newDate.getDate() + 2); } 
-    else if (dayOfWeek === 0) { newDate.setDate(newDate.getDate() + 1); }
-    
+    const newDate = new Date(startDate.valueOf());
     let addedDays = 0;
     while (addedDays < days) {
         newDate.setDate(newDate.getDate() + 1);
-        dayOfWeek = newDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { addedDays++; }
+        const dayOfWeek = newDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Sunday, 6 = Saturday
+            addedDays++;
+        }
     }
     return newDate;
 };
 
-const formatDate = (date: Date | string | undefined): string => {
-    if(!date) return '--/--/----';
-    const d = typeof date === 'string' ? new Date(date) : date;
-    const adjustedDate = new Date(d.valueOf() + d.getTimezoneOffset() * 60000);
-    return new Intl.DateTimeFormat('pt-BR').format(adjustedDate);
+// Formats a date string (YYYY-MM-DD) to DD/MM/YYYY for display.
+const formatDateForDisplay = (dateString: string | undefined | Date): string => {
+    if (!dateString) return '--/--/----';
+    const date = typeof dateString === 'string' ? new Date(`${dateString}T00:00:00`) : dateString;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
 };
 
+
+// Determines the status chip for a given stage.
 const getStatus = (stage: ProjectStage) => {
     if (stage.completionDate) {
         return <span className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">Concluído</span>;
     }
     if (stage.deadline) {
-        const today = new Date(); today.setHours(0,0,0,0);
-        const deadline = new Date(stage.deadline); deadline.setHours(0,0,0,0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const deadline = new Date(stage.deadline);
+        // Adjust for timezone when comparing dates from inputs
+        deadline.setMinutes(deadline.getMinutes() + deadline.getTimezoneOffset());
         if (deadline < today) {
             return <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">Atrasado</span>;
         }
@@ -42,6 +48,8 @@ const getStatus = (stage: ProjectStage) => {
     return <span className="px-2 py-1 text-xs font-medium text-slate-800 bg-slate-100 rounded-full">Pendente</span>;
 };
 
+
+// The main component for editing a single project schedule.
 const ScheduleEditor: React.FC<{
     schedule: ProjectSchedule;
     onSave: (schedule: ProjectSchedule) => void;
@@ -49,29 +57,29 @@ const ScheduleEditor: React.FC<{
 }> = ({ schedule: initialSchedule, onSave, onCancel }) => {
     const [schedule, setSchedule] = useState<ProjectSchedule>(initialSchedule);
 
-    const calculateDeadlines = useCallback((stagesToUpdate: ProjectStage[], startDateString: string): ProjectStage[] => {
-        if (!startDateString) return stagesToUpdate.map(s => ({ ...s, startDate: undefined, deadline: undefined }));
+    // Core function to recalculate all stage dates based on dependencies.
+    const runRecalculation = useCallback((stages: ProjectStage[], projectStartDate: string): ProjectStage[] => {
+        if (!projectStartDate) return stages;
 
         const calculatedStages: ProjectStage[] = [];
-        let projectStartDateObj = new Date(startDateString);
+        let lastDate = new Date(projectStartDate);
+        // Adjust for timezone offset from date input
+        lastDate.setMinutes(lastDate.getMinutes() + lastDate.getTimezoneOffset());
 
-        let dayOfWeek = projectStartDateObj.getDay();
-        while (dayOfWeek === 0 || dayOfWeek === 6) { 
-            projectStartDateObj.setDate(projectStartDateObj.getDate() + 1);
-            dayOfWeek = projectStartDateObj.getDay();
-        }
-
-        stagesToUpdate.forEach((stage, index) => {
+        stages.forEach((stage, index) => {
             let currentStageStartDate: Date;
+
             if (index > 0) {
                 const prevStage = calculatedStages[index - 1];
                 const prevStageEndDate = prevStage.completionDate ? new Date(prevStage.completionDate) : new Date(prevStage.deadline!);
+                 // Adjust for timezone offset
+                prevStageEndDate.setMinutes(prevStageEndDate.getMinutes() + prevStageEndDate.getTimezoneOffset());
                 currentStageStartDate = addWorkDays(prevStageEndDate, 1);
             } else {
-                currentStageStartDate = new Date(projectStartDateObj);
+                currentStageStartDate = new Date(lastDate);
             }
-            
-            const duration = Math.max(0, stage.durationWorkDays - 1);
+
+            const duration = Math.max(0, stage.durationWorkDays > 0 ? stage.durationWorkDays - 1 : 0);
             const deadline = addWorkDays(new Date(currentStageStartDate), duration);
 
             calculatedStages.push({
@@ -82,63 +90,103 @@ const ScheduleEditor: React.FC<{
         });
         return calculatedStages;
     }, []);
-
-    useEffect(() => {
-        setSchedule(prev => ({...prev, stages: calculateDeadlines(prev.stages, prev.startDate)}));
-    }, [schedule.startDate, calculateDeadlines]);
-
-    const handleDurationChange = (stageId: number, newDurationStr: string) => {
-        const newDuration = parseInt(newDurationStr, 10);
-        const updatedStages = schedule.stages.map(s => 
-            s.id === stageId ? { ...s, durationWorkDays: isNaN(newDuration) || newDuration < 0 ? 0 : newDuration } : s
-        );
-        setSchedule(prev => ({...prev, stages: calculateDeadlines(updatedStages, prev.startDate)}));
+    
+     // Recalculate everything when the main project start date changes.
+    const handleProjectStartDateChange = (newStartDate: string) => {
+        setSchedule(prev => {
+            const recalculatedStages = runRecalculation(prev.stages, newStartDate);
+            return { ...prev, startDate: newStartDate, stages: recalculatedStages };
+        });
     };
 
-    const handleToggleCompletion = (stageId: number) => {
-        const today = new Date().toISOString().split('T')[0];
-        const updatedStages = schedule.stages.map(s => 
-            s.id === stageId ? { ...s, completionDate: s.completionDate ? undefined : today } : s
+    // Generic handler for changes to any field within a stage.
+    const handleStageChange = (stageId: number, field: keyof ProjectStage, value: any) => {
+        const updatedStages = schedule.stages.map(s =>
+            s.id === stageId ? { ...s, [field]: value } : s
         );
-        setSchedule(prev => ({...prev, stages: calculateDeadlines(updatedStages, prev.startDate)}));
+        const finalStages = runRecalculation(updatedStages, schedule.startDate);
+        setSchedule(prev => ({ ...prev, stages: finalStages }));
+    };
+    
+    // Specific handler for the completion checkbox.
+    const handleToggleCompletion = (stageId: number, isChecked: boolean) => {
+        const completionDate = isChecked ? new Date().toISOString().split('T')[0] : undefined;
+        handleStageChange(stageId, 'completionDate', completionDate);
     };
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-            <div className="flex justify-between items-center mb-4">
-                 <h2 className="text-lg font-semibold text-slate-800">Cronograma do Projeto: {schedule.projectName}</h2>
+        <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                 <h2 className="text-xl font-semibold text-slate-800 mb-4 sm:mb-0">Cronograma do Projeto: <span className="font-bold text-blue-600">{schedule.projectName}</span></h2>
                  <div className="flex items-center space-x-4">
-                    <button onClick={onCancel} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
-                    <button onClick={() => onSave(schedule)} className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">Salvar</button>
+                    <button onClick={onCancel} className="px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">Cancelar</button>
+                    <button onClick={() => onSave(schedule)} className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors">Salvar</button>
                  </div>
             </div>
+             <div className="mb-6 max-w-xs">
+                <label htmlFor="project-start-date" className="block text-sm font-medium text-slate-700">Data de Início Geral do Projeto</label>
+                <input
+                    type="date"
+                    id="project-start-date"
+                    value={schedule.startDate || ''}
+                    onChange={(e) => handleProjectStartDateChange(e.target.value)}
+                    className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
+                />
+            </div>
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-left table-auto">
-                <thead className="border-b border-slate-200">
+              <table className="w-full text-left table-fixed min-w-[1200px]">
+                <thead className="border-b-2 border-slate-200">
                   <tr>
-                    <th className="p-3 text-sm font-semibold text-slate-500 w-2/5">Etapa</th>
-                    <th className="p-3 text-sm font-semibold text-slate-500">Duração (dias)</th>
-                    <th className="p-3 text-sm font-semibold text-slate-500">Início Previsto</th>
-                    <th className="p-3 text-sm font-semibold text-slate-500">Prazo Final</th>
-                    <th className="p-3 text-sm font-semibold text-slate-500 text-center">Concluído</th>
-                    <th className="p-3 text-sm font-semibold text-slate-500">Data de Conclusão</th>
-                    <th className="p-3 text-sm font-semibold text-slate-500">Status</th>
+                    <th className="p-3 text-sm font-semibold text-slate-500 w-[25%]">Etapa</th>
+                    <th className="p-3 text-sm font-semibold text-slate-500 w-[100px] text-center">Duração (dias)</th>
+                    <th className="p-3 text-sm font-semibold text-slate-500 w-[160px]">Início Previsto</th>
+                    <th className="p-3 text-sm font-semibold text-slate-500 w-[160px]">Prazo Final</th>
+                    <th className="p-3 text-sm font-semibold text-slate-500 w-[100px] text-center">Concluído</th>
+                    <th className="p-3 text-sm font-semibold text-slate-500 w-[160px]">Data de Conclusão</th>
+                    <th className="p-3 text-sm font-semibold text-slate-500 w-[120px]">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {schedule.stages.map((stage) => (
-                    <tr key={stage.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50">
-                      <td className="p-3 font-medium text-slate-800">{stage.name}</td>
-                      <td className="p-3">
-                         <input type="number" value={stage.durationWorkDays} onChange={(e) => handleDurationChange(stage.id, e.target.value)} className="block w-20 rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-2 text-center" min="0"/>
+                    <tr key={stage.id} className="border-b border-slate-100 last:border-b-0">
+                      <td className="p-3 font-medium text-slate-800 align-middle">{stage.name}</td>
+                      <td className="p-3 align-middle">
+                         <input 
+                            type="number" 
+                            value={stage.durationWorkDays} 
+                            onChange={(e) => handleStageChange(stage.id, 'durationWorkDays', e.target.value === '' ? 0 : parseInt(e.target.value, 10))} 
+                            className="block w-20 mx-auto rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-2 text-center" 
+                            min="0"
+                         />
                       </td>
-                      <td className="p-3 text-slate-600 whitespace-nowrap">{formatDate(stage.startDate)}</td>
-                      <td className="p-3 text-slate-600 whitespace-nowrap">{formatDate(stage.deadline)}</td>
-                      <td className="p-3 text-center">
-                        <input type="checkbox" checked={!!stage.completionDate} onChange={() => handleToggleCompletion(stage.id)} className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"/>
+                      <td className="p-3 text-slate-600 whitespace-nowrap align-middle">
+                        <input
+                            type="date"
+                            value={stage.startDate || ''}
+                            onChange={(e) => handleStageChange(stage.id, 'startDate', e.target.value)}
+                            className="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-2"
+                        />
                       </td>
-                      <td className="p-3 text-slate-600 whitespace-nowrap">{stage.completionDate ? formatDate(stage.completionDate) : '--/--/----'}</td>
-                      <td className="p-3">{getStatus(stage)}</td>
+                      <td className="p-3 text-slate-600 whitespace-nowrap align-middle font-medium">
+                        {formatDateForDisplay(stage.deadline)}
+                      </td>
+                      <td className="p-3 text-center align-middle">
+                        <input 
+                            type="checkbox" 
+                            checked={!!stage.completionDate} 
+                            onChange={(e) => handleToggleCompletion(stage.id, e.target.checked)} 
+                            className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="p-3 text-slate-600 whitespace-nowrap align-middle">
+                         <input
+                            type="date"
+                            value={stage.completionDate || ''}
+                            onChange={(e) => handleStageChange(stage.id, 'completionDate', e.target.value)}
+                            className="block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-2"
+                        />
+                      </td>
+                      <td className="p-3 align-middle">{getStatus(stage)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -152,121 +200,440 @@ interface ProgressProps {
     schedules: ProjectSchedule[];
     setSchedules: (schedules: ProjectSchedule[]) => void;
     contracts: Contract[];
-    projectStagesTemplate: ProjectStageTemplateItem[];
 }
 
-const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts, projectStagesTemplate }) => {
-    const [view, setView] = useState<View>('list');
-    const [currentSchedule, setCurrentSchedule] = useState<ProjectSchedule | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [newScheduleContractId, setNewScheduleContractId] = useState<string>('');
-    const [newScheduleStartDate, setNewScheduleStartDate] = useState<string>('');
+interface PlannerTask {
+    clientName: string;
+    stageName: string;
+    status: 'completed' | 'late' | 'on_time';
+}
 
-    const filteredSchedules = useMemo(() => {
-        return schedules.filter(s => s.projectName.toLowerCase().includes(searchTerm.toLowerCase()) || s.clientName.toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [schedules, searchTerm]);
+const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts }) => {
+    type Mode = 'gantt' | 'edit' | 'planner';
+    type DeadlineFilter = 'all' | 'expiring' | 'late';
+    
+    const [mode, setMode] = useState<Mode>('planner');
+    const [currentSchedule, setCurrentSchedule] = useState<ProjectSchedule | null>(null);
+    const [filterStage, setFilterStage] = useState<string>('all');
+    const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('all');
+    
+    const [plannerDate, setPlannerDate] = useState(new Date());
+    const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
+
+
+    const ganttProjects = useMemo((): GanttProject[] => {
+        const stageMapping: { [key: string]: string[] } = {
+            'Briefing': ['Reunião de Briefing', 'Medição'],
+            'Layout': ['Apresentação do Layout Planta Baixa', 'Revisão 01 (Planta Baixa)', 'Revisão 02 (Planta Baixa)', 'Revisão 03 (Planta Baixa)'],
+            '3D': ['Apresentação de 3D', 'Revisão 01 (3D)', 'Revisão 02 (3D)', 'Revisão 03 (3D)'],
+            'Executivo': ['Executivo'],
+            'Entrega': ['Entrega'],
+        };
+        
+        const activeContracts = contracts.filter(c => c.status === 'Ativo');
+        const activeSchedules = schedules.filter(s => activeContracts.some(c => c.id === s.contractId));
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        return activeSchedules.map(schedule => {
+            let daysRemaining: number | undefined;
+
+            const ganttStages = GANTT_STAGES_CONFIG.map(ganttStageConfig => {
+                const detailedStageNames = stageMapping[ganttStageConfig.name] || [];
+                const relevantStages = schedule.stages.filter(s => detailedStageNames.includes(s.name) && s.startDate && s.deadline);
+                
+                if (relevantStages.length === 0) {
+                    return { name: ganttStageConfig.name, startDate: new Date(), endDate: new Date(), status: 'pending', progress: 0 } as GanttStage;
+                }
+
+                const completedCount = relevantStages.filter(s => s.completionDate).length;
+                const progress = (completedCount / relevantStages.length) * 100;
+
+                let status: GanttStage['status'] = 'pending';
+                if (progress === 100) {
+                    status = 'completed';
+                } else if (progress > 0 || (new Date(`${relevantStages[0].startDate}T00:00:00`) <= today)) {
+                    status = 'in_progress';
+                }
+
+                if (status === 'in_progress' && daysRemaining === undefined) {
+                    const currentDetailedStage = relevantStages.find(s => !s.completionDate);
+                    if (currentDetailedStage?.deadline) {
+                        const deadline = new Date(`${currentDetailedStage.deadline}T00:00:00`);
+                        daysRemaining = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    }
+                }
+                
+                const firstStage = relevantStages[0];
+                const lastStage = relevantStages[relevantStages.length - 1];
+
+                return {
+                    name: ganttStageConfig.name,
+                    startDate: new Date(`${firstStage.startDate}T00:00:00`),
+                    endDate: new Date(`${lastStage.deadline}T00:00:00`),
+                    status,
+                    progress,
+                };
+            });
+            
+            return {
+                contractId: schedule.contractId,
+                clientName: schedule.clientName,
+                projectName: schedule.projectName,
+                schedule,
+                stages: ganttStages,
+                daysRemaining,
+            };
+        });
+    }, [schedules, contracts]);
+    
+    const filteredProjects = useMemo(() => {
+        return ganttProjects.filter(project => {
+            // Stage filter
+            const stageMatch = filterStage === 'all' || project.stages.some(s => s.name === filterStage && s.status === 'in_progress');
+            if (!stageMatch) return false;
+
+            // Deadline filter
+            if (deadlineFilter === 'all') return true;
+            if (deadlineFilter === 'expiring') {
+                return project.daysRemaining !== undefined && project.daysRemaining >= 0 && project.daysRemaining <= 7;
+            }
+            if (deadlineFilter === 'late') {
+                return project.daysRemaining !== undefined && project.daysRemaining < 0;
+            }
+            return true;
+        });
+    }, [ganttProjects, filterStage, deadlineFilter]);
+
+    const timeline = useMemo(() => {
+        if (filteredProjects.length === 0) {
+            const start = new Date();
+            const end = new Date();
+            end.setMonth(start.getMonth() + 4);
+            return { start, end, totalDays: 120 };
+        }
+        
+        let minDate = new Date();
+        let maxDate = new Date();
+        maxDate.setDate(minDate.getDate() + 90);
+
+        filteredProjects.forEach(p => {
+            const projectEndDate = p.stages[p.stages.length -1].endDate;
+            if (projectEndDate > maxDate) maxDate = projectEndDate;
+        });
+        
+        const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
+        return { start: minDate, end: maxDate, totalDays: Math.max(totalDays, 90) };
+    }, [filteredProjects]);
+
 
     const handleEdit = (schedule: ProjectSchedule) => {
-        setCurrentSchedule(JSON.parse(JSON.stringify(schedule))); // Deep copy to avoid direct mutation
-        setView('edit');
-    };
-
-    const handleCreateNew = () => {
-        if (!newScheduleContractId || !newScheduleStartDate) {
-            alert("Por favor, selecione um cliente e uma data de início.");
-            return;
-        }
-        const contract = contracts.find(c => c.id === parseInt(newScheduleContractId));
-        if(!contract) return;
-
-        const newSchedule: ProjectSchedule = {
-            id: Date.now(),
-            contractId: contract.id,
-            clientName: contract.clientName,
-            projectName: contract.projectName,
-            startDate: newScheduleStartDate,
-            stages: projectStagesTemplate.map((template, index) => ({ 
-                id: index,
-                name: template.name,
-                durationWorkDays: template.durationWorkDays
-            }))
-        };
-        setCurrentSchedule(newSchedule);
-        setView('edit');
+        setCurrentSchedule(JSON.parse(JSON.stringify(schedule))); // Deep copy for safe editing
+        setMode('edit');
     };
 
     const handleSave = (scheduleToSave: ProjectSchedule) => {
-        const exists = schedules.some(s => s.id === scheduleToSave.id);
-        if (exists) {
-            setSchedules(schedules.map(s => s.id === scheduleToSave.id ? scheduleToSave : s));
-        } else {
-            setSchedules([scheduleToSave, ...schedules]);
-        }
-        setView('list');
+        const newSchedules = schedules.map(s => s.id === scheduleToSave.id ? scheduleToSave : s);
+        setSchedules(newSchedules);
+        setMode('gantt');
         setCurrentSchedule(null);
-        setNewScheduleContractId('');
-        setNewScheduleStartDate('');
     };
 
     const handleCancel = () => {
-        setView('list');
+        setMode('gantt');
         setCurrentSchedule(null);
     };
 
-    if (view === 'edit' && currentSchedule) {
+    // Planner specific logic
+    const handleMonthChange = (offset: number) => {
+        setPlannerDate(current => {
+            const newDate = new Date(current);
+            newDate.setDate(1); // Avoid month-end issues
+            newDate.setMonth(newDate.getMonth() + offset);
+            return newDate;
+        });
+        setSelectedWeekIndex(0);
+    };
+
+    const weeksInMonth = useMemo(() => {
+        const date = plannerDate;
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const firstDayOfMonth = new Date(year, month, 1);
+        const grid: Date[] = [];
+        const startDate = new Date(firstDayOfMonth);
+        startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
+
+        for (let i = 0; i < 42; i++) {
+            const day = new Date(startDate);
+            day.setDate(startDate.getDate() + i);
+            grid.push(day);
+        }
+
+        const finalWeeks: Date[][] = [];
+        for (let i = 0; i < grid.length; i += 7) {
+            finalWeeks.push(grid.slice(i, i + 7));
+        }
+        
+        const relevantWeeks = finalWeeks.filter(week => week.some(day => day.getMonth() === month));
+        return relevantWeeks;
+    }, [plannerDate]);
+    
+    useEffect(() => {
+        const currentMonthWeeks = weeksInMonth;
+        if(selectedWeekIndex >= currentMonthWeeks.length) {
+            setSelectedWeekIndex(Math.max(0, currentMonthWeeks.length - 1));
+        }
+    }, [weeksInMonth, selectedWeekIndex]);
+
+
+    const getTasksForDay = useCallback((day: Date): PlannerTask[] => {
+        const tasks: PlannerTask[] = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const dayWithNoTime = new Date(day);
+        dayWithNoTime.setHours(0, 0, 0, 0);
+
+        for (const schedule of schedules) {
+            for (const stage of schedule.stages) {
+                if (stage.startDate && stage.deadline) {
+                    const startDate = new Date(`${stage.startDate}T00:00:00`);
+                    const deadline = new Date(`${stage.deadline}T00:00:00`);
+
+                    if (dayWithNoTime >= startDate && dayWithNoTime <= deadline) {
+                        let status: PlannerTask['status'];
+                        if (stage.completionDate) {
+                            status = 'completed';
+                        } else if (deadline < today) {
+                            status = 'late';
+                        } else {
+                            status = 'on_time';
+                        }
+                        tasks.push({
+                            clientName: schedule.clientName,
+                            stageName: stage.name,
+                            status: status,
+                        });
+                    }
+                }
+            }
+        }
+        return tasks;
+    }, [schedules]);
+
+    const getTaskColor = (status: PlannerTask['status']) => {
+        switch (status) {
+            case 'completed': return 'bg-green-100 text-green-800 border-l-4 border-green-500';
+            case 'late': return 'bg-red-100 text-red-800 border-l-4 border-red-500';
+            case 'on_time': return 'bg-blue-100 text-blue-800 border-l-4 border-blue-500';
+            default: return 'bg-slate-100 text-slate-800';
+        }
+    };
+
+    if (mode === 'edit' && currentSchedule) {
         return <ScheduleEditor schedule={currentSchedule} onSave={handleSave} onCancel={handleCancel} />;
     }
 
+    const getDaysRemainingInfo = (days: number | undefined) => {
+        if (days === undefined) return null;
+        if (days < 0) {
+            return <span className="text-red-600 font-bold">{Math.abs(days)} dia(s) atrasado</span>;
+        }
+        if (days <= 7) {
+            return <span className="text-orange-500 font-semibold">{days} dia(s) restante(s)</span>;
+        }
+        return <span className="text-slate-500">{days} dia(s) restante(s)</span>;
+    };
+    
     return (
         <div className="space-y-8">
             <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
                 <h1 className="text-3xl font-bold">Progresso dos Projetos</h1>
                 <p className="mt-1 text-blue-100">Acompanhe e edite o cronograma de cada projeto.</p>
             </header>
-
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                 <h2 className="text-lg font-semibold text-slate-800 mb-4">Criar Novo Cronograma</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div>
-                        <label htmlFor="client" className="block text-sm font-medium text-slate-600">Cliente</label>
-                        <select id="client" value={newScheduleContractId} onChange={(e) => setNewScheduleContractId(e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3">
-                            <option value="">Selecione um cliente...</option>
-                            {contracts.filter(c => c.status === 'Ativo' && !schedules.some(s => s.contractId === c.id)).map(c => (
-                                <option key={c.id} value={c.id}>{c.clientName} - {c.projectName}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="startDate" className="block text-sm font-medium text-slate-600">Data de Início do Projeto</label>
-                        <input type="date" id="startDate" value={newScheduleStartDate} onChange={(e) => setNewScheduleStartDate(e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
-                    </div>
-                    <button onClick={handleCreateNew} className="justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 h-10">
-                        + Criar Novo Progresso
+            
+            <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200">
+                <nav className="flex space-x-1">
+                    <button 
+                        onClick={() => setMode('gantt')}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 w-full ${mode === 'gantt' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`}
+                    >
+                        Visão Geral (Gantt)
                     </button>
-                </div>
+                    <button 
+                        onClick={() => setMode('planner')}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 w-full ${mode === 'planner' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`}
+                    >
+                        Planner Semanal
+                    </button>
+                </nav>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-semibold text-slate-800">Cronogramas Salvos</h2>
-                    <input type="text" placeholder="Buscar por projeto ou cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full max-w-sm rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
-                </div>
-                <div className="space-y-3">
-                    {filteredSchedules.map(schedule => (
-                        <div key={schedule.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-md border border-slate-200">
-                            <div>
-                                <p className="font-semibold text-slate-800">{schedule.projectName}</p>
-                                <p className="text-sm text-slate-500">{schedule.clientName}</p>
-                            </div>
-                            <button onClick={() => handleEdit(schedule)} className="flex items-center space-x-2 px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100">
-                                <PencilIcon className="w-4 h-4" />
-                                <span>Editar</span>
-                            </button>
+
+            {mode === 'gantt' && (
+                <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                        <h2 className="text-lg font-semibold text-slate-800 mb-2 sm:mb-0">Visão Geral dos Cronogramas</h2>
+                        <div className="flex items-center">
+                            <label htmlFor="stage-filter" className="block text-sm font-medium text-slate-600 mr-2 whitespace-nowrap">Filtrar por etapa:</label>
+                            <select
+                                id="stage-filter"
+                                value={filterStage}
+                                onChange={(e) => setFilterStage(e.target.value)}
+                                className="rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-3 bg-white"
+                            >
+                                <option value="all">Mostrar Tudo</option>
+                                {GANTT_STAGES_CONFIG.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                            </select>
                         </div>
-                    ))}
-                    {filteredSchedules.length === 0 && <p className="text-slate-500 text-center py-4">Nenhum cronograma encontrado.</p>}
+                    </div>
+                     <div className="flex items-center space-x-4 mb-6 border-t border-slate-200 pt-4">
+                        <span className="text-sm font-medium text-slate-600">Filtrar por prazo:</span>
+                        <div className="flex items-center space-x-4">
+                            {(['all', 'expiring', 'late'] as DeadlineFilter[]).map(filter => (
+                                <label key={filter} className="flex items-center cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="deadlineFilter"
+                                        value={filter}
+                                        checked={deadlineFilter === filter}
+                                        onChange={(e) => setDeadlineFilter(e.target.value as DeadlineFilter)}
+                                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <span className="ml-2 text-sm text-slate-700">
+                                        {filter === 'all' && 'Todos'}
+                                        {filter === 'expiring' && 'Próximos do Vencimento'}
+                                        {filter === 'late' && 'Atrasados'}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <div className="min-w-[1200px]">
+                            {/* Gantt Header */}
+                            <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-slate-500 pb-2">
+                                 <div className="col-span-3">Projeto</div>
+                                 <div className="col-span-9">
+                                    <div className="relative h-full border-l border-slate-200">
+                                        {Array.from({ length: Math.ceil(timeline.totalDays / 30) }).map((_, i) => {
+                                            const monthDate = new Date(timeline.start);
+                                            monthDate.setMonth(timeline.start.getMonth() + i);
+                                            const left = (Math.max(0, (monthDate.getTime() - timeline.start.getTime())) / (1000 * 60 * 60 * 24) / timeline.totalDays) * 100;
+                                            return (
+                                                <div key={i} className="absolute top-0 text-center" style={{ left: `${left}%` }}>
+                                                    {monthDate.toLocaleString('pt-BR', { month: 'short' }).replace('.','')}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Gantt Body */}
+                            <div className="space-y-3">
+                                {filteredProjects.map(project => (
+                                    <div key={project.contractId} className="grid grid-cols-12 gap-2 items-center bg-slate-50/70 p-2 rounded-lg hover:bg-slate-100">
+                                        <div className="col-span-3">
+                                            <p 
+                                                className="font-semibold text-blue-600 cursor-pointer hover:underline truncate"
+                                                onClick={() => handleEdit(project.schedule)}
+                                            >{project.clientName}</p>
+                                            <p className="text-xs text-slate-500 truncate">{getDaysRemainingInfo(project.daysRemaining)}</p>
+                                        </div>
+                                        <div className="col-span-9 h-6 bg-slate-200/50 rounded-md relative">
+                                            {project.stages.map(stage => {
+                                                const left = (Math.max(0, stage.startDate.getTime() - timeline.start.getTime()) / (1000 * 60 * 60 * 24) / timeline.totalDays) * 100;
+                                                const width = (Math.max(0, stage.endDate.getTime() - stage.startDate.getTime()) / (1000 * 60 * 60 * 24) / timeline.totalDays) * 100;
+                                                
+                                                const stageColor = stage.status === 'completed' ? 'bg-green-400' : stage.status === 'in_progress' ? 'bg-yellow-400' : 'bg-slate-300';
+                                                const progressColor = stage.status === 'completed' ? 'bg-green-600' : 'bg-yellow-600';
+
+                                                return (
+                                                    <div 
+                                                        key={stage.name} 
+                                                        className={`absolute h-full rounded ${stageColor} transition-all duration-300 group`}
+                                                        style={{ left: `${left}%`, width: `${width}%` }}
+                                                    >
+                                                       <div className={`h-full rounded ${progressColor}`} style={{ width: `${stage.progress}%` }}></div>
+                                                       <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-max px-2 py-1 bg-slate-800 text-white text-xs rounded-md shadow-lg invisible group-hover:visible transition-opacity opacity-0 group-hover:opacity-100 z-10 pointer-events-none">
+                                                            {stage.name}: {formatDateForDisplay(stage.startDate)} - {formatDateForDisplay(stage.endDate)} ({Math.round(stage.progress)}%)
+                                                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-4 border-t-slate-800"></div>
+                                                       </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                         {filteredProjects.length === 0 && (
+                            <div className="text-center text-slate-500 py-10 mt-2">
+                                <p>Nenhum projeto encontrado com os filtros selecionados.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
+            
+            {mode === 'planner' && (
+                <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold text-slate-800">
+                            {plannerDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
+                        </h2>
+                        <div className="flex items-center space-x-1">
+                            <button onClick={() => handleMonthChange(-1)} className="p-2 text-slate-500 rounded-full hover:bg-slate-100 transition-colors" aria-label="Mês anterior"><ChevronLeftIcon className="w-5 h-5"/></button>
+                            <button onClick={() => handleMonthChange(1)} className="p-2 text-slate-500 rounded-full hover:bg-slate-100 transition-colors" aria-label="Próximo mês"><ChevronRightIcon className="w-5 h-5"/></button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-4 mb-4">
+                        {weeksInMonth.map((week, index) => (
+                            <button
+                                key={index}
+                                onClick={() => setSelectedWeekIndex(index)}
+                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${selectedWeekIndex === index ? 'bg-blue-600 text-white shadow' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                            >
+                                Semana {index + 1} ({formatDateForDisplay(week[0])} - {formatDateForDisplay(week[6])})
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7">
+                        {weeksInMonth.length > 0 && weeksInMonth[selectedWeekIndex].map((day, index) => {
+                            const isCurrentMonth = day.getMonth() === plannerDate.getMonth();
+                            return (
+                                <div key={index} className={`text-center font-semibold text-slate-600 pb-2 ${isCurrentMonth ? '' : 'opacity-50'}`}>
+                                    <p className="text-xs uppercase">{['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][day.getDay()]}</p>
+                                    <p className="text-2xl mt-1">{day.getDate()}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                        {weeksInMonth.length > 0 && weeksInMonth[selectedWeekIndex].map((day, index) => {
+                            const tasks = getTasksForDay(day);
+                            const isCurrentMonth = day.getMonth() === plannerDate.getMonth();
+                            return (
+                                <div key={index} className={`min-h-[200px] rounded p-1 space-y-1.5 ${isCurrentMonth ? 'bg-slate-50' : 'bg-slate-50/50'}`}>
+                                    {tasks.map((task, taskIndex) => (
+                                        <div key={taskIndex} className={`p-2 rounded text-xs ${getTaskColor(task.status)}`}>
+                                            <p>
+                                                <span className="font-bold">{task.clientName}:</span> {task.stageName}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

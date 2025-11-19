@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { UploadIcon, XIcon } from './Icons';
 import { AppData, Contract, Attachment, ContractService } from '../types';
@@ -25,9 +27,11 @@ interface FormFieldProps {
   children?: React.ReactNode;
   required?: boolean;
   defaultValue?: string | number;
+  value?: string | number; // Added to support controlled inputs
+  onChange?: React.ChangeEventHandler<HTMLInputElement>; // Added for change handling
 }
 
-const FormField: React.FC<FormFieldProps> = ({ label, id, type = 'text', placeholder, className, children, required, defaultValue }) => (
+const FormField: React.FC<FormFieldProps> = ({ label, id, type = 'text', placeholder, className, children, required, defaultValue, value, onChange }) => (
   <div className={className}>
     <label htmlFor={id} className="block text-sm font-medium text-slate-700">
       {label}{required && <span className="text-red-500">*</span>}
@@ -43,6 +47,8 @@ const FormField: React.FC<FormFieldProps> = ({ label, id, type = 'text', placeho
         className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 bg-white"
         required={required}
         defaultValue={defaultValue}
+        value={value}
+        onChange={onChange}
       />
     )}
   </div>
@@ -210,6 +216,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
         workFiles: [],
         sitePhotos: [],
     });
+    
+    // Date State Management
+    const [contractDate, setContractDate] = useState(() => editingContract?.date ? new Date(editingContract.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+    const [downPaymentDate, setDownPaymentDate] = useState(() => editingContract?.downPaymentDate ? new Date(editingContract.downPaymentDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+    const [firstInstallmentDate, setFirstInstallmentDate] = useState(() => editingContract?.firstInstallmentDate ? new Date(editingContract.firstInstallmentDate).toISOString().split('T')[0] : '');
 
     const allServices = useMemo(() => [
         ...appData.servicePrices,
@@ -238,6 +249,31 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
             }));
         }
     }, [isGerenciamentoDeObrasPresent, durationMonths]);
+
+    // Auto-update downPaymentDate when contractDate changes (only if not editing an existing contract, to avoid overwriting data)
+    // Or we can always update it if the user changes the contract date manually in the form.
+    // The prompt says: "Prazo de assinatura e pagamento da entrada é de 5 dias".
+    useEffect(() => {
+        if (contractDate && !isEditing) { // Simple heuristic: only auto-set on creation to avoid annoying overwrites
+             const cDate = new Date(contractDate);
+             // Add 5 days
+             cDate.setDate(cDate.getDate() + 5);
+             setDownPaymentDate(cDate.toISOString().split('T')[0]);
+        } else if (contractDate && isEditing) {
+             // If editing, check if we should update it (e.g. if the user changed the date)
+             // For now, let's leave it manual in edit mode unless requested otherwise.
+        }
+    }, [contractDate, isEditing]);
+    
+    const handleContractDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newDate = e.target.value;
+        setContractDate(newDate);
+        if(newDate) {
+            const cDate = new Date(newDate);
+            cDate.setDate(cDate.getDate() + 5);
+            setDownPaymentDate(cDate.toISOString().split('T')[0]);
+        }
+    };
 
 
     useEffect(() => {
@@ -458,7 +494,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
             clientName: formProps.fullName as string,
             projectName: formProps.projectDescription as string, 
             totalValue: financials.total,
-            date: new Date(`${formProps.contractDate}T00:00:00`),
+            date: new Date(`${contractDate}T00:00:00`),
             durationMonths: parseInt(durationMonths, 10) || 0,
             clientAddress: {
                 street: formProps.clientStreet as string,
@@ -495,8 +531,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
             discountValue: parseFloat(financialInputs.discountValue) || 0,
             mileageDistance: mileage.enabled ? parseFloat(mileage.distance) || 0 : 0,
             mileageCost: financials.mileageCost,
-            downPaymentDate: new Date(`${formProps.downPaymentDate}T00:00:00`),
-            firstInstallmentDate: formProps.firstInstallmentDate ? new Date(`${formProps.firstInstallmentDate}T00:00:00`) : new Date(),
+            downPaymentDate: new Date(`${downPaymentDate}T00:00:00`),
+            firstInstallmentDate: firstInstallmentDate ? new Date(`${firstInstallmentDate}T00:00:00`) : new Date(),
         };
         
         if (isEditing) {
@@ -648,7 +684,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
                         Adicionar Tipo
                     </button>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t mt-6">
-                        <FormField label="Data do Contrato" id="contractDate" type="date" required defaultValue={editingContract?.date ? new Date(editingContract.date).toISOString().split('T')[0] : ''}/>
+                        <FormField label="Data do Contrato (Assinatura)" id="contractDate" type="date" required value={contractDate} onChange={handleContractDateChange} />
                          <FormField label="Duração do Contrato (meses)" id="durationMonths" className="md:col-span-1">
                             <input
                                 type="number"
@@ -812,8 +848,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                        <FormField label="Data de Pagamento da Entrada" id="downPaymentDate" type="date" required defaultValue={editingContract?.downPaymentDate ? new Date(editingContract.downPaymentDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}/>
-                        <FormField label="Data da Primeira Parcela" id="firstInstallmentDate" type="date" defaultValue={editingContract?.firstInstallmentDate ? new Date(editingContract.firstInstallmentDate).toISOString().split('T')[0] : ''} />
+                        <FormField label="Data de Pagamento da Entrada" id="downPaymentDate" type="date" required value={downPaymentDate} onChange={(e) => setDownPaymentDate(e.target.value)} />
+                        <FormField label="Data da Primeira Parcela" id="firstInstallmentDate" type="date" value={firstInstallmentDate} onChange={(e) => setFirstInstallmentDate(e.target.value)} />
                     </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 items-end">
                         <FormField label="Número de Parcelas" id="installments">
