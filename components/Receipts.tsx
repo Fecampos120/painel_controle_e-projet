@@ -163,12 +163,21 @@ const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments }) => {
                                             <span>Subtotal Serviços:</span>
                                             <span>{formatCurrency(selectedContract.services.reduce((acc, s) => acc + parseFloat(s.value), 0))}</span>
                                         </div>
-                                        {(selectedContract.mileageCost || 0) > 0 && (
+                                        {/* Lógica para Exibir Visitas Técnicas OU Deslocamento */}
+                                        {selectedContract.techVisits?.enabled ? (
                                             <div className="flex justify-between text-sm text-slate-600">
-                                                <span>Adicional Deslocamento ({selectedContract.mileageDistance}km):</span>
+                                                <span>Visitas Técnicas ({selectedContract.techVisits.quantity}x) + Deslocamento:</span>
                                                 <span>{formatCurrency(selectedContract.mileageCost || 0)}</span>
                                             </div>
+                                        ) : (
+                                            (selectedContract.mileageCost || 0) > 0 && (
+                                                <div className="flex justify-between text-sm text-slate-600">
+                                                    <span>Adicional Deslocamento ({selectedContract.mileageDistance}km):</span>
+                                                    <span>{formatCurrency(selectedContract.mileageCost || 0)}</span>
+                                                </div>
+                                            )
                                         )}
+
                                         {(selectedContract.discountValue || 0) > 0 && (
                                             <div className="flex justify-between text-sm text-red-600">
                                                 <span>Desconto ({selectedContract.discountType}):</span>

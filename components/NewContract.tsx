@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { UploadIcon, XIcon } from './Icons';
 import { AppData, Contract, Attachment, ContractService } from '../types';
@@ -159,6 +160,7 @@ const formatCurrency = (value: number) => {
 const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpdateContract, editingContract, onCancel }) => {
     const isEditing = !!editingContract;
     const MILEAGE_RATE = 1.40;
+    const VISIT_BASE_PRICE = 80.00;
 
     const [isSameAddress, setIsSameAddress] = useState(() => 
         isEditing ? (editingContract.clientAddress.cep === editingContract.projectAddress.cep) : false
@@ -191,11 +193,19 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
     });
 
     const [mileage, setMileage] = useState(() => isEditing ? {
-        enabled: !!editingContract.mileageCost && editingContract.mileageCost > 0,
+        enabled: !!editingContract.mileageCost && editingContract.mileageCost > 0 && !editingContract.techVisits?.enabled,
         distance: String(editingContract.mileageDistance || ''),
     } : {
         enabled: false,
         distance: '',
+    });
+    
+    const [techVisits, setTechVisits] = useState(() => isEditing ? {
+        enabled: !!editingContract.techVisits?.enabled,
+        quantity: String(editingContract.techVisits?.quantity || '1'),
+    } : {
+        enabled: false,
+        quantity: '1',
     });
 
     const [financials, setFinancials] = useState({
@@ -204,7 +214,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
         downPayment: 0,
         remaining: 0,
         installmentValue: 0,
-        mileageCost: 0,
+        mileageCost: 0, // Now represents Total Extra Costs (Mileage OR Tech Visits)
     });
 
      const [uploadedFiles, setUploadedFiles] = useState<{
@@ -250,18 +260,13 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
         }
     }, [isGerenciamentoDeObrasPresent, durationMonths]);
 
-    // Auto-update downPaymentDate when contractDate changes (only if not editing an existing contract, to avoid overwriting data)
-    // Or we can always update it if the user changes the contract date manually in the form.
-    // The prompt says: "Prazo de assinatura e pagamento da entrada é de 5 dias".
     useEffect(() => {
-        if (contractDate && !isEditing) { // Simple heuristic: only auto-set on creation to avoid annoying overwrites
+        if (contractDate && !isEditing) {
              const cDate = new Date(contractDate);
-             // Add 5 days
              cDate.setDate(cDate.getDate() + 5);
              setDownPaymentDate(cDate.toISOString().split('T')[0]);
         } else if (contractDate && isEditing) {
-             // If editing, check if we should update it (e.g. if the user changed the date)
-             // For now, let's leave it manual in edit mode unless requested otherwise.
+             // Manual edit logic if needed
         }
     }, [contractDate, isEditing]);
     
@@ -279,9 +284,31 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
     useEffect(() => {
         const servicesSubtotal = contractTypes.reduce((acc, ct) => acc + (parseFloat(ct.value) || 0), 0);
         
-        const mileageCost = mileage.enabled ? (parseFloat(mileage.distance) || 0) * MILEAGE_RATE : 0;
+        let extraCost = 0;
+        
+        // Logic Calculation:
+        // 1. If Tech Visits are enabled:
+        //    Cost Per Visit = Base Price (80) + (Mileage Enabled ? Distance * 1.4 : 0)
+        //    Total Extra = Cost Per Visit * Quantity
+        // 2. If Tech Visits disabled but Mileage enabled:
+        //    Total Extra = Distance * 1.4 (Standard One-off Travel)
 
-        const subtotal = servicesSubtotal + mileageCost;
+        if (techVisits.enabled) {
+            const qty = parseFloat(techVisits.quantity) || 0;
+            let unitPrice = VISIT_BASE_PRICE;
+            
+            if (mileage.enabled) {
+                const dist = parseFloat(mileage.distance) || 0;
+                unitPrice += (dist * MILEAGE_RATE);
+            }
+            
+            extraCost = unitPrice * qty;
+        } else if (mileage.enabled) {
+            const dist = parseFloat(mileage.distance) || 0;
+            extraCost = dist * MILEAGE_RATE;
+        }
+
+        const subtotal = servicesSubtotal + extraCost;
         
         const discountValueNum = parseFloat(financialInputs.discountValue) || 0;
         let discountAmount = 0;
@@ -307,10 +334,10 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
             downPayment,
             remaining,
             installmentValue,
-            mileageCost,
+            mileageCost: extraCost,
         });
 
-    }, [contractTypes, financialInputs, mileage]);
+    }, [contractTypes, financialInputs, mileage, techVisits]);
 
     useEffect(() => {
         const durationMonthsNum = parseInt(durationMonths, 10) || 0;
@@ -396,7 +423,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
                 updatedCt.hours = '';
                 updatedCt.value = '0.00';
                 if (selectedService) {
-                    if (selectedService.name === 'Gerenciamento de Obras') updatedCt.calculationMethod = 'manual';
+                    if (selectedService.name === 'Gerenciamento de Obras' || selectedService.name === 'Averbação') updatedCt.calculationMethod = 'manual';
                     else if (selectedService.unit === 'hora') updatedCt.calculationMethod = 'hora';
                     else if (selectedService.unit === 'm²') updatedCt.calculationMethod = 'metragem';
                     else updatedCt.calculationMethod = 'manual';
@@ -531,6 +558,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
             discountValue: parseFloat(financialInputs.discountValue) || 0,
             mileageDistance: mileage.enabled ? parseFloat(mileage.distance) || 0 : 0,
             mileageCost: financials.mileageCost,
+            techVisits: {
+                enabled: techVisits.enabled,
+                quantity: parseFloat(techVisits.quantity) || 0,
+                totalValue: techVisits.enabled ? financials.mileageCost : 0 // Assuming mileageCost now holds Total Extras if visits are on
+            },
             downPaymentDate: new Date(`${downPaymentDate}T00:00:00`),
             firstInstallmentDate: firstInstallmentDate ? new Date(`${firstInstallmentDate}T00:00:00`) : new Date(),
         };
@@ -764,40 +796,81 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
                     </FormField>
                 </FormSection>
 
-                 <FormSection title="Custos Adicionais de Deslocamento">
-                    <div className="flex items-start">
-                        <div className="flex items-center h-5">
-                            <input
-                                id="addMileage"
-                                name="addMileage"
-                                type="checkbox"
-                                checked={mileage.enabled}
-                                onChange={(e) => setMileage(prev => ({ ...prev, enabled: e.target.checked }))}
-                                className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                            />
+                 <FormSection title="Custos Adicionais (Visitas e Deslocamento)">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Visitas Técnicas */}
+                        <div className="space-y-4 p-4 bg-slate-50 rounded-md">
+                            <div className="flex items-center">
+                                <input
+                                    id="techVisits"
+                                    name="techVisits"
+                                    type="checkbox"
+                                    checked={techVisits.enabled}
+                                    onChange={(e) => setTechVisits(prev => ({ ...prev, enabled: e.target.checked }))}
+                                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                />
+                                <label htmlFor="techVisits" className="ml-2 block text-sm font-medium text-slate-700">
+                                    Incluir Visitas Técnicas in loco?
+                                </label>
+                            </div>
+                             {techVisits.enabled && (
+                                <div className="pl-6 space-y-3">
+                                    <FormField label="Quantidade de Visitas" id="techVisitsQty">
+                                        <input
+                                            type="number"
+                                            id="techVisitsQty"
+                                            value={techVisits.quantity}
+                                            onChange={(e) => setTechVisits(prev => ({...prev, quantity: e.target.value}))}
+                                            className="mt-1 block w-full max-w-xs rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 bg-white"
+                                            min="1"
+                                        />
+                                    </FormField>
+                                    <p className="text-xs text-slate-500">
+                                        Valor base por visita: <span className="font-semibold">{formatCurrency(VISIT_BASE_PRICE)}</span>
+                                        {mileage.enabled && <span> + Custo de deslocamento (automático)</span>}
+                                    </p>
+                                </div>
+                            )}
                         </div>
-                        <div className="ml-3 text-sm">
-                            <label htmlFor="addMileage" className="font-medium text-gray-700">Adicionar Custo de Quilometragem?</label>
-                            <p className="text-gray-500">Calcula um valor adicional com base na distância (R$ {MILEAGE_RATE.toFixed(2)} por Km).</p>
+
+                        {/* Quilometragem */}
+                        <div className="space-y-4 p-4 bg-slate-50 rounded-md">
+                             <div className="flex items-center">
+                                <input
+                                    id="addMileage"
+                                    name="addMileage"
+                                    type="checkbox"
+                                    checked={mileage.enabled}
+                                    onChange={(e) => setMileage(prev => ({ ...prev, enabled: e.target.checked }))}
+                                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                />
+                                <label htmlFor="addMileage" className="ml-2 block text-sm font-medium text-slate-700">
+                                    Adicionar Custo de Quilometragem?
+                                </label>
+                            </div>
+                            {mileage.enabled && (
+                                <div className="pl-6 space-y-3">
+                                    <FormField label="Distância (Km) - Ida e Volta" id="mileageDistance">
+                                        <input
+                                            type="number"
+                                            id="mileageDistance"
+                                            name="mileageDistance"
+                                            value={mileage.distance}
+                                            onChange={(e) => setMileage(prev => ({...prev, distance: e.target.value}))}
+                                            className="mt-1 block w-full max-w-xs rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 bg-white"
+                                            placeholder="Ex: 50"
+                                            min="0"
+                                            step="0.1"
+                                        />
+                                    </FormField>
+                                    <p className="text-xs text-slate-500">
+                                        Custo por Km: R$ {MILEAGE_RATE.toFixed(2)}.
+                                        {techVisits.enabled ? " O valor será somado a CADA visita." : " Valor cobrado como taxa única de deslocamento."}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
-                    {mileage.enabled && (
-                        <div className="mt-4 pl-8">
-                           <FormField label="Distância Total (Km)" id="mileageDistance">
-                                <input
-                                    type="number"
-                                    id="mileageDistance"
-                                    name="mileageDistance"
-                                    value={mileage.distance}
-                                    onChange={(e) => setMileage(prev => ({...prev, distance: e.target.value}))}
-                                    className="mt-1 block w-full max-w-xs rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 bg-white"
-                                    placeholder="Ex: 250"
-                                    min="0"
-                                    step="0.1"
-                                />
-                            </FormField>
-                        </div>
-                    )}
                 </FormSection>
 
 
@@ -825,7 +898,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
                             <span className="font-medium text-slate-700">{formatCurrency(financials.subtotal - financials.mileageCost)}</span>
                         </div>
                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-slate-500">Custo de Quilometragem:</span>
+                            <span className="text-slate-500">
+                                {techVisits.enabled 
+                                    ? `Visitas Técnicas (${techVisits.quantity}x) + Deslocamento:` 
+                                    : "Custo de Deslocamento (Único):"}
+                            </span>
                             <span className="font-medium text-slate-700">{formatCurrency(financials.mileageCost)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm border-t pt-3">

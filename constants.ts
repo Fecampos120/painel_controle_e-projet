@@ -29,138 +29,48 @@ export const PARTNER_TYPES: string[] = [
     'Outro',
 ];
 
-// Template do Checklist de Obra (Genérico)
+// Template do Checklist de Obra (Resumido e Prático)
 export const CHECKLIST_TEMPLATE: ChecklistItemTemplate[] = [
-    // ETAPA 1: INÍCIO DO PROJETO
-    { id: 1, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Abrir grupo do cliente' },
-    { id: 2, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Mandar msg de boas-vindas' },
-    { id: 3, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Abrir projeto no Gerenciador de Tarefas (Asana/Trello)' },
-    { id: 4, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Agendar medição' },
-    { id: 5, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Agendar reunião de briefing com o cliente (verificar disponibilidade da agenda)' },
-    { id: 6, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Agendar Reunião de criação para o mesmo dia do Briefing' },
-    { id: 7, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Confirmar data da reunião na agenda' },
-    { id: 8, stage: 'ETAPA 1: INÍCIO DO PROJETO - Start', text: 'Em caso de reunião online: link da reunião para os clientes' },
-    
-    { id: 9, stage: 'ETAPA 1: INÍCIO DO PROJETO - Medição', text: 'Pegar kit medição antes da medição' },
-    { id: 10, stage: 'ETAPA 1: INÍCIO DO PROJETO - Medição', text: 'Depois: salvar as fotos na pasta (incluindo as fotos do croqui da medição)' },
-    { id: 11, stage: 'ETAPA 1: INÍCIO DO PROJETO - Medição', text: 'Separar as pastas por ambientes' },
-    { id: 12, stage: 'ETAPA 1: INÍCIO DO PROJETO - Medição', text: 'Passar a base inteira para o software 3D (Sketch/Revit)' },
-    { id: 13, stage: 'ETAPA 1: INÍCIO DO PROJETO - Medição', text: 'Colocar mobílias sanitárias existentes na base' },
-    
-    { id: 14, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Limpeza da mesa e organização geral da sala de reunião' },
-    { id: 15, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Preparar kit boas-vindas' },
-    { id: 16, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Música da banda preferida do cliente' },
-    { id: 17, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Fazer ata da reunião' },
-    { id: 18, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Envio da ata do Briefing e pedir assinatura do cliente aprovando o documento' },
-    { id: 19, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Envio da ficha de eletros' },
-    { id: 20, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Salvar documento de aprovação + print do WhatsApp na pasta' },
-    { id: 21, stage: 'ETAPA 1: INÍCIO DO PROJETO - Psicobriefing', text: 'Criar checklist do briefing' },
+    // ETAPA 1: INÍCIO E BRIEFING
+    { id: 1, stage: '1. INÍCIO E BRIEFING', text: 'Criar grupo do cliente e pasta na nuvem' },
+    { id: 2, stage: '1. INÍCIO E BRIEFING', text: 'Reunião de Briefing realizada e Ata assinada' },
+    { id: 3, stage: '1. INÍCIO E BRIEFING', text: 'Levantamento/Medição in loco realizado' },
+    { id: 4, stage: '1. INÍCIO E BRIEFING', text: 'Fotos do local salvas e organizadas' },
 
-    // ETAPA 2: CRIATIVO
-    { id: 22, stage: 'ETAPA 2: CRIATIVO', text: 'Levar para a reunião de criação: planta base, briefing e checklist do briefing' },
-    { id: 23, stage: 'ETAPA 2: CRIATIVO', text: 'Tirar foto e salvar na pasta CRIAÇÃO todos os croquis e as anotações das ideias' },
-    { id: 24, stage: 'ETAPA 2: CRIATIVO', text: 'Criar checklist dos ambientes que é preciso modelar' },
-    { id: 25, stage: 'ETAPA 2: CRIATIVO', text: 'Criar lista de itens personalizados para o cliente' },
-    { id: 26, stage: 'ETAPA 2: CRIATIVO', text: 'Criar checklist das modelagens' },
-    { id: 27, stage: 'ETAPA 2: CRIATIVO', text: 'Modelar todos os ambientes' },
-    { id: 28, stage: 'ETAPA 2: CRIATIVO', text: 'Avisar o Administrativo com antecedência para colocar na agenda a Revisão Interna' },
-    { id: 29, stage: 'ETAPA 2: CRIATIVO', text: 'Passar checklist do briefing' },
-    { id: 30, stage: 'ETAPA 2: CRIATIVO', text: 'Salvar imagens prévias sem render e avisar o Responsável (se necessário)' },
-    { id: 31, stage: 'ETAPA 2: CRIATIVO', text: 'Agendar reunião de apresentação com os clientes (verificar disponibilidade da agenda)' },
-    { id: 32, stage: 'ETAPA 2: CRIATIVO', text: 'Confirmar a reunião na agenda' },
-    { id: 33, stage: 'ETAPA 2: CRIATIVO', text: 'Fazer ajustes conforme solicitado na Revisão Interna' },
-    { id: 34, stage: 'ETAPA 2: CRIATIVO', text: 'Avisar novamente dos ajustes' },
-    { id: 35, stage: 'ETAPA 2: CRIATIVO', text: 'Dado o OK da Revisão Interna, fazer os renders' },
-    { id: 36, stage: 'ETAPA 2: CRIATIVO', text: 'Avisar o Responsável dos renders prontos' },
-    { id: 37, stage: 'ETAPA 2: CRIATIVO', text: 'Montar apresentação' },
-    { id: 38, stage: 'ETAPA 2: CRIATIVO', text: 'Avisar o Responsável da conclusão da apresentação' },
+    // ETAPA 2: ESTUDO E 3D (CRIATIVO)
+    { id: 5, stage: '2. ESTUDO E 3D (CRIATIVO)', text: 'Digitalização da planta base' },
+    { id: 6, stage: '2. ESTUDO E 3D (CRIATIVO)', text: 'Definição de Layout aprovada' },
+    { id: 7, stage: '2. ESTUDO E 3D (CRIATIVO)', text: 'Modelagem 3D e Renderização concluídos' },
+    { id: 8, stage: '2. ESTUDO E 3D (CRIATIVO)', text: 'Apresentação realizada e Projeto aprovado (Assinatura)' },
 
-    { id: 39, stage: 'ETAPA 2: CRIATIVO - Reunião de apresentação', text: 'Limpeza da mesa e organização geral da sala de reunião' },
-    { id: 40, stage: 'ETAPA 2: CRIATIVO - Reunião de apresentação', text: 'Separar amostras' },
-    { id: 41, stage: 'ETAPA 2: CRIATIVO - Reunião de apresentação', text: 'Música da banda preferida do cliente' },
-    { id: 42, stage: 'ETAPA 2: CRIATIVO - Reunião de apresentação', text: 'Ata da reunião' },
-    { id: 43, stage: 'ETAPA 2: CRIATIVO - Reunião de apresentação', text: 'Envio da ata da reunião com a solicitação de alterações e pedir assinatura do cliente aprovando o documento' },
-    { id: 44, stage: 'ETAPA 2: CRIATIVO - Reunião de apresentação', text: 'Salvar documento de aprovação + print do WhatsApp na pasta' },
+    // ETAPA 3: PROJETO EXECUTIVO
+    { id: 9, stage: '3. PROJETO EXECUTIVO', text: 'Plantas técnicas (Demolição/Construção/Pontos) finalizadas' },
+    { id: 10, stage: '3. PROJETO EXECUTIVO', text: 'Detalhamento de Marcenaria e Marmoraria' },
+    { id: 11, stage: '3. PROJETO EXECUTIVO', text: 'Compatibilização com complementares (Estrutural/Elétrica)' },
+    { id: 12, stage: '3. PROJETO EXECUTIVO', text: 'Entrega do caderno executivo para obra e cliente' },
 
-    { id: 45, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Salvar provas de pedidos de alterações (arquivos, prints de whats e etc)' },
-    { id: 46, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Fazer as modificações solicitadas' },
-    { id: 47, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Mostrar para o Responsável' },
-    { id: 48, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Envio para o cliente por e-mail' },
-    { id: 49, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Envio para o cliente por whatsapp (imagens soltas)' },
-    { id: 50, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Printar novos pedidos de alteração pelo whatsapp e salvar na pasta' },
-    { id: 51, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Salvar na pasta todo e qualquer arquivo do cliente em relação a pedidos de alteração' },
-    { id: 52, stage: 'ETAPA 2: CRIATIVO - Alterações', text: 'Envio do documento para assinatura de projeto criativo aprovado' },
-    
-    { id: 53, stage: 'ETAPA 2: CRIATIVO - Após aprovação 100%', text: 'Verificar com Marcenaria/Internos sugestão dos armários' },
-    { id: 54, stage: 'ETAPA 2: CRIATIVO - Após aprovação 100%', text: 'Enviar vídeo explicando aos clientes' },
-    { id: 55, stage: 'ETAPA 2: CRIATIVO - Após aprovação 100%', text: 'Alterar conforme o necessário' },
-    { id: 56, stage: 'ETAPA 2: CRIATIVO - Após aprovação 100%', text: 'Envio do documento para assinatura de projeto criativo aprovado' },
-    { id: 57, stage: 'ETAPA 2: CRIATIVO - Após aprovação 100%', text: 'Colocar na pasta FINAL imagens aprovadas e definidas.' },
+    // ETAPA 4: ORÇAMENTOS E COMPRAS
+    { id: 13, stage: '4. ORÇAMENTOS E COMPRAS', text: 'Orçamentos de revestimentos e louças aprovados' },
+    { id: 14, stage: '4. ORÇAMENTOS E COMPRAS', text: 'Orçamentos de Iluminação aprovados' },
+    { id: 15, stage: '4. ORÇAMENTOS E COMPRAS', text: 'Contratação de Marcenaria e Marmoraria' },
+    { id: 16, stage: '4. ORÇAMENTOS E COMPRAS', text: 'Cronograma de compras e entregas alinhado' },
 
-    // ETAPA 3: EXECUTIVO
-    { id: 58, stage: 'ETAPA 3: EXECUTIVO - Preparo', text: 'Reunião criativo + executivo' },
-    { id: 59, stage: 'ETAPA 3: EXECUTIVO - Preparo', text: 'Criar checklist de todos os ambientes' },
-    { id: 60, stage: 'ETAPA 3: EXECUTIVO - Preparo', text: 'Verificar pedidos específicos do cliente na ata de projeto técnico' },
+    // ETAPA 5: VISITAS E ACOMPANHAMENTO (OBRA)
+    { id: 17, stage: '5. VISITAS E ACOMPANHAMENTO (OBRA)', text: 'Visita: Conferência de Demolição e Limpeza' },
+    { id: 18, stage: '5. VISITAS E ACOMPANHAMENTO (OBRA)', text: 'Visita: Marcação de pontos (Elétrica/Hidráulica) conferida' },
+    { id: 19, stage: '5. VISITAS E ACOMPANHAMENTO (OBRA)', text: 'Visita: Conferência de Alvenaria e Gesso (Forro/Paredes)' },
+    { id: 20, stage: '5. VISITAS E ACOMPANHAMENTO (OBRA)', text: 'Visita: Acompanhamento de assentamento de revestimentos' },
+    { id: 21, stage: '5. VISITAS E ACOMPANHAMENTO (OBRA)', text: 'Visita: Conferência de medição final para Marcenaria/Pedras' },
+    { id: 22, stage: '5. VISITAS E ACOMPANHAMENTO (OBRA)', text: 'Visita: Instalação de Pedras/Bancadas' },
+    { id: 23, stage: '5. VISITAS E ACOMPANHAMENTO (OBRA)', text: 'Visita: Vistoria de Pintura e acabamentos finais' },
 
-    { id: 61, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Elaboração de todo projeto' },
-    { id: 62, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Sinalizar conclusão para Revisão Técnica' },
-    { id: 63, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Atender as correções e sinalizar a Revisão Técnica novamente' },
-    { id: 64, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Atender novas possíveis correções' },
-    { id: 65, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'OK final da Revisão Técnica' },
-    { id: 66, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Após finalizado, enviar para o cliente com o vídeo explicativo + documento de assinatura' },
-    { id: 67, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Avisar o cliente no whatsapp que foi enviado por e-mail' },
-    { id: 68, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Avisar o cliente que em breve enviaremos o memorial e os orçamentos' },
-    { id: 69, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Salvar documento assinado na pasta' },
-    { id: 70, stage: 'ETAPA 3: EXECUTIVO - Desenvolvimento', text: 'Colocar na pasta FINAL o projeto completo aprovado' },
-
-    // ETAPA 4: MEMORIAL E ORÇAMENTOS
-    { id: 71, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Elaborar memorial' },
-    { id: 72, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Sinalizar a conclusão para Revisão Técnica' },
-    { id: 73, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Atender as correções e avisar a Revisão Técnica novamente' },
-    { id: 74, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Atender a novas possíveis correções' },
-    { id: 75, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'OK final da Revisão Técnica' },
-    { id: 76, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Verificar com Marcenaria/Internos se há algum fornecedor diferente do comum' },
-    { id: 77, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Enviar para os fornecedores' },
-    { id: 78, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Fazer um checklist no gerenciador de tarefas de todos orçamentos em andamento' },
-    { id: 79, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Cobrar os fornecedores' },
-    { id: 80, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Verificar os orçamentos conforme memorial e projeto' },
-    { id: 81, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Depois de tudo verificado avisar Financeiro/Conferência' },
-    { id: 82, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Correção do Financeiro/Conferência' },
-    { id: 83, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'OK do Financeiro/Conferência' },
-    { id: 84, stage: 'ETAPA 4: MEMORIAL E ORÇAMENTOS', text: 'Enviar para os clientes' },
-
-    // ETAPA 5: COMPRAS
-    { id: 85, stage: 'ETAPA 5: COMPRAS', text: 'Follow up com os clientes frequentemente e agendar compras de: Revestimentos + Iluminação' },
-    { id: 86, stage: 'ETAPA 5: COMPRAS', text: 'Compras de: Móveis Soltos' },
-    { id: 87, stage: 'ETAPA 5: COMPRAS', text: 'Compras de: Cortinas, tapetes, enxoval, papéis de parede' },
-    { id: 88, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Ladrilhos' },
-    { id: 89, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Tijolinhos' },
-    { id: 90, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Marcenaria' },
-    { id: 91, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Marmoraria' },
-    { id: 92, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Vidros' },
-    { id: 93, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Louças e metais' },
-    { id: 94, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Jardim vertical' },
-    { id: 95, stage: 'ETAPA 5: COMPRAS', text: 'Follow up: Plantas' },
-    { id: 96, stage: 'ETAPA 5: COMPRAS - Depois das compras', text: 'Verificar com Responsável se houveram alterações nas compras presenciais' },
-    { id: 97, stage: 'ETAPA 5: COMPRAS - Depois das compras', text: 'Salvar pedidos fechados na pasta' },
-    { id: 98, stage: 'ETAPA 5: COMPRAS - Depois das compras', text: 'Enviar pedidos fechados para o Administrativo' },
-
-    // ETAPA 6: OBRAS
-    { id: 99, stage: 'ETAPA 6: OBRAS', text: 'Follow up quinzenal com os clientes' },
-    { id: 100, stage: 'ETAPA 6: OBRAS', text: 'Pegar contato de quem vai fazer a obra e criar um grupo' },
-    { id: 101, stage: 'ETAPA 6: OBRAS', text: 'Agendar visitas nas etapas necessárias' },
-    { id: 102, stage: 'ETAPA 6: OBRAS', text: 'Salvar fotos na pasta' },
-    { id: 103, stage: 'ETAPA 6: OBRAS', text: 'Mandar fotos no grupo do escritório' },
-    { id: 104, stage: 'ETAPA 6: OBRAS', text: 'Passar para estagiário elaborar relatório' },
-    { id: 105, stage: 'ETAPA 6: OBRAS', text: 'Verificar relatório' },
-    { id: 106, stage: 'ETAPA 6: OBRAS', text: 'Enviar para o cliente' },
-
-    // ETAPA 7: PRODUÇÃO
-    { id: 107, stage: 'ETAPA 7: PRODUÇÃO', text: 'Elaborar memorial com links de itens de decor (almofadas, mantas, roupas de cama, etc)' },
-    { id: 108, stage: 'ETAPA 7: PRODUÇÃO', text: 'Agilizar orçamento e pedido das plantas' },
-    { id: 109, stage: 'ETAPA 7: PRODUÇÃO', text: 'Follow up com o cliente das compras de decor' },
-    { id: 110, stage: 'ETAPA 7: PRODUÇÃO', text: 'Agendar visita pré produção' },
-    { id: 111, stage: 'ETAPA 7: PRODUÇÃO', text: 'Agendar dia para a produção (verificar agenda do Administrativo, Responsável + equipe filmagem)' },
+    // ETAPA 6: PRODUÇÃO E ENTREGA
+    { id: 24, stage: '6. PRODUÇÃO E ENTREGA', text: 'Acompanhamento da montagem de Marcenaria' },
+    { id: 25, stage: '6. PRODUÇÃO E ENTREGA', text: 'Instalação de Iluminação e Metais conferida' },
+    { id: 26, stage: '6. PRODUÇÃO E ENTREGA', text: 'Limpeza pós-obra realizada' },
+    { id: 27, stage: '6. PRODUÇÃO E ENTREGA', text: 'Produção (Decoração e Mobiliário solto)' },
+    { id: 28, stage: '6. PRODUÇÃO E ENTREGA', text: 'Sessão de fotos final' },
+    { id: 29, stage: '6. PRODUÇÃO E ENTREGA', text: 'Entrega oficial do sonho (Chaves/Presente)' },
 ];
 
 export const DEFAULT_PROJECT_STAGES_TEMPLATE: ProjectStageTemplateItem[] = [
@@ -309,6 +219,7 @@ export const MOCK_SERVICE_PRICES: ServicePrice[] = [
     { id: 7, name: 'Terceiros', unit: 'un' },
     { id: 8, name: 'RT (Responsabilidade Técnica)', unit: 'un' },
     { id: 9, name: 'Gerenciamento de Obras', price: 1400, unit: 'mês' },
+    { id: 10, name: 'Averbação', unit: 'un' },
 ];
 
 export const MOCK_HOURLY_RATES: ServicePrice[] = [

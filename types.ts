@@ -147,6 +147,11 @@ export interface Contract {
     discountValue: number;
     mileageDistance?: number;
     mileageCost?: number;
+    techVisits?: {
+        enabled: boolean;
+        quantity: number;
+        totalValue: number;
+    };
     downPaymentDate: Date;
     firstInstallmentDate: Date;
 }
