@@ -112,7 +112,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
 
                     {Object.entries(groupedItems).map(([stageName, items]) => (
                         <div key={stageName} className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-                            <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-3 mb-4 sticky top-0 bg-white z-10">
+                            <h3 className="text-lg font-bold text-blue-600 border-b border-blue-100 pb-3 mb-4 sticky top-0 bg-white z-10">
                                 {stageName}
                             </h3>
                             <div className="space-y-3">

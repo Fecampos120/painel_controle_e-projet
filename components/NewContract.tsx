@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { UploadIcon, XIcon } from './Icons';
 import { AppData, Contract, Attachment, ContractService } from '../types';
@@ -12,7 +13,7 @@ interface FormSectionProps {
 
 const FormSection: React.FC<FormSectionProps> = ({ title, children }) => (
   <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-    <h2 className="text-base font-semibold text-slate-800 border-b border-slate-200 pb-4">{title}</h2>
+    <h2 className="text-lg font-bold text-blue-600 border-b border-blue-100 pb-4">{title}</h2>
     <div className="mt-6 space-y-4">
       {children}
     </div>
