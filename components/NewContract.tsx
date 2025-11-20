@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { UploadIcon, XIcon } from './Icons';
 import { AppData, Contract, Attachment, ContractService } from '../types';
@@ -160,8 +162,9 @@ const formatCurrency = (value: number) => {
 
 const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpdateContract, editingContract, onCancel }) => {
     const isEditing = !!editingContract;
-    const MILEAGE_RATE = 1.40;
-    const VISIT_BASE_PRICE = 80.00;
+    // Use values from AppSettings
+    const MILEAGE_RATE = appData.appSettings?.mileageRate ?? 1.40;
+    const VISIT_BASE_PRICE = appData.appSettings?.visitBasePrice ?? 80.00;
 
     const [isSameAddress, setIsSameAddress] = useState(() => 
         isEditing ? (editingContract.clientAddress.cep === editingContract.projectAddress.cep) : false
@@ -289,10 +292,10 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
         
         // Logic Calculation:
         // 1. If Tech Visits are enabled:
-        //    Cost Per Visit = Base Price (80) + (Mileage Enabled ? Distance * 1.4 : 0)
+        //    Cost Per Visit = Base Price (configured) + (Mileage Enabled ? Distance * Rate (configured) : 0)
         //    Total Extra = Cost Per Visit * Quantity
         // 2. If Tech Visits disabled but Mileage enabled:
-        //    Total Extra = Distance * 1.4 (Standard One-off Travel)
+        //    Total Extra = Distance * Rate (Standard One-off Travel)
 
         if (techVisits.enabled) {
             const qty = parseFloat(techVisits.quantity) || 0;
@@ -338,7 +341,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
             mileageCost: extraCost,
         });
 
-    }, [contractTypes, financialInputs, mileage, techVisits]);
+    }, [contractTypes, financialInputs, mileage, techVisits, VISIT_BASE_PRICE, MILEAGE_RATE]);
 
     useEffect(() => {
         const durationMonthsNum = parseInt(durationMonths, 10) || 0;

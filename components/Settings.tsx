@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { PlusIcon, TrashIcon, PencilIcon, XIcon } from './Icons';
 import { ServicePrice, PriceTier, AppData, ProjectStageTemplateItem } from '../types';
@@ -200,6 +201,18 @@ const Settings: React.FC<SettingsProps> = ({ appData, setAppData }) => {
       }
   };
   
+  const handleGlobalSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      const numValue = value === '' ? 0 : parseFloat(value);
+      setAppData(prev => ({
+          ...prev,
+          appSettings: {
+              ...prev.appSettings,
+              [name]: numValue
+          }
+      }));
+  };
+  
   const renderModalFormFields = () => {
       if (!currentSection) return null;
       const sectionConfig = sections[currentSection.key]!;
@@ -266,6 +279,42 @@ const Settings: React.FC<SettingsProps> = ({ appData, setAppData }) => {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {/* Global Settings Section */}
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
+                <h2 className="text-lg font-semibold text-slate-800">Parâmetros Globais</h2>
+                <p className="mt-1 text-sm text-slate-500">Valores padrão utilizados em novos contratos.</p>
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                        <label htmlFor="visitBasePrice" className="block text-sm font-medium text-slate-700">Preço Base da Visita Técnica (R$)</label>
+                        <input
+                            type="number"
+                            id="visitBasePrice"
+                            name="visitBasePrice"
+                            value={appData.appSettings?.visitBasePrice ?? 80}
+                            onChange={handleGlobalSettingsChange}
+                            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
+                            step="0.01"
+                            min="0"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Utilizado ao adicionar visitas in loco no contrato.</p>
+                    </div>
+                    <div>
+                        <label htmlFor="mileageRate" className="block text-sm font-medium text-slate-700">Valor do KM Rodado (R$)</label>
+                        <input
+                            type="number"
+                            id="mileageRate"
+                            name="mileageRate"
+                            value={appData.appSettings?.mileageRate ?? 1.40}
+                            onChange={handleGlobalSettingsChange}
+                            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
+                            step="0.01"
+                            min="0"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Utilizado para cálculo automático de deslocamento.</p>
+                    </div>
+                </div>
+            </div>
+
             <div className="space-y-8">
                 <SettingSection
                     title={sections.servicePrices!.title}

@@ -38,6 +38,11 @@ export interface ProjectChecklist {
     completedItemIds: number[];
 }
 
+export interface AppSettings {
+    visitBasePrice: number;
+    mileageRate: number;
+}
+
 export interface AppData {
     // Fix: Add clients to AppData to be used in the Database component.
     clients: Client[];
@@ -54,6 +59,7 @@ export interface AppData {
     otherPayments: OtherPayment[];
     partners: Partner[];
     checklists: ProjectChecklist[];
+    appSettings: AppSettings;
 }
 
 export interface Client {

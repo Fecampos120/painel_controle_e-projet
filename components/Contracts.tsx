@@ -4,9 +4,11 @@
 
 
 
+
+
 import React, { useState, useMemo } from 'react';
-import { Contract, ProjectSchedule, Client } from '../types';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
+import { Contract, ProjectSchedule, Client, ProjectStage } from '../types';
+import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, PrinterIcon, ArchitectIcon } from './Icons';
 
 // This is the new main component for this file, implementing the "Projetos" view.
 interface DisplayProject {
@@ -46,11 +48,190 @@ const StatusChip: React.FC<{ status: DisplayProject['status'] }> = ({ status }) 
     );
 };
 
+// Report Component to handle Printing
+const ProjectReportModal: React.FC<{ contract: Contract, schedule?: ProjectSchedule, onClose: () => void }> = ({ contract, schedule, onClose }) => {
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    const formatDate = (dateStr?: string | Date) => {
+        if(!dateStr) return '-';
+        const d = typeof dateStr === 'string' ? new Date(dateStr + 'T00:00:00') : new Date(dateStr);
+        return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(d);
+    };
+
+    const completedStages = schedule?.stages.filter(s => s.completionDate).length || 0;
+    const totalStages = schedule?.stages.length || 0;
+    const progress = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
+
+    return (
+        <>
+            <style>{`
+                @media print {
+                    body > #root > div > aside, .no-print, .modal-overlay {
+                        display: none !important;
+                    }
+                    body > #root > div > main {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        overflow: visible !important;
+                        background: white !important;
+                        height: auto !important;
+                    }
+                    .printable-report {
+                        position: relative !important;
+                        width: 100% !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        transform: none !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                        z-index: 9999 !important;
+                        display: block !important;
+                    }
+                    .page-break {
+                        page-break-after: always;
+                    }
+                    @page {
+                        margin: 1.5cm;
+                    }
+                }
+            `}</style>
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 modal-overlay" onClick={onClose}>
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                     <div className="p-6 border-b border-slate-200 flex justify-between items-center no-print sticky top-0 bg-white z-10">
+                        <h2 className="text-xl font-bold text-slate-800">Visualização do Relatório</h2>
+                        <div className="flex space-x-3">
+                            <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors">Fechar</button>
+                            <button onClick={handlePrint} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center">
+                                <PrinterIcon className="w-4 h-4 mr-2" /> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="p-10 printable-report font-serif">
+                        {/* Header */}
+                        <header className="flex justify-between items-end border-b-2 border-slate-800 pb-6 mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-widest">Relatório de Projeto</h1>
+                                <p className="text-slate-600 text-sm mt-1">Acompanhamento e Status</p>
+                            </div>
+                            <div className="text-right">
+                                <div className="flex items-center justify-end space-x-2 text-slate-800 font-bold text-xl">
+                                    <ArchitectIcon className="w-8 h-8" />
+                                    <span>STUDIO BATTELLO</span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">Arquitetura & Interiores</p>
+                                <p className="text-xs text-slate-500">Emitido em: {new Date().toLocaleDateString('pt-BR')}</p>
+                            </div>
+                        </header>
+
+                        {/* Overview Cards */}
+                        <div className="grid grid-cols-2 gap-8 mb-8">
+                            <div className="bg-slate-50 p-4 rounded border border-slate-200 print:bg-transparent print:border-slate-300">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Dados do Cliente</h3>
+                                <p className="text-lg font-bold text-slate-800">{contract.clientName}</p>
+                                <p className="text-sm text-slate-600 mt-1">{contract.clientAddress.city} - {contract.clientAddress.state}</p>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded border border-slate-200 print:bg-transparent print:border-slate-300">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Dados do Projeto</h3>
+                                <p className="text-lg font-bold text-slate-800">{contract.projectName}</p>
+                                <p className="text-sm text-slate-600 mt-1"><span className="font-semibold">Tipo:</span> {contract.serviceType}</p>
+                                <p className="text-sm text-slate-600 mt-1">
+                                    <span className="font-semibold">Progresso:</span> {progress}%
+                                </p>
+                            </div>
+                        </div>
+                        
+                        {/* Financial Summary */}
+                        <div className="mb-8">
+                             <h3 className="text-sm font-bold text-slate-800 uppercase border-b border-slate-300 pb-2 mb-4">Resumo Financeiro</h3>
+                             <table className="w-full text-sm mb-2">
+                                 <tbody>
+                                     <tr className="border-b border-slate-100">
+                                         <td className="py-2 text-slate-600">Valor Total do Contrato</td>
+                                         <td className="py-2 text-right font-bold text-slate-800">{formatCurrency(contract.totalValue)}</td>
+                                     </tr>
+                                      <tr className="border-b border-slate-100">
+                                         <td className="py-2 text-slate-600">Entrada</td>
+                                         <td className="py-2 text-right text-slate-800">{formatCurrency(contract.downPayment)} ({formatDate(contract.downPaymentDate)})</td>
+                                     </tr>
+                                      <tr>
+                                         <td className="py-2 text-slate-600">Parcelamento</td>
+                                         <td className="py-2 text-right text-slate-800">{contract.installments}x de {formatCurrency(contract.installmentValue)}</td>
+                                     </tr>
+                                 </tbody>
+                             </table>
+                        </div>
+
+                        {/* Schedule Table */}
+                        {schedule && (
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-800 uppercase border-b border-slate-300 pb-2 mb-4">Cronograma de Etapas</h3>
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-100 text-slate-700 print:bg-slate-100">
+                                        <tr>
+                                            <th className="py-2 px-3 text-left font-semibold">Etapa</th>
+                                            <th className="py-2 px-3 text-center font-semibold">Início</th>
+                                            <th className="py-2 px-3 text-center font-semibold">Prazo</th>
+                                            <th className="py-2 px-3 text-center font-semibold">Conclusão</th>
+                                            <th className="py-2 px-3 text-center font-semibold">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200 border border-slate-200">
+                                        {schedule.stages.map((stage) => {
+                                            const isCompleted = !!stage.completionDate;
+                                            const today = new Date();
+                                            today.setHours(0,0,0,0);
+                                            const deadline = stage.deadline ? new Date(stage.deadline + 'T00:00:00') : null;
+                                            const isLate = !isCompleted && deadline && deadline < today;
+                                            
+                                            return (
+                                                <tr key={stage.id} className={isCompleted ? 'bg-green-50/30 print:bg-transparent' : ''}>
+                                                    <td className="py-2 px-3 font-medium text-slate-800">{stage.name}</td>
+                                                    <td className="py-2 px-3 text-center text-slate-600">{formatDate(stage.startDate)}</td>
+                                                    <td className="py-2 px-3 text-center text-slate-600">{formatDate(stage.deadline)}</td>
+                                                    <td className="py-2 px-3 text-center text-slate-600">{formatDate(stage.completionDate)}</td>
+                                                    <td className="py-2 px-3 text-center">
+                                                        <span className={`text-xs font-bold px-2 py-1 rounded border ${
+                                                            isCompleted ? 'text-green-700 border-green-200 bg-green-50' : 
+                                                            isLate ? 'text-red-700 border-red-200 bg-red-50' : 
+                                                            'text-slate-500 border-slate-200 bg-slate-50'
+                                                        }`}>
+                                                            {isCompleted ? 'CONCLUÍDO' : isLate ? 'ATRASADO' : 'PENDENTE'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        
+                        <footer className="mt-16 pt-8 border-t border-slate-200 text-center text-xs text-slate-400">
+                            <p>Este documento foi gerado automaticamente pelo sistema E-Projet.</p>
+                        </footer>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+
+
 const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEditContract, onDeleteContract, onCreateProject }) => {
     const [activeTab, setActiveTab] = useState<'ativos' | 'arquivados'>('ativos');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const projectsPerPage = 8;
+    
+    // State for Report Modal
+    const [printingContractId, setPrintingContractId] = useState<number | null>(null);
 
     const displayProjects = useMemo((): DisplayProject[] => {
         return contracts.map(contract => {
@@ -123,6 +304,15 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
             setCurrentPage(page);
         }
     };
+    
+    const getPrintingData = () => {
+        if(!printingContractId) return null;
+        const contract = contracts.find(c => c.id === printingContractId);
+        const schedule = schedules.find(s => s.contractId === printingContractId);
+        if(!contract) return null;
+        return { contract, schedule };
+    }
+    const printingData = getPrintingData();
     
     return (
         <div className="space-y-6">
@@ -224,7 +414,7 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
                                     <td className="p-3"><StatusChip status={project.status} /></td>
                                     <td className="p-3 text-right">
                                         <div className="flex items-center justify-end space-x-1">
-                                            <button onClick={() => {}} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Visualizar"><EyeIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => setPrintingContractId(project.id)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Imprimir Relatório" title="Imprimir Relatório"><PrinterIcon className="w-5 h-5" /></button>
                                             <button onClick={() => onEditContract(project.originalContract)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Editar"><PencilIcon className="w-5 h-5" /></button>
                                             <button onClick={() => onDeleteContract(project.id)} className="p-2 text-slate-500 hover:text-red-600" aria-label="Excluir"><TrashIcon className="w-5 h-5" /></button>
                                         </div>
@@ -260,6 +450,14 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
                     </div>
                 )}
             </div>
+
+             {printingData && (
+                <ProjectReportModal 
+                    contract={printingData.contract} 
+                    schedule={printingData.schedule} 
+                    onClose={() => setPrintingContractId(null)} 
+                />
+            )}
         </div>
     );
 };
