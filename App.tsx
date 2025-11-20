@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   DashboardIcon, 
@@ -265,7 +266,13 @@ export default function App() {
   const [appData, setAppData] = useState<AppData>(() => {
     try {
         const dataJson = localStorage.getItem(APP_DATA_STORAGE_KEY);
-        return dataJson ? JSON.parse(dataJson) : getInitialData();
+        if (dataJson) {
+            const parsedData = JSON.parse(dataJson);
+            // Merge with initial data to ensure new fields (like checklists, partners) exist in the state
+            // even if missing from localStorage (old data).
+            return { ...getInitialData(), ...parsedData };
+        }
+        return getInitialData();
     } catch (error) {
         console.error("Error reading app data from localStorage", error);
         return getInitialData();
@@ -397,6 +404,7 @@ export default function App() {
         installments: prev.installments.filter(i => i.contractId !== contractId),
         schedules: prev.schedules.filter(s => s.contractId !== contractId),
         projectProgress: prev.projectProgress?.filter(p => p.contractId !== contractId),
+        checklists: prev.checklists ? prev.checklists.filter(c => c.contractId !== contractId) : [],
     }));
   };
   
@@ -423,13 +431,14 @@ export default function App() {
 
   const handleUpdateChecklist = (updatedChecklist: ProjectChecklist) => {
     setAppData(prev => {
-        const existingIndex = prev.checklists.findIndex(c => c.contractId === updatedChecklist.contractId);
+        const currentChecklists = prev.checklists || [];
+        const existingIndex = currentChecklists.findIndex(c => c.contractId === updatedChecklist.contractId);
         if (existingIndex >= 0) {
-            const newChecklists = [...prev.checklists];
+            const newChecklists = [...currentChecklists];
             newChecklists[existingIndex] = updatedChecklist;
             return { ...prev, checklists: newChecklists };
         } else {
-            return { ...prev, checklists: [...prev.checklists, updatedChecklist] };
+            return { ...prev, checklists: [...currentChecklists, updatedChecklist] };
         }
     });
   };

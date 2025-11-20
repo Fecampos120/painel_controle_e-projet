@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AppData, Client, Contract, Reminder, PaymentInstallment } from '../types';
 import { PencilIcon, TrashIcon, XIcon, PlusIcon, ExclamationTriangleIcon, DownloadIcon, UploadIcon } from './Icons';
@@ -116,7 +117,7 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
         
         let confirmationMessage = 'Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.';
         if (isContract) {
-            confirmationMessage = 'Tem certeza que deseja excluir este contrato? Esta ação também excluirá parcelas e cronogramas associados.';
+            confirmationMessage = 'Tem certeza que deseja excluir este contrato? Esta ação também excluirá parcelas, cronogramas e checklists associados.';
         } else if (isClient) {
             confirmationMessage = 'Tem certeza que deseja excluir este cliente? Todos os contratos, parcelas e lembretes associados a ele também serão excluídos.';
         }
@@ -141,6 +142,7 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
                         installments: prev.installments.filter(i => !contractIdsToDelete.includes(i.contractId)),
                         schedules: prev.schedules.filter(s => !contractIdsToDelete.includes(s.contractId)),
                         projectProgress: prev.projectProgress?.filter(p => !contractIdsToDelete.includes(p.contractId)),
+                        checklists: prev.checklists ? prev.checklists.filter(c => !contractIdsToDelete.includes(c.contractId)) : [],
                     };
                 });
             } else {
@@ -184,6 +186,7 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
                         installments: prev.installments.filter(i => !contractIdsToDelete.has(i.contractId)),
                         schedules: prev.schedules.filter(s => !contractIdsToDelete.has(s.contractId)),
                         projectProgress: prev.projectProgress?.filter(p => !contractIdsToDelete.has(p.contractId)),
+                        checklists: prev.checklists ? prev.checklists.filter(c => !contractIdsToDelete.has(c.contractId)) : [],
                     };
                 });
             } else {

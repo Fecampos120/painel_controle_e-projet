@@ -10,7 +10,7 @@ interface ConstructionChecklistProps {
     onUpdateChecklist: (checklist: ProjectChecklist) => void;
 }
 
-const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts, checklists, onUpdateChecklist }) => {
+const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts, checklists = [], onUpdateChecklist }) => {
     const [selectedContractId, setSelectedContractId] = useState<string>('');
     const [localCompletedIds, setLocalCompletedIds] = useState<number[]>([]);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -20,7 +20,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
     // Carregar dados salvos quando o contrato muda
     useEffect(() => {
         if (selectedContractId) {
-            const savedChecklist = checklists.find(c => c.contractId === parseInt(selectedContractId));
+            const savedChecklist = (checklists || []).find(c => c.contractId === parseInt(selectedContractId));
             setLocalCompletedIds(savedChecklist ? savedChecklist.completedItemIds : []);
             setHasUnsavedChanges(false);
         } else {
