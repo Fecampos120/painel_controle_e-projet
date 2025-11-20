@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useMemo } from 'react';
 import { Contract, ProjectSchedule, Client } from '../types';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
@@ -85,7 +87,7 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
             }
 
             if (isArchived) {
-                status = contract.status;
+                status = contract.status as 'Concluído' | 'Cancelado';
                 if (status === 'Concluído') progress = 100;
             }
             

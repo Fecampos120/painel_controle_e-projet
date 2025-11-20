@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   DashboardIcon, 
@@ -20,6 +12,7 @@ import {
   DatabaseIcon,
   ExclamationTriangleIcon,
   UsersIcon,
+  ClipboardCheckIcon,
 } from './components/Icons';
 import Dashboard from './components/Dashboard';
 import Reminders from './components/Reminders';
@@ -33,11 +26,12 @@ import LatePayments from './components/LatePayments';
 import MonthlyRevenueChart from './components/MonthlyRevenueChart';
 import Database from './components/Database';
 import Partners from './components/Partners';
-import { AppData, PaymentInstallment, Contract, OtherPayment, Client, Partner, ProjectStageTemplateItem, ProjectSchedule, ProjectStage, ProjectProgress, StageProgress } from './types';
+import ConstructionChecklist from './components/ConstructionChecklist';
+import { AppData, PaymentInstallment, Contract, OtherPayment, Client, Partner, ProjectStageTemplateItem, ProjectSchedule, ProjectStage, ProjectProgress, StageProgress, ProjectChecklist } from './types';
 import { CLIENTS, MOCK_CONTRACTS, MOCK_REMINDERS, INITIAL_INSTALLMENTS, MOCK_PROJECT_SCHEDULES, MOCK_PROJECT_PROGRESS, MOCK_SERVICE_PRICES, MOCK_HOURLY_RATES, MOCK_MEASUREMENT_TIERS, MOCK_EXTRA_TIERS, DEFAULT_PROJECT_STAGES_TEMPLATE, MOCK_OTHER_PAYMENTS, MOCK_PARTNERS, GANTT_STAGES_CONFIG } from './constants';
 
 
-type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'late-payments' | 'partners';
+type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'late-payments' | 'partners' | 'checklist';
 
 const APP_DATA_STORAGE_KEY = 'architect_app_data';
 
@@ -55,6 +49,7 @@ const getInitialData = (): AppData => ({
     projectStagesTemplate: DEFAULT_PROJECT_STAGES_TEMPLATE,
     otherPayments: MOCK_OTHER_PAYMENTS,
     partners: MOCK_PARTNERS,
+    checklists: [],
 });
 
 const NavItem: React.FC<{
@@ -426,6 +421,19 @@ export default function App() {
     }));
   };
 
+  const handleUpdateChecklist = (updatedChecklist: ProjectChecklist) => {
+    setAppData(prev => {
+        const existingIndex = prev.checklists.findIndex(c => c.contractId === updatedChecklist.contractId);
+        if (existingIndex >= 0) {
+            const newChecklists = [...prev.checklists];
+            newChecklists[existingIndex] = updatedChecklist;
+            return { ...prev, checklists: newChecklists };
+        } else {
+            return { ...prev, checklists: [...prev.checklists, updatedChecklist] };
+        }
+    });
+  };
+
 
   const handleResetData = () => {
     if (window.confirm('Você tem certeza que deseja limpar TODOS os dados? Esta ação é irreversível e irá restaurar o aplicativo para o estado inicial.')) {
@@ -525,7 +533,7 @@ export default function App() {
       case 'late-payments':
         return <LatePayments installments={appData.installments} />;
       case 'receipts':
-        return <Receipts contracts={appData.contracts}/>;
+        return <Receipts contracts={appData.contracts} installments={appData.installments} />;
       case 'reminders':
         return <Reminders 
                   reminders={appData.reminders}
@@ -539,6 +547,12 @@ export default function App() {
                   onAddPartner={handleAddPartner}
                   onUpdatePartner={handleUpdatePartner}
                   onDeletePartner={handleDeletePartner}
+                />;
+        case 'checklist':
+          return <ConstructionChecklist
+                    contracts={appData.contracts}
+                    checklists={appData.checklists}
+                    onUpdateChecklist={handleUpdateChecklist}
                 />;
        case 'database':
         return <Database
@@ -607,6 +621,12 @@ export default function App() {
                   label="Progresso"
                   isActive={view === 'progress'}
                   onClick={() => setView('progress')}
+                />
+                <NavItem
+                  icon={<ClipboardCheckIcon className="w-5 h-5" />}
+                  label="Checklist Obra"
+                  isActive={view === 'checklist'}
+                  onClick={() => setView('checklist')}
                 />
                 <NavItem
                   icon={<CashIcon className="w-5 h-5" />}

@@ -1,3 +1,4 @@
+
 // Represents a single stage item in the customizable template
 export interface ProjectStageTemplateItem {
     id: number;
@@ -25,6 +26,17 @@ export interface Partner {
     clientIds?: number[];
 }
 
+// Checklist Types
+export interface ChecklistItemTemplate {
+    id: number;
+    text: string;
+    stage: string;
+}
+
+export interface ProjectChecklist {
+    contractId: number;
+    completedItemIds: number[];
+}
 
 export interface AppData {
     // Fix: Add clients to AppData to be used in the Database component.
@@ -41,6 +53,7 @@ export interface AppData {
     projectStagesTemplate: ProjectStageTemplateItem[];
     otherPayments: OtherPayment[];
     partners: Partner[];
+    checklists: ProjectChecklist[];
 }
 
 export interface Client {

@@ -1,3 +1,4 @@
+
 // Fix: Import `useEffect` from react to resolve 'Cannot find name' error.
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ProjectStage, ProjectSchedule, Contract, GanttProject, GanttStage } from '../types';
@@ -212,7 +213,7 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
     type Mode = 'gantt' | 'edit' | 'planner';
     type DeadlineFilter = 'all' | 'expiring' | 'late';
     
-    const [mode, setMode] = useState<Mode>('planner');
+    const [mode, setMode] = useState<Mode>('gantt');
     const [currentSchedule, setCurrentSchedule] = useState<ProjectSchedule | null>(null);
     const [filterStage, setFilterStage] = useState<string>('all');
     const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('all');
@@ -305,28 +306,6 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
             return true;
         });
     }, [ganttProjects, filterStage, deadlineFilter]);
-
-    const timeline = useMemo(() => {
-        if (filteredProjects.length === 0) {
-            const start = new Date();
-            const end = new Date();
-            end.setMonth(start.getMonth() + 4);
-            return { start, end, totalDays: 120 };
-        }
-        
-        let minDate = new Date();
-        let maxDate = new Date();
-        maxDate.setDate(minDate.getDate() + 90);
-
-        filteredProjects.forEach(p => {
-            const projectEndDate = p.stages[p.stages.length -1].endDate;
-            if (projectEndDate > maxDate) maxDate = projectEndDate;
-        });
-        
-        const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
-        return { start: minDate, end: maxDate, totalDays: Math.max(totalDays, 90) };
-    }, [filteredProjects]);
-
 
     const handleEdit = (schedule: ProjectSchedule) => {
         setCurrentSchedule(JSON.parse(JSON.stringify(schedule))); // Deep copy for safe editing
@@ -439,12 +418,12 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
     const getDaysRemainingInfo = (days: number | undefined) => {
         if (days === undefined) return null;
         if (days < 0) {
-            return <span className="text-red-600 font-bold">{Math.abs(days)} dia(s) atrasado</span>;
+            return <span className="text-red-600 font-bold text-[10px]">{Math.abs(days)} dia(s) atrasado</span>;
         }
         if (days <= 7) {
-            return <span className="text-orange-500 font-semibold">{days} dia(s) restante(s)</span>;
+            return <span className="text-orange-500 font-semibold text-[10px]">{days} dia(s) restante(s)</span>;
         }
-        return <span className="text-slate-500">{days} dia(s) restante(s)</span>;
+        return <span className="text-slate-400 text-[10px]">{days} dia(s) restante(s)</span>;
     };
     
     return (
@@ -460,7 +439,7 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                         onClick={() => setMode('gantt')}
                         className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 w-full ${mode === 'gantt' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`}
                     >
-                        Visão Geral (Gantt)
+                        Visão Geral (Tabela)
                     </button>
                     <button 
                         onClick={() => setMode('planner')}
@@ -513,60 +492,90 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                     </div>
 
                     <div className="overflow-x-auto">
-                        <div className="min-w-[1200px]">
-                            {/* Gantt Header */}
-                            <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-slate-500 pb-2">
-                                 <div className="col-span-3">Projeto</div>
-                                 <div className="col-span-9">
-                                    <div className="relative h-full border-l border-slate-200">
-                                        {Array.from({ length: Math.ceil(timeline.totalDays / 30) }).map((_, i) => {
-                                            const monthDate = new Date(timeline.start);
-                                            monthDate.setMonth(timeline.start.getMonth() + i);
-                                            const left = (Math.max(0, (monthDate.getTime() - timeline.start.getTime())) / (1000 * 60 * 60 * 24) / timeline.totalDays) * 100;
+                        <div className="min-w-[1000px]">
+                             {/* Replaced Matrix Header */}
+                             <div className="grid grid-cols-12 gap-4 bg-slate-50 p-3 rounded-t-lg border-b border-slate-200">
+                                 <div className="col-span-2 text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">Projeto</div>
+                                 {GANTT_STAGES_CONFIG.map(stage => (
+                                     <div key={stage.name} className="col-span-2 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">{stage.name}</div>
+                                 ))}
+                            </div>
+
+                            {/* Replaced Matrix Body */}
+                            <div className="divide-y divide-slate-100 border border-slate-100 rounded-b-lg">
+                                {filteredProjects.map(project => (
+                                    <div key={project.contractId} className="grid grid-cols-12 gap-4 items-center p-4 hover:bg-slate-50 transition-colors bg-white">
+                                        <div className="col-span-2">
+                                            <p 
+                                                className="font-bold text-slate-800 text-sm cursor-pointer hover:text-blue-600 truncate"
+                                                onClick={() => handleEdit(project.schedule)}
+                                            >{project.clientName}</p>
+                                            <div className="mt-1">
+                                                 {getDaysRemainingInfo(project.daysRemaining)}
+                                            </div>
+                                        </div>
+                                        
+                                        {project.stages.map((stage, idx) => {
+                                            const today = new Date();
+                                            today.setHours(0,0,0,0);
+                                            const stageEndDate = new Date(stage.endDate);
+                                            // Fix timezone issues if simple string conversion from JSON
+                                            stageEndDate.setMinutes(stageEndDate.getMinutes() + stageEndDate.getTimezoneOffset());
+                                            stageEndDate.setHours(0,0,0,0);
+                                            
+                                            const diffTime = stageEndDate.getTime() - today.getTime();
+                                            const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                            
+                                            const isLate = stage.status !== 'completed' && daysRemaining < 0;
+                                            const isNearDue = stage.status !== 'completed' && daysRemaining >= 0 && daysRemaining <= 2;
+                                            
+                                            let statusBadge;
+                                            let progressColor = 'bg-slate-300';
+                                            let footerInfo;
+                                            
+                                            if (stage.status === 'completed') {
+                                                statusBadge = <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-green-100 text-green-800 uppercase tracking-wide border border-green-200">Concluído</span>;
+                                                progressColor = 'bg-green-500';
+                                                footerInfo = <span className="text-[10px] text-slate-400 font-medium">{formatDateForDisplay(stage.endDate)}</span>;
+                                            } else if (stage.status === 'in_progress') {
+                                                 if (isLate) {
+                                                     statusBadge = <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-red-100 text-red-800 uppercase tracking-wide border border-red-200">Atrasado</span>;
+                                                     progressColor = 'bg-red-500';
+                                                     footerInfo = <span className="text-[10px] font-bold text-red-600">{Math.abs(daysRemaining)} dia(s) de atraso</span>;
+                                                 } else if (isNearDue) {
+                                                     statusBadge = <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-yellow-100 text-yellow-800 uppercase tracking-wide border border-yellow-200">Próx. Vencimento</span>;
+                                                     progressColor = 'bg-yellow-500';
+                                                     footerInfo = <span className="text-[10px] font-bold text-yellow-600">{daysRemaining === 0 ? 'Vence Hoje' : `Vence em ${daysRemaining} dia(s)`}</span>;
+                                                 } else {
+                                                     statusBadge = <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800 uppercase tracking-wide border border-blue-200">Em Andamento</span>;
+                                                     progressColor = 'bg-blue-500';
+                                                     footerInfo = <span className="text-[10px] text-slate-500 font-medium">Até {formatDateForDisplay(stage.endDate)}</span>;
+                                                 }
+                                            } else {
+                                                // Pending
+                                                statusBadge = <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-500 uppercase tracking-wide border border-slate-200">Pendente</span>;
+                                                progressColor = 'bg-slate-300';
+                                                if(daysRemaining < 0) {
+                                                      footerInfo = <span className="text-[10px] font-medium text-red-400">{formatDateForDisplay(stage.endDate)}</span>;
+                                                } else {
+                                                     footerInfo = <span className="text-[10px] font-medium text-slate-400">{formatDateForDisplay(stage.endDate)}</span>;
+                                                }
+                                            }
+
                                             return (
-                                                <div key={i} className="absolute top-0 text-center" style={{ left: `${left}%` }}>
-                                                    {monthDate.toLocaleString('pt-BR', { month: 'short' }).replace('.','')}
+                                                <div key={idx} className="col-span-2 flex flex-col items-center justify-start space-y-2 px-2 py-3 h-full border-l border-slate-100 last:border-r-0">
+                                                     {statusBadge}
+                                                     
+                                                     <div className="w-full max-w-[100px] h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                         <div className={`h-full rounded-full ${progressColor}`} style={{width: `${stage.status === 'completed' ? 100 : stage.progress}%`}}></div>
+                                                     </div>
+                                                     
+                                                     <div className="text-center leading-tight mt-1 min-h-[15px]">
+                                                         {footerInfo}
+                                                     </div>
                                                 </div>
                                             );
                                         })}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Gantt Body */}
-                            <div className="space-y-3">
-                                {filteredProjects.map(project => (
-                                    <div key={project.contractId} className="grid grid-cols-12 gap-2 items-center bg-slate-50/70 p-2 rounded-lg hover:bg-slate-100">
-                                        <div className="col-span-3">
-                                            <p 
-                                                className="font-semibold text-blue-600 cursor-pointer hover:underline truncate"
-                                                onClick={() => handleEdit(project.schedule)}
-                                            >{project.clientName}</p>
-                                            <p className="text-xs text-slate-500 truncate">{getDaysRemainingInfo(project.daysRemaining)}</p>
-                                        </div>
-                                        <div className="col-span-9 h-6 bg-slate-200/50 rounded-md relative">
-                                            {project.stages.map(stage => {
-                                                const left = (Math.max(0, stage.startDate.getTime() - timeline.start.getTime()) / (1000 * 60 * 60 * 24) / timeline.totalDays) * 100;
-                                                const width = (Math.max(0, stage.endDate.getTime() - stage.startDate.getTime()) / (1000 * 60 * 60 * 24) / timeline.totalDays) * 100;
-                                                
-                                                const stageColor = stage.status === 'completed' ? 'bg-green-400' : stage.status === 'in_progress' ? 'bg-yellow-400' : 'bg-slate-300';
-                                                const progressColor = stage.status === 'completed' ? 'bg-green-600' : 'bg-yellow-600';
-
-                                                return (
-                                                    <div 
-                                                        key={stage.name} 
-                                                        className={`absolute h-full rounded ${stageColor} transition-all duration-300 group`}
-                                                        style={{ left: `${left}%`, width: `${width}%` }}
-                                                    >
-                                                       <div className={`h-full rounded ${progressColor}`} style={{ width: `${stage.progress}%` }}></div>
-                                                       <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-max px-2 py-1 bg-slate-800 text-white text-xs rounded-md shadow-lg invisible group-hover:visible transition-opacity opacity-0 group-hover:opacity-100 z-10 pointer-events-none">
-                                                            {stage.name}: {formatDateForDisplay(stage.startDate)} - {formatDateForDisplay(stage.endDate)} ({Math.round(stage.progress)}%)
-                                                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-4 border-t-slate-800"></div>
-                                                       </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
                                     </div>
                                 ))}
                             </div>
