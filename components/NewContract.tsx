@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { UploadIcon, XIcon } from './Icons';
 import { AppData, Contract, Attachment, ContractService } from '../types';
@@ -162,9 +157,8 @@ const formatCurrency = (value: number) => {
 
 const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpdateContract, editingContract, onCancel }) => {
     const isEditing = !!editingContract;
-    // Use values from AppSettings
-    const MILEAGE_RATE = appData.appSettings?.mileageRate ?? 1.40;
-    const VISIT_BASE_PRICE = appData.appSettings?.visitBasePrice ?? 80.00;
+    const MILEAGE_RATE = 1.40;
+    const VISIT_BASE_PRICE = 80.00;
 
     const [isSameAddress, setIsSameAddress] = useState(() => 
         isEditing ? (editingContract.clientAddress.cep === editingContract.projectAddress.cep) : false

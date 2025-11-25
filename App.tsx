@@ -51,10 +51,6 @@ const getInitialData = (): AppData => ({
     otherPayments: MOCK_OTHER_PAYMENTS,
     partners: MOCK_PARTNERS,
     checklists: [],
-    appSettings: {
-        visitBasePrice: 80.00,
-        mileageRate: 1.40,
-    }
 });
 
 const NavItem: React.FC<{
@@ -272,7 +268,7 @@ export default function App() {
         const dataJson = localStorage.getItem(APP_DATA_STORAGE_KEY);
         if (dataJson) {
             const parsedData = JSON.parse(dataJson);
-            // Merge with initial data to ensure new fields (like checklists, partners, appSettings) exist in the state
+            // Merge with initial data to ensure new fields (like checklists, partners) exist in the state
             // even if missing from localStorage (old data).
             return { ...getInitialData(), ...parsedData };
         }
