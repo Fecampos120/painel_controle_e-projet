@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   DashboardIcon, 
@@ -14,6 +13,8 @@ import {
   ExclamationTriangleIcon,
   UsersIcon,
   ClipboardCheckIcon,
+  NotepadIcon,
+  MapPinIcon
 } from './components/Icons';
 import Dashboard from './components/Dashboard';
 import Reminders from './components/Reminders';
@@ -28,11 +29,14 @@ import MonthlyRevenueChart from './components/MonthlyRevenueChart';
 import Database from './components/Database';
 import Partners from './components/Partners';
 import ConstructionChecklist from './components/ConstructionChecklist';
-import { AppData, PaymentInstallment, Contract, OtherPayment, Client, Partner, ProjectStageTemplateItem, ProjectSchedule, ProjectStage, ProjectProgress, StageProgress, ProjectChecklist } from './types';
-import { CLIENTS, MOCK_CONTRACTS, MOCK_REMINDERS, INITIAL_INSTALLMENTS, MOCK_PROJECT_SCHEDULES, MOCK_PROJECT_PROGRESS, MOCK_SERVICE_PRICES, MOCK_HOURLY_RATES, MOCK_MEASUREMENT_TIERS, MOCK_EXTRA_TIERS, DEFAULT_PROJECT_STAGES_TEMPLATE, MOCK_OTHER_PAYMENTS, MOCK_PARTNERS, GANTT_STAGES_CONFIG } from './constants';
+import Notes from './components/Notes';
+import TechnicalVisits from './components/TechnicalVisits';
+
+import { AppData, PaymentInstallment, Contract, OtherPayment, Client, Partner, ProjectStageTemplateItem, ProjectSchedule, ProjectStage, ProjectProgress, StageProgress, ProjectChecklist, Note, VisitLog } from './types';
+import { CLIENTS, MOCK_CONTRACTS, MOCK_REMINDERS, INITIAL_INSTALLMENTS, MOCK_PROJECT_SCHEDULES, MOCK_PROJECT_PROGRESS, MOCK_SERVICE_PRICES, MOCK_HOURLY_RATES, MOCK_MEASUREMENT_TIERS, MOCK_EXTRA_TIERS, DEFAULT_PROJECT_STAGES_TEMPLATE, MOCK_OTHER_PAYMENTS, MOCK_PARTNERS, GANTT_STAGES_CONFIG, MOCK_NOTES, MOCK_VISIT_LOGS } from './constants';
 
 
-type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'late-payments' | 'partners' | 'checklist';
+type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'late-payments' | 'partners' | 'checklist' | 'notes' | 'tech-visits';
 
 const APP_DATA_STORAGE_KEY = 'architect_app_data';
 
@@ -51,6 +55,8 @@ const getInitialData = (): AppData => ({
     otherPayments: MOCK_OTHER_PAYMENTS,
     partners: MOCK_PARTNERS,
     checklists: [],
+    notes: MOCK_NOTES,
+    visitLogs: MOCK_VISIT_LOGS,
 });
 
 const NavItem: React.FC<{
@@ -405,6 +411,7 @@ export default function App() {
         schedules: prev.schedules.filter(s => s.contractId !== contractId),
         projectProgress: prev.projectProgress?.filter(p => p.contractId !== contractId),
         checklists: prev.checklists ? prev.checklists.filter(c => c.contractId !== contractId) : [],
+        visitLogs: prev.visitLogs ? prev.visitLogs.filter(v => v.contractId !== contractId) : [],
     }));
   };
   
@@ -443,6 +450,35 @@ export default function App() {
     });
   };
 
+  // Notes Management
+  const handleAddNote = (newNote: Omit<Note, 'id' | 'createdAt'>) => {
+      setAppData(prev => ({
+          ...prev,
+          notes: [{ ...newNote, id: Date.now(), createdAt: new Date().toISOString() }, ...(prev.notes || [])]
+      }));
+  };
+
+  const handleUpdateNote = (updatedNote: Note) => {
+      setAppData(prev => ({
+          ...prev,
+          notes: (prev.notes || []).map(n => n.id === updatedNote.id ? updatedNote : n)
+      }));
+  };
+
+  const handleDeleteNote = (id: number) => {
+      setAppData(prev => ({
+          ...prev,
+          notes: (prev.notes || []).filter(n => n.id !== id)
+      }));
+  };
+
+  // Visit Logs Management
+  const handleAddVisitLog = (newLog: Omit<VisitLog, 'id' | 'createdAt'>) => {
+      setAppData(prev => ({
+          ...prev,
+          visitLogs: [{ ...newLog, id: Date.now(), createdAt: new Date().toISOString() }, ...(prev.visitLogs || [])]
+      }));
+  };
 
   const handleResetData = () => {
     if (window.confirm('Você tem certeza que deseja limpar TODOS os dados? Esta ação é irreversível e irá restaurar o aplicativo para o estado inicial.')) {
@@ -470,6 +506,14 @@ export default function App() {
         ...prev,
         otherPayments: [paymentWithId, ...prev.otherPayments]
     }));
+  };
+  
+  // Dashboard navigation for notes editing
+  const handleEditNoteFromDashboard = (note: Note) => {
+    // We navigate to 'notes' view, but we can't easily pass the specific note to open in edit mode 
+    // without more complex state. For now, simply navigating to the Notes page.
+    setView('notes');
+    // Ideally, we would set a 'selectedNoteId' state here and pass it to Notes component.
   };
 
 
@@ -513,6 +557,9 @@ export default function App() {
                   projectProgress={appData.projectProgress || []}
                   otherPayments={appData.otherPayments}
                   onAddOtherPayment={handleAddOtherPayment}
+                  notes={appData.notes || []}
+                  onUpdateNote={handleUpdateNote}
+                  onEditNoteClick={handleEditNoteFromDashboard}
                 />;
       case 'contracts':
         return <Contracts 
@@ -538,7 +585,11 @@ export default function App() {
                   contracts={appData.contracts}
                 />;
       case 'projections':
-        return <Projections installments={appData.installments} otherPayments={appData.otherPayments} />;
+        return <Projections 
+                  installments={appData.installments} 
+                  otherPayments={appData.otherPayments}
+                  contracts={appData.contracts}
+                />;
       case 'late-payments':
         return <LatePayments installments={appData.installments} />;
       case 'receipts':
@@ -563,6 +614,20 @@ export default function App() {
                     checklists={appData.checklists}
                     onUpdateChecklist={handleUpdateChecklist}
                 />;
+        case 'notes':
+            return <Notes
+                notes={appData.notes || []}
+                onAddNote={handleAddNote}
+                onUpdateNote={handleUpdateNote}
+                onDeleteNote={handleDeleteNote}
+                contracts={appData.contracts}
+            />;
+        case 'tech-visits':
+            return <TechnicalVisits
+                contracts={appData.contracts}
+                visitLogs={appData.visitLogs || []}
+                onAddVisitLog={handleAddVisitLog}
+            />;
        case 'database':
         return <Database
                   appData={appData}
@@ -584,6 +649,9 @@ export default function App() {
                   projectProgress={appData.projectProgress || []}
                   otherPayments={appData.otherPayments}
                   onAddOtherPayment={handleAddOtherPayment}
+                  notes={appData.notes || []}
+                  onUpdateNote={handleUpdateNote}
+                  onEditNoteClick={handleEditNoteFromDashboard}
                />;
     }
   }
@@ -601,7 +669,7 @@ export default function App() {
                 <p className="text-xs text-slate-400">Bem-vindo(a)!</p>
             </div>
           </div>
-          <nav className="mt-6 flex-1">
+          <nav className="mt-6 flex-1 overflow-y-auto">
             <p className="px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
             <ul className="mt-3 space-y-1">
                 <NavItem
@@ -638,6 +706,12 @@ export default function App() {
                   onClick={() => setView('checklist')}
                 />
                 <NavItem
+                    icon={<MapPinIcon className="w-5 h-5" />}
+                    label="Visitas Técnicas"
+                    isActive={view === 'tech-visits'}
+                    onClick={() => setView('tech-visits')}
+                />
+                <NavItem
                   icon={<CashIcon className="w-5 h-5" />}
                   label="Projeções e Recebidos"
                   isActive={view === 'projections'}
@@ -660,6 +734,12 @@ export default function App() {
                   label="Lembretes"
                   isActive={view === 'reminders'}
                   onClick={() => setView('reminders')}
+                />
+                 <NavItem
+                  icon={<NotepadIcon className="w-5 h-5" />}
+                  label="Bloco de Notas"
+                  isActive={view === 'notes'}
+                  onClick={() => setView('notes')}
                 />
                  <NavItem
                   icon={<UsersIcon className="w-5 h-5" />}

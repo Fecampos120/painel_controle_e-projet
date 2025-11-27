@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { ProjectStage, ProjectSchedule, Contract, GanttProject, GanttStage } from '../types';
 import { GANTT_STAGES_CONFIG } from '../constants';
@@ -457,7 +458,7 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
     // Helper to determine status display logic for the table cells
     const getStatusInfo = (stage: GanttStage) => {
         if (stage.status === 'completed') {
-            return { label: 'CONCLUÍDO', color: 'bg-green-100 text-green-800', barColor: 'bg-green-500', date: 'Concluído' };
+            return { label: 'CONCLUÍDO', color: 'bg-green-100 text-green-800', barColor: 'bg-green-500', date: '' };
         }
         
         const today = new Date();
@@ -468,11 +469,11 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
              if (diffDays < 0) {
-                 return { label: 'ATRASADO', color: 'bg-red-100 text-red-800', barColor: 'bg-red-500', date: `Atrasado ${Math.abs(diffDays)} dia(s)` };
+                 return { label: 'ATRASADO', color: 'bg-red-100 text-red-800', barColor: 'bg-red-500', date: `${Math.abs(diffDays)} dia(s)` };
              } else if (diffDays <= 7) {
-                 return { label: 'PRÓX. VENCIMENTO', color: 'bg-yellow-100 text-yellow-800', barColor: 'bg-yellow-500', date: diffDays === 0 ? 'Vence Hoje' : `Vence em ${diffDays} dia(s)` };
+                 return { label: 'PRÓX. VENCIMENTO', color: 'bg-yellow-100 text-yellow-800', barColor: 'bg-yellow-500', date: diffDays === 0 ? 'Vence Hoje' : `Restam ${diffDays} dia(s)` };
              } else {
-                 return { label: 'PENDENTE', color: 'bg-slate-100 text-slate-800', barColor: 'bg-slate-300', date: formatDateForDisplay(stage.endDate) };
+                 return { label: 'PENDENTE', color: 'bg-slate-100 text-slate-800', barColor: 'bg-slate-300', date: '' };
              }
         }
         
@@ -580,11 +581,11 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                                                                     <div className={`h-full ${info.barColor}`} style={{ width: info.label === 'CONCLUÍDO' ? '100%' : '50%' }}></div>
                                                                 </div>
                                                             )}
-                                                            {info.date && (
-                                                                <span className={`text-[10px] font-semibold ${info.label === 'ATRASADO' ? 'text-red-600' : info.label === 'PRÓX. VENCIMENTO' ? 'text-yellow-600' : 'text-slate-400'}`}>
-                                                                    {info.date}
-                                                                </span>
-                                                            )}
+                                                            <div className="flex flex-col text-[10px] text-slate-500">
+                                                                <span>Início: {formatDateForDisplay(stageData.startDate)}</span>
+                                                                <span>Fim: {formatDateForDisplay(stageData.endDate)}</span>
+                                                                {info.date && <span className={`font-bold mt-1 ${info.label === 'ATRASADO' ? 'text-red-600' : 'text-orange-500'}`}>{info.date}</span>}
+                                                            </div>
                                                         </div>
                                                     </td>
                                                 );

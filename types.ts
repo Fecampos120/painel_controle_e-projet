@@ -1,4 +1,5 @@
 
+
 // Represents a single stage item in the customizable template
 export interface ProjectStageTemplateItem {
     id: number;
@@ -38,6 +39,26 @@ export interface ProjectChecklist {
     completedItemIds: number[];
 }
 
+// Note / Notepad Types
+export interface Note {
+    id: number;
+    contractId?: number; // Vincula a nota a um contrato/cliente específico
+    title: string;
+    content: string;
+    alertDate?: string; // YYYY-MM-DD
+    completed: boolean;
+    createdAt: string;
+}
+
+// Technical Visit Log
+export interface VisitLog {
+    id: number;
+    contractId: number;
+    date: string;
+    notes: string;
+    createdAt: string;
+}
+
 export interface AppData {
     // Fix: Add clients to AppData to be used in the Database component.
     clients: Client[];
@@ -54,6 +75,8 @@ export interface AppData {
     otherPayments: OtherPayment[];
     partners: Partner[];
     checklists: ProjectChecklist[];
+    notes: Note[];
+    visitLogs: VisitLog[];
 }
 
 export interface Client {

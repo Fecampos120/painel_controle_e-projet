@@ -1,3 +1,5 @@
+
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import StatCard from './StatCard';
@@ -8,8 +10,11 @@ import {
   ChartBarIcon,
   DocumentIcon,
   SendIcon,
+  NotepadIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon
 } from './Icons';
-import { PaymentInstallment, AttentionPoint, Contract, ProjectProgress, OtherPayment, ProjectSchedule } from '../types';
+import { PaymentInstallment, AttentionPoint, Contract, ProjectProgress, OtherPayment, ProjectSchedule, Note } from '../types';
 import PaymentReminderModal from './PaymentReminderModal';
 
 const formatCurrency = (value: number) => {
@@ -246,15 +251,19 @@ interface DashboardProps {
     projectProgress: ProjectProgress[];
     otherPayments: OtherPayment[];
     onAddOtherPayment: (newPayment: Omit<OtherPayment, 'id'>) => void;
+    notes: Note[];
+    onUpdateNote: (note: Note) => void;
+    onEditNoteClick: (note: Note) => void; 
 }
 
 
-const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, contracts, schedules, projectProgress, otherPayments, onAddOtherPayment }) => {
+const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, contracts, schedules, projectProgress, otherPayments, onAddOtherPayment, notes, onUpdateNote, onEditNoteClick }) => {
     const today = new Date();
     today.setHours(0,0,0,0);
 
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     const [selectedInstallment, setSelectedInstallment] = useState<PaymentInstallment | null>(null);
+    const [selectedClientFilter, setSelectedClientFilter] = useState('');
 
     const handleOpenReminderModal = (installment: PaymentInstallment) => {
         setSelectedInstallment(installment);
@@ -265,6 +274,16 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         setSelectedInstallment(null);
         setIsReminderModalOpen(false);
     };
+    
+    // Notes Logic for Dashboard
+    const pendingNotes = useMemo(() => {
+        return (notes || []).filter(n => !n.completed).sort((a,b) => {
+            if (a.alertDate && b.alertDate) return a.alertDate.localeCompare(b.alertDate);
+            if (a.alertDate) return -1;
+            if (b.alertDate) return 1;
+            return 0;
+        });
+    }, [notes]);
     
     const attentionPoints: AttentionPoint[] = useMemo(() => {
         const points: AttentionPoint[] = [];
@@ -330,43 +349,49 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         return points.sort((a, b) => a.daysRemaining - b.daysRemaining);
     }, [installments]);
     
-    const { receivedThisMonth, receivedThisYear, toReceive } = useMemo(() => {
+    const { receivedThisMonth, expectedThisMonth, totalOverdue } = useMemo(() => {
         const currentMonth = today.getMonth();
         const currentYear = today.getFullYear();
         
         let receivedThisMonth = 0;
-        let receivedThisYear = 0;
-        let toReceive = 0;
+        let expectedThisMonth = 0;
+        let totalOverdue = 0;
 
         installments.forEach(i => {
+            // Recebido no Mês
             if(i.paymentDate) {
                 const paymentDate = new Date(i.paymentDate);
                 const paymentYear = paymentDate.getFullYear();
-                if(paymentYear === currentYear) {
-                    receivedThisYear += i.value;
-                    if(paymentDate.getMonth() === currentMonth) {
-                        receivedThisMonth += i.value;
-                    }
+                if(paymentYear === currentYear && paymentDate.getMonth() === currentMonth) {
+                    receivedThisMonth += i.value;
                 }
             }
-            if(i.status === 'Pendente') {
-                toReceive += i.value;
+            
+            // Previsto/Pendente no Mês
+            const dueDate = new Date(i.dueDate);
+            if (i.status === 'Pendente') {
+                if (dueDate.getFullYear() === currentYear && dueDate.getMonth() === currentMonth) {
+                    expectedThisMonth += i.value;
+                }
+                // Total Atrasado
+                const dDate = new Date(i.dueDate);
+                dDate.setHours(0,0,0,0);
+                if (dDate < today) {
+                    totalOverdue += i.value;
+                }
             }
         });
         
         otherPayments.forEach(op => {
             const paymentDate = new Date(op.paymentDate);
             const paymentYear = paymentDate.getFullYear();
-            if(paymentYear === currentYear) {
-                receivedThisYear += op.value;
-                if(paymentDate.getMonth() === currentMonth) {
-                    receivedThisMonth += op.value;
-                }
+            if(paymentYear === currentYear && paymentDate.getMonth() === currentMonth) {
+                receivedThisMonth += op.value;
             }
         });
 
 
-        return { receivedThisMonth, receivedThisYear, toReceive };
+        return { receivedThisMonth, expectedThisMonth, totalOverdue };
     }, [installments, otherPayments]);
     
     const handleRegisterPayment = (installmentId: number, paymentDate: Date) => {
@@ -400,8 +425,13 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
     
     const upcomingInstallments = installments
         .filter(i => i.status === 'Pendente' && new Date(i.dueDate) >= today)
-        .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-        .slice(0, 5);
+        .filter(i => selectedClientFilter ? i.clientName === selectedClientFilter : true)
+        .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        
+    const uniqueClients = useMemo(() => {
+        const clients = new Set(installments.map(i => i.clientName));
+        return Array.from(clients).sort();
+    }, [installments]);
 
 
   return (
@@ -431,19 +461,19 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Recebido Este Mês"
+          title="Previsto (Mês Atual)"
+          value={formatCurrency(expectedThisMonth)}
+          icon={<DollarIcon className="w-6 h-6 text-blue-500" />}
+        />
+        <StatCard
+          title="Recebido (Mês Atual)"
           value={formatCurrency(receivedThisMonth)}
           icon={<MoneyBagIcon className="w-6 h-6 text-green-500" />}
         />
         <StatCard
-          title="Recebido Este Ano"
-          value={formatCurrency(receivedThisYear)}
-          icon={<DollarIcon className="w-6 h-6 text-blue-500" />}
-        />
-        <StatCard
-          title="A Receber"
-          value={formatCurrency(toReceive)}
-          icon={<ChartBarIcon className="w-6 h-6 text-amber-500" />}
+          title="Total Atrasado"
+          value={formatCurrency(totalOverdue)}
+          icon={<ExclamationTriangleIcon className="w-6 h-6 text-red-500" />}
         />
         <StatCard
           title="Contratos Ativos"
@@ -452,14 +482,52 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         />
       </section>
 
+      {/* Alertas e Notas Section */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Widget de Notas e Alertas */}
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-lg font-semibold text-slate-800">Status dos Projetos Ativos</h2>
-          <ProjectStatusChart contracts={contracts} schedules={schedules} />
+             <h2 className="text-lg font-semibold text-slate-800 flex items-center mb-4">
+                <NotepadIcon className="w-5 h-5 mr-2 text-blue-600" />
+                Anotações
+            </h2>
+            <ul className="space-y-2 max-h-64 overflow-y-auto">
+                {pendingNotes.length === 0 && <p className="text-sm text-slate-500 italic">Nenhuma anotação pendente.</p>}
+                {pendingNotes.map((note) => (
+                    <li key={note.id} className="flex items-center justify-between p-2 bg-slate-50 hover:bg-blue-50 rounded-md group relative">
+                        {/* Tooltip on Hover */}
+                        <div className="absolute left-0 bottom-full mb-2 w-64 p-3 bg-slate-800 text-white text-xs rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <p className="font-bold border-b border-slate-600 pb-1 mb-1">{note.title}</p>
+                            <p>{note.content}</p>
+                            <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-800 rotate-45"></div>
+                        </div>
+
+                        <div 
+                            onClick={() => onEditNoteClick(note)} 
+                            className="flex-1 cursor-pointer truncate"
+                        >
+                            <span className="font-medium text-slate-700">{note.title}</span>
+                            {note.alertDate && (
+                                <span className={`ml-2 text-xs font-bold ${new Date(note.alertDate) < new Date() ? 'text-red-500' : 'text-blue-500'}`}>
+                                    {new Date(note.alertDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
+                                </span>
+                            )}
+                        </div>
+                        
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onUpdateNote({...note, completed: true}); }}
+                            className="text-slate-300 hover:text-green-500 ml-2"
+                            title="Concluir"
+                        >
+                            <CheckCircleIcon className="w-5 h-5" />
+                        </button>
+                    </li>
+                ))}
+            </ul>
         </div>
+
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
           <h2 className="text-lg font-semibold text-slate-800">Prazos de Etapas</h2>
-          <ul className="mt-4 space-y-4">
+          <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto">
             {attentionPoints.length > 0 ? attentionPoints.map((point: AttentionPoint, index: number) => {
               const iconColor = 'bg-orange-500'; // For stages
               return (
@@ -476,7 +544,7 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         </div>
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
           <h2 className="text-lg font-semibold text-slate-800">Atenção Financeira</h2>
-          <ul className="mt-4 space-y-4">
+          <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto">
             {financialAttentionPoints.length > 0 ? financialAttentionPoints.map((point: AttentionPoint, index: number) => {
               const iconColor = point.daysRemaining < 0 ? 'bg-red-500' : 'bg-amber-500';
               return (
@@ -494,7 +562,19 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
       </section>
 
       <section className="bg-white p-6 rounded-xl shadow-lg">
-        <h2 className="text-lg font-semibold text-slate-800">Próximas Parcelas a Receber</h2>
+        <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">Próximas Parcelas a Receber</h2>
+            <select 
+                value={selectedClientFilter} 
+                onChange={e => setSelectedClientFilter(e.target.value)}
+                className="block rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-2"
+            >
+                <option value="">Todos os Clientes</option>
+                {uniqueClients.map(client => (
+                    <option key={client} value={client}>{client}</option>
+                ))}
+            </select>
+        </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-slate-200">
@@ -533,7 +613,7 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
               ))}
                {upcomingInstallments.length === 0 && (
                 <tr>
-                    <td colSpan={6} className="text-center p-4 text-slate-500">Nenhuma parcela pendente.</td>
+                    <td colSpan={6} className="text-center p-4 text-slate-500">Nenhuma parcela pendente {selectedClientFilter ? 'para este cliente' : ''}.</td>
                 </tr>
                )}
             </tbody>
