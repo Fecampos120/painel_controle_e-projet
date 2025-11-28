@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Contract, ProjectSchedule, Client, ProjectStage } from '../types';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, ArchitectIcon } from './Icons';
+import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, ArchitectIcon, PrinterIcon, XIcon } from './Icons';
 
 // This is the new main component for this file, implementing the "Projetos" view.
 interface DisplayProject {
@@ -41,11 +41,172 @@ const StatusChip: React.FC<{ status: DisplayProject['status'] }> = ({ status }) 
     );
 };
 
+interface ProjectReportModalProps {
+    contract: Contract;
+    schedule?: ProjectSchedule;
+    onClose: () => void;
+}
+
+const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, schedule, onClose }) => {
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const formatDate = (date: string | Date | undefined) => {
+        if (!date) return '-';
+        return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    };
+
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+    const calculateProgress = () => {
+        if (!schedule || schedule.stages.length === 0) return 0;
+        const completed = schedule.stages.filter(s => s.completionDate).length;
+        return Math.round((completed / schedule.stages.length) * 100);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 print:p-0 print:bg-white">
+            <style>{`
+                @media print {
+                    body > * { display: none !important; }
+                    .project-report-modal, .project-report-modal * { display: block !important; }
+                    .project-report-modal { 
+                        position: absolute; 
+                        left: 0; 
+                        top: 0; 
+                        width: 100%; 
+                        height: auto; 
+                        background: white;
+                        overflow: visible !important;
+                    }
+                    .no-print { display: none !important; }
+                    @page { margin: 1.5cm; }
+                }
+            `}</style>
+            
+            <div className="project-report-modal bg-white w-full max-w-4xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-h-none print:rounded-none">
+                <div className="p-4 border-b flex justify-between items-center no-print">
+                    <h3 className="font-bold text-lg">Relatório do Projeto</h3>
+                    <div className="flex space-x-2">
+                        <button onClick={handlePrint} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <PrinterIcon className="w-4 h-4 mr-2"/> Imprimir
+                        </button>
+                        <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded">
+                            <XIcon className="w-5 h-5"/>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-8 font-serif text-slate-900">
+                    {/* Header */}
+                    <header className="border-b-2 border-slate-800 pb-6 mb-8 flex justify-between items-end">
+                        <div>
+                            <h1 className="text-2xl font-bold uppercase tracking-wider">Relatório de Status do Projeto</h1>
+                            <p className="text-slate-600 text-sm mt-1">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
+                        </div>
+                        <div className="text-right">
+                            <div className="flex items-center justify-end space-x-2 font-bold text-xl">
+                                <ArchitectIcon className="w-6 h-6" />
+                                <span>STUDIO BATTELLO</span>
+                            </div>
+                            <p className="text-xs text-slate-500">Arquitetura & Interiores</p>
+                        </div>
+                    </header>
+
+                    <main className="space-y-8">
+                        {/* Project Info Grid */}
+                        <section className="grid grid-cols-2 gap-8">
+                            <div className="bg-slate-50 p-4 rounded border border-slate-200 print:border-slate-300">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">Dados do Projeto</h3>
+                                <div className="space-y-1">
+                                    <p><span className="font-semibold">Projeto:</span> {contract.projectName}</p>
+                                    <p><span className="font-semibold">Cliente:</span> {contract.clientName}</p>
+                                    <p><span className="font-semibold">Endereço:</span> {contract.projectAddress.street}, {contract.projectAddress.number} - {contract.projectAddress.city}</p>
+                                    <p><span className="font-semibold">Tipo:</span> {contract.serviceType}</p>
+                                </div>
+                            </div>
+                            <div className="bg-slate-50 p-4 rounded border border-slate-200 print:border-slate-300">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase mb-2">Resumo do Contrato</h3>
+                                <div className="space-y-1">
+                                    <p><span className="font-semibold">Início (Assinatura):</span> {formatDate(contract.date)}</p>
+                                    <p><span className="font-semibold">Previsão Entrega:</span> {formatDate(schedule?.stages[schedule.stages.length-1]?.deadline)}</p>
+                                    <p><span className="font-semibold">Progresso Geral:</span> {calculateProgress()}%</p>
+                                    <p><span className="font-semibold">Status Atual:</span> {contract.status}</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Schedule Details */}
+                        <section>
+                            <h3 className="text-sm font-bold text-slate-800 uppercase border-b border-slate-300 pb-2 mb-4">Cronograma Detalhado e Prazos</h3>
+                            {schedule ? (
+                                <table className="w-full text-sm border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-100 text-slate-700 border-b border-slate-300">
+                                            <th className="py-2 px-3 text-left">Etapa</th>
+                                            <th className="py-2 px-3 text-center">Prazo Final</th>
+                                            <th className="py-2 px-3 text-center">Conclusão</th>
+                                            <th className="py-2 px-3 text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {schedule.stages.map((stage) => {
+                                            const isCompleted = !!stage.completionDate;
+                                            const isLate = !isCompleted && stage.deadline && new Date(stage.deadline) < new Date();
+                                            return (
+                                                <tr key={stage.id}>
+                                                    <td className="py-2 px-3 font-medium">{stage.name}</td>
+                                                    <td className="py-2 px-3 text-center">{formatDate(stage.deadline)}</td>
+                                                    <td className="py-2 px-3 text-center">{stage.completionDate ? formatDate(stage.completionDate) : '-'}</td>
+                                                    <td className="py-2 px-3 text-center">
+                                                        {isCompleted ? (
+                                                            <span className="text-green-600 font-bold text-xs uppercase">Concluído</span>
+                                                        ) : isLate ? (
+                                                            <span className="text-red-600 font-bold text-xs uppercase">Atrasado</span>
+                                                        ) : (
+                                                            <span className="text-slate-500 text-xs uppercase">Pendente</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <p className="text-slate-500 italic">Nenhum cronograma disponível.</p>
+                            )}
+                        </section>
+
+                        {/* Financial Summary (Optional - kept brief) */}
+                        <section>
+                            <h3 className="text-sm font-bold text-slate-800 uppercase border-b border-slate-300 pb-2 mb-4">Resumo Financeiro</h3>
+                            <div className="flex justify-between text-sm max-w-md">
+                                <span>Valor Total Contratado:</span>
+                                <span className="font-bold">{formatCurrency(contract.totalValue)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm max-w-md mt-1">
+                                <span>Parcelas:</span>
+                                <span>{contract.installments > 0 ? `${contract.installments}x de ${formatCurrency(contract.installmentValue)}` : 'À Vista / Entrada Única'}</span>
+                            </div>
+                        </section>
+                    </main>
+                    
+                    <footer className="mt-16 pt-8 border-t border-slate-200 text-center text-xs text-slate-400">
+                        <p>Relatório gerado automaticamente pelo sistema E-Projet.</p>
+                    </footer>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEditContract, onDeleteContract, onCreateProject }) => {
     const [activeTab, setActiveTab] = useState<'ativos' | 'arquivados'>('ativos');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [reportProject, setReportProject] = useState<{ contract: Contract, schedule?: ProjectSchedule } | null>(null);
     const projectsPerPage = 8;
     
     const displayProjects = useMemo((): DisplayProject[] => {
@@ -118,6 +279,11 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
         if (page > 0 && page <= totalPages) {
             setCurrentPage(page);
         }
+    };
+
+    const handleOpenReport = (contract: Contract) => {
+        const schedule = schedules.find(s => s.contractId === contract.id);
+        setReportProject({ contract, schedule });
     };
     
     return (
@@ -220,8 +386,9 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
                                     <td className="p-3"><StatusChip status={project.status} /></td>
                                     <td className="p-3 text-right">
                                         <div className="flex items-center justify-end space-x-1">
-                                            <button onClick={() => onEditContract(project.originalContract)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Editar"><PencilIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => onDeleteContract(project.id)} className="p-2 text-slate-500 hover:text-red-600" aria-label="Excluir"><TrashIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleOpenReport(project.originalContract)} className="p-2 text-slate-500 hover:text-purple-600" aria-label="Imprimir Relatório" title="Imprimir Relatório"><PrinterIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => onEditContract(project.originalContract)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Editar" title="Editar"><PencilIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => onDeleteContract(project.id)} className="p-2 text-slate-500 hover:text-red-600" aria-label="Excluir" title="Excluir"><TrashIcon className="w-5 h-5" /></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -255,6 +422,14 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
                     </div>
                 )}
             </div>
+
+            {reportProject && (
+                <ProjectReportModal 
+                    contract={reportProject.contract}
+                    schedule={reportProject.schedule}
+                    onClose={() => setReportProject(null)}
+                />
+            )}
         </div>
     );
 };
