@@ -1,5 +1,4 @@
 
-
 // Represents a single stage item in the customizable template
 export interface ProjectStageTemplateItem {
     id: number;
@@ -39,15 +38,16 @@ export interface ProjectChecklist {
     completedItemIds: number[];
 }
 
-// Note / Notepad Types
-export interface Note {
+// Expense Types (Despesas)
+export interface Expense {
     id: number;
-    contractId?: number; // Vincula a nota a um contrato/cliente específico
-    title: string;
-    content: string;
-    alertDate?: string; // YYYY-MM-DD
-    completed: boolean;
-    createdAt: string;
+    description: string;
+    category: 'Fixa' | 'Variável';
+    amount: number;
+    dueDate: string; // YYYY-MM-DD
+    paidDate?: string; // YYYY-MM-DD
+    status: 'Pago' | 'Pendente';
+    recurrence?: boolean; // Para despesas fixas que se repetem
 }
 
 // Technical Visit Log
@@ -57,6 +57,17 @@ export interface VisitLog {
     date: string;
     notes: string;
     createdAt: string;
+}
+
+// Notes
+export interface Note {
+    id: number;
+    title: string;
+    content: string;
+    alertDate?: string;
+    contractId?: number;
+    completed: boolean;
+    createdAt?: string;
 }
 
 export interface AppData {
@@ -75,8 +86,9 @@ export interface AppData {
     otherPayments: OtherPayment[];
     partners: Partner[];
     checklists: ProjectChecklist[];
-    notes: Note[];
+    expenses: Expense[];
     visitLogs: VisitLog[];
+    notes?: Note[];
 }
 
 export interface Client {

@@ -1,6 +1,5 @@
 
-
-import { Client, PaymentInstallment, AttentionPoint, Reminder, Contract, ProjectProgress, Address, ProjectSchedule, ServicePrice, PriceTier, ProjectStageTemplateItem, OtherPayment, ProjectStage, Partner, StageProgress, ChecklistItemTemplate, Note, VisitLog } from './types';
+import { Client, PaymentInstallment, AttentionPoint, Reminder, Contract, ProjectProgress, Address, ProjectSchedule, ServicePrice, PriceTier, ProjectStageTemplateItem, OtherPayment, ProjectStage, Partner, StageProgress, ChecklistItemTemplate, Expense, VisitLog } from './types';
 
 export const CLIENTS: Client[] = [];
 
@@ -15,7 +14,7 @@ export const MOCK_OTHER_PAYMENTS: OtherPayment[] = [];
 
 export const MOCK_PARTNERS: Partner[] = [];
 
-export const MOCK_NOTES: Note[] = [];
+export const MOCK_EXPENSES: Expense[] = [];
 
 export const MOCK_VISIT_LOGS: VisitLog[] = [];
 

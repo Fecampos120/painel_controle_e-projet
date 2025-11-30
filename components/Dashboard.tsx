@@ -1,20 +1,17 @@
 
-
 import React, { useMemo, useState, useEffect } from 'react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import StatCard from './StatCard';
 import {
   DownloadIcon,
   MoneyBagIcon,
   DollarIcon,
-  ChartBarIcon,
   DocumentIcon,
-  SendIcon,
-  NotepadIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  SendIcon
 } from './Icons';
-import { PaymentInstallment, AttentionPoint, Contract, ProjectProgress, OtherPayment, ProjectSchedule, Note } from '../types';
+import { PaymentInstallment, AttentionPoint, Contract, ProjectProgress, OtherPayment, ProjectSchedule, Expense } from '../types';
 import PaymentReminderModal from './PaymentReminderModal';
 
 const formatCurrency = (value: number) => {
@@ -30,234 +27,17 @@ const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('pt-BR', {timeZone: 'UTC'}).format(d);
 }
 
-const ProjectStatusChart: React.FC<{ contracts: Contract[], schedules: ProjectSchedule[] }> = ({ contracts, schedules }) => {
-    const projectStatusData = useMemo(() => {
-        const statuses = {
-            'No Prazo': 0,
-            'Em Andamento': 0,
-            'Atrasado': 0,
-        };
-
-        const activeContracts = contracts.filter(c => c.status === 'Ativo');
-
-        activeContracts.forEach(contract => {
-            const schedule = schedules.find(s => s.contractId === contract.id);
-            let status: 'No Prazo' | 'Em Andamento' | 'Atrasado' = 'No Prazo';
-            
-            if (schedule) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                const isDelayed = schedule.stages.some(stage => {
-                    if (!stage.completionDate && stage.deadline) {
-                        const deadline = new Date(`${stage.deadline}T00:00:00`);
-                        return deadline < today;
-                    }
-                    return false;
-                });
-
-                if (isDelayed) {
-                    status = 'Atrasado';
-                } else {
-                    const hasCompletedStages = schedule.stages.some(stage => !!stage.completionDate);
-                    const projectStartDate = schedule.startDate ? new Date(`${schedule.startDate}T00:00:00`) : today;
-                    const hasStarted = projectStartDate <= today;
-
-                    if (hasStarted || hasCompletedStages) {
-                        status = 'Em Andamento';
-                    } else {
-                        status = 'No Prazo';
-                    }
-                }
-            }
-            statuses[status]++;
-        });
-
-        return [
-            { name: 'Atrasado', value: statuses['Atrasado'], color: '#ef4444' }, // red-500
-            { name: 'Em Andamento', value: statuses['Em Andamento'], color: '#facc15' }, // yellow-400
-            { name: 'No Prazo', value: statuses['No Prazo'], color: '#22c55e' }, // green-500
-        ];
-    }, [contracts, schedules]);
-    
-    const totalProjects = projectStatusData.reduce((sum, entry) => sum + entry.value, 0);
-
-    return (
-        <div className="relative h-64">
-            <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                        data={projectStatusData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={90}
-                        fill="#8884d8"
-                        paddingAngle={5}
-                        dataKey="value"
-                        labelLine={false}
-                    >
-                        {projectStatusData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                    </Pie>
-                    <Legend
-                        iconSize={10}
-                        iconType="circle"
-                        layout="horizontal"
-                        verticalAlign="bottom"
-                        align="center"
-                        formatter={(value, entry) => (
-                            <span className="text-slate-600 ml-2">{`${value} (${entry.payload?.value})`}</span>
-                        )}
-                    />
-                </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="text-center">
-                    <p className="text-4xl font-bold text-slate-800">{totalProjects}</p>
-                    <p className="text-sm text-slate-500">Ativos</p>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-const PaymentRegistration: React.FC<{
-    installments: PaymentInstallment[];
-    onRegisterInstallment: (installmentId: number, paymentDate: Date) => void;
-    onRegisterOther: (description: string, paymentDate: Date, value: number) => void;
-}> = ({ installments, onRegisterInstallment, onRegisterOther }) => {
-    const [activeTab, setActiveTab] = useState<'installment' | 'other'>('installment');
-
-    // States for installment form
-    const [selectedInstallmentId, setSelectedInstallmentId] = useState('');
-    const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-    
-    // States for other payment form
-    const [otherDesc, setOtherDesc] = useState('');
-    const [otherDate, setOtherDate] = useState(new Date().toISOString().split('T')[0]);
-    const [otherValue, setOtherValue] = useState('');
-
-    const pendingInstallments = installments
-        .filter(i => i.status === 'Pendente')
-        .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
-    const handleInstallmentSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if(!selectedInstallmentId || !paymentDate) {
-            alert("Por favor, selecione uma parcela e a data de pagamento.");
-            return;
-        }
-        onRegisterInstallment(parseInt(selectedInstallmentId), new Date(`${paymentDate}T00:00:00`));
-        setSelectedInstallmentId('');
-    };
-
-    const handleOtherSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const valueNum = parseFloat(otherValue);
-        if (!otherDesc || !otherDate || isNaN(valueNum) || valueNum <= 0) {
-            alert("Por favor, preencha todos os campos com valores válidos.");
-            return;
-        }
-        onRegisterOther(otherDesc, new Date(`${otherDate}T00:00:00`), valueNum);
-        setOtherDesc('');
-        setOtherValue('');
-    };
-
-    return (
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-            <div className="border-b border-slate-200 mb-6">
-                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                    <button
-                        onClick={() => setActiveTab('installment')}
-                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'installment'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                    >
-                        Registrar Parcela
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('other')}
-                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'other'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                        }`}
-                    >
-                        Registrar Outros
-                    </button>
-                </nav>
-            </div>
-            
-            {activeTab === 'installment' && (
-                <form onSubmit={handleInstallmentSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div className="md:col-span-2">
-                        <label htmlFor="installment-select" className="block text-sm font-medium text-slate-600">Parcela Pendente</label>
-                        <select id="installment-select" value={selectedInstallmentId} onChange={e => setSelectedInstallmentId(e.target.value)} required className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3">
-                            <option value="">Selecione uma parcela...</option>
-                            {pendingInstallments.map(i => (
-                                <option key={i.id} value={i.id}>
-                                    {`${i.clientName} (${i.projectName}) - ${i.installment} de ${formatCurrency(i.value)} - Vence em ${formatDate(new Date(i.dueDate))}`}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                     <div>
-                        <label htmlFor="payment-date" className="block text-sm font-medium text-slate-600">Data do Pagamento</label>
-                        <input type="date" id="payment-date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} required className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                    </div>
-                    <div className="md:col-span-3">
-                        <button type="submit" className="w-full md:w-auto justify-center rounded-md border border-transparent bg-blue-600 py-2 px-8 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Registrar Pagamento de Parcela
-                        </button>
-                    </div>
-                </form>
-            )}
-
-            {activeTab === 'other' && (
-                <form onSubmit={handleOtherSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                     <div className="md:col-span-2">
-                        <label htmlFor="other-desc" className="block text-sm font-medium text-slate-600">Descrição</label>
-                        <input type="text" id="other-desc" value={otherDesc} onChange={e => setOtherDesc(e.target.value)} required placeholder="Ex: Consultoria extra" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                    </div>
-                     <div>
-                        <label htmlFor="other-date" className="block text-sm font-medium text-slate-600">Data do Pagamento</label>
-                        <input type="date" id="other-date" value={otherDate} onChange={e => setOtherDate(e.target.value)} required className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                    </div>
-                     <div>
-                        <label htmlFor="other-value" className="block text-sm font-medium text-slate-600">Valor (R$)</label>
-                        <input type="number" id="other-value" value={otherValue} onChange={e => setOtherValue(e.target.value)} required placeholder="0.00" step="0.01" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                    </div>
-                    <div className="md:col-span-4">
-                        <button type="submit" className="w-full md:w-auto justify-center rounded-md border border-transparent bg-green-600 py-2 px-8 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                            Adicionar Recebimento
-                        </button>
-                    </div>
-                </form>
-            )}
-        </div>
-    );
-}
-
 interface DashboardProps {
     installments: PaymentInstallment[];
-    setInstallments: (installments: PaymentInstallment[]) => void;
     contracts: Contract[];
     schedules: ProjectSchedule[];
     projectProgress: ProjectProgress[];
     otherPayments: OtherPayment[];
-    onAddOtherPayment: (newPayment: Omit<OtherPayment, 'id'>) => void;
-    notes: Note[];
-    onUpdateNote: (note: Note) => void;
-    onEditNoteClick: (note: Note) => void; 
+    expenses: Expense[];
 }
 
 
-const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, contracts, schedules, projectProgress, otherPayments, onAddOtherPayment, notes, onUpdateNote, onEditNoteClick }) => {
+const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedules, projectProgress, otherPayments, expenses }) => {
     const today = new Date();
     today.setHours(0,0,0,0);
 
@@ -274,16 +54,6 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         setSelectedInstallment(null);
         setIsReminderModalOpen(false);
     };
-    
-    // Notes Logic for Dashboard
-    const pendingNotes = useMemo(() => {
-        return (notes || []).filter(n => !n.completed).sort((a,b) => {
-            if (a.alertDate && b.alertDate) return a.alertDate.localeCompare(b.alertDate);
-            if (a.alertDate) return -1;
-            if (b.alertDate) return 1;
-            return 0;
-        });
-    }, [notes]);
     
     const attentionPoints: AttentionPoint[] = useMemo(() => {
         const points: AttentionPoint[] = [];
@@ -325,20 +95,11 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
                 const diffTime = dueDate.getTime() - today.getTime();
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                // Overdue
-                if (diffDays < 0) {
-                     points.push({
-                        clientName: inst.clientName,
-                        description: `Parcela ${inst.installment} (${formatCurrency(inst.value)}) vencida.`,
-                        daysRemaining: diffDays,
-                        type: 'payment',
-                    });
-                } 
-                // Upcoming (next 7 days)
-                else if (diffDays <= 7) {
+                // Only show upcoming payments (0 to 7 days), exclude overdue
+                if (diffDays >= 0 && diffDays <= 7) {
                     points.push({
                         clientName: inst.clientName,
-                        description: `Parcela ${inst.installment} (${formatCurrency(inst.value)}) vence em ${diffDays} dia(s).`,
+                        description: `Parcela ${inst.installment} (${formatCurrency(inst.value)}) vence ${diffDays === 0 ? 'hoje' : `em ${diffDays} dia(s)`}.`,
                         daysRemaining: diffDays,
                         type: 'payment',
                     });
@@ -394,34 +155,6 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         return { receivedThisMonth, expectedThisMonth, totalOverdue };
     }, [installments, otherPayments]);
     
-    const handleRegisterPayment = (installmentId: number, paymentDate: Date) => {
-        setInstallments(
-            installments.map(inst => {
-                if (inst.id === installmentId) {
-                    const dueDate = new Date(inst.dueDate);
-                    dueDate.setHours(0,0,0,0);
-                    paymentDate.setHours(0,0,0,0);
-                    const status = paymentDate <= dueDate ? 'Pago em dia' : 'Pago com atraso';
-                    return { ...inst, status, paymentDate: paymentDate };
-                }
-                return inst;
-            })
-        );
-    };
-
-    const handleAddOtherPayment = (description: string, paymentDate: Date, value: number) => {
-        onAddOtherPayment({ description, paymentDate, value });
-    };
-
-    
-    const getStatusChip = (status: PaymentInstallment['status']) => {
-        switch (status) {
-            case 'Pendente': return 'bg-amber-100 text-amber-800';
-            case 'Pago em dia': return 'bg-green-100 text-green-800';
-            case 'Pago com atraso': return 'bg-yellow-100 text-yellow-800';
-            default: return 'bg-slate-100 text-slate-800';
-        }
-    };
     
     const upcomingInstallments = installments
         .filter(i => i.status === 'Pendente' && new Date(i.dueDate) >= today)
@@ -432,6 +165,94 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         const clients = new Set(installments.map(i => i.clientName));
         return Array.from(clients).sort();
     }, [installments]);
+
+    // Financial Charts Data Calculation
+    const { cashFlowData, expenseData, summaryMetrics } = useMemo(() => {
+        // Cash Flow (Last 6 Months)
+        const cashFlow = [];
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(currentYear, currentMonth - i, 1);
+            const month = date.getMonth();
+            const year = date.getFullYear();
+            const label = date.toLocaleString('pt-BR', { month: 'short' });
+
+            let entry = 0;
+            let exit = 0;
+
+            installments.forEach(inst => {
+                if (inst.paymentDate) {
+                    const d = new Date(inst.paymentDate);
+                    if (d.getMonth() === month && d.getFullYear() === year) entry += inst.value;
+                }
+            });
+            otherPayments.forEach(op => {
+                const d = new Date(op.paymentDate);
+                if (d.getMonth() === month && d.getFullYear() === year) entry += op.value;
+            });
+            expenses.forEach(exp => {
+                const d = new Date(exp.paidDate || exp.dueDate); // Use due date if pending to simulate flow or paid date
+                if (d.getMonth() === month && d.getFullYear() === year) exit += exp.amount;
+            });
+
+            cashFlow.push({ name: label, Entradas: entry, Saídas: exit });
+        }
+
+        // Expense Pie Chart
+        let fixedExp = 0;
+        let varExp = 0;
+        expenses.forEach(exp => {
+            if (exp.category === 'Fixa') fixedExp += exp.amount;
+            else varExp += exp.amount;
+        });
+        const pieData = [
+            { name: 'Fixas', value: fixedExp, color: '#f59e0b' }, // amber-500
+            { name: 'Variáveis', value: varExp, color: '#0ea5e9' }, // sky-500
+        ];
+
+        // Summary Metrics (Vertical Bars)
+        let recOpen = 0;
+        let recLate = 0;
+        let recPaidMonth = 0;
+
+        installments.forEach(inst => {
+            const due = new Date(inst.dueDate);
+            if (inst.status === 'Pendente') {
+                if (due < today) recLate += inst.value;
+                else recOpen += inst.value;
+            } else if (inst.paymentDate) {
+                const pd = new Date(inst.paymentDate);
+                if (pd.getMonth() === currentMonth && pd.getFullYear() === currentYear) {
+                    recPaidMonth += inst.value;
+                }
+            }
+        });
+
+        let payOpen = 0;
+        let payLate = 0;
+        let payPaidMonth = 0;
+
+        expenses.forEach(exp => {
+            const due = new Date(exp.dueDate);
+            if (exp.status === 'Pendente') {
+                if (due < today) payLate += exp.amount;
+                else payOpen += exp.amount;
+            } else if (exp.paidDate) {
+                const pd = new Date(exp.paidDate);
+                if (pd.getMonth() === currentMonth && pd.getFullYear() === currentYear) {
+                    payPaidMonth += exp.amount;
+                }
+            }
+        });
+
+        return { 
+            cashFlowData: cashFlow, 
+            expenseData: pieData, 
+            summaryMetrics: { recOpen, recLate, recPaidMonth, payOpen, payLate, payPaidMonth } 
+        };
+    }, [installments, otherPayments, expenses]);
 
 
   return (
@@ -451,14 +272,6 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         </div>
       </header>
       
-      <section>
-          <PaymentRegistration 
-            installments={installments} 
-            onRegisterInstallment={handleRegisterPayment}
-            onRegisterOther={handleAddOtherPayment}
-            />
-      </section>
-
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Previsto (Mês Atual)"
@@ -482,49 +295,8 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
         />
       </section>
 
-      {/* Alertas e Notas Section */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Widget de Notas e Alertas */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-             <h2 className="text-lg font-semibold text-slate-800 flex items-center mb-4">
-                <NotepadIcon className="w-5 h-5 mr-2 text-blue-600" />
-                Anotações
-            </h2>
-            <ul className="space-y-2 max-h-64 overflow-y-auto">
-                {pendingNotes.length === 0 && <p className="text-sm text-slate-500 italic">Nenhuma anotação pendente.</p>}
-                {pendingNotes.map((note) => (
-                    <li key={note.id} className="flex items-center justify-between p-2 bg-slate-50 hover:bg-blue-50 rounded-md group relative">
-                        {/* Tooltip on Hover */}
-                        <div className="absolute left-0 bottom-full mb-2 w-64 p-3 bg-slate-800 text-white text-xs rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
-                            <p className="font-bold border-b border-slate-600 pb-1 mb-1">{note.title}</p>
-                            <p>{note.content}</p>
-                            <div className="absolute left-4 -bottom-1 w-2 h-2 bg-slate-800 rotate-45"></div>
-                        </div>
-
-                        <div 
-                            onClick={() => onEditNoteClick(note)} 
-                            className="flex-1 cursor-pointer truncate"
-                        >
-                            <span className="font-medium text-slate-700">{note.title}</span>
-                            {note.alertDate && (
-                                <span className={`ml-2 text-xs font-bold ${new Date(note.alertDate) < new Date() ? 'text-red-500' : 'text-blue-500'}`}>
-                                    {new Date(note.alertDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
-                                </span>
-                            )}
-                        </div>
-                        
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onUpdateNote({...note, completed: true}); }}
-                            className="text-slate-300 hover:text-green-500 ml-2"
-                            title="Concluir"
-                        >
-                            <CheckCircleIcon className="w-5 h-5" />
-                        </button>
-                    </li>
-                ))}
-            </ul>
-        </div>
-
+      {/* Alertas Section */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
           <h2 className="text-lg font-semibold text-slate-800">Prazos de Etapas</h2>
           <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto">
@@ -543,10 +315,10 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
           </ul>
         </div>
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-lg font-semibold text-slate-800">Atenção Financeira</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Próximos Pagamentos</h2>
           <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto">
             {financialAttentionPoints.length > 0 ? financialAttentionPoints.map((point: AttentionPoint, index: number) => {
-              const iconColor = point.daysRemaining < 0 ? 'bg-red-500' : 'bg-amber-500';
+              const iconColor = 'bg-amber-500';
               return (
               <li key={index} className="flex items-start">
                 <div className={`w-2.5 h-2.5 ${iconColor} rounded-full mt-1.5 mr-4 flex-shrink-0`}></div>
@@ -556,9 +328,139 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
                 </div>
               </li>
               )
-            }) : <p className="text-sm text-slate-500">Nenhum pagamento atrasado ou vencendo nos próximos 7 dias.</p>}
+            }) : <p className="text-sm text-slate-500">Nenhum pagamento vencendo nos próximos 7 dias.</p>}
           </ul>
         </div>
+      </section>
+
+      {/* Financial Charts & Summary Section */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Cash Flow Chart */}
+          <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
+              <h2 className="text-lg font-semibold text-slate-800 mb-6">Fluxo de Caixa (6 Meses)</h2>
+              <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={cashFlowData}>
+                          <defs>
+                              <linearGradient id="colorEntry" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                              </linearGradient>
+                              <linearGradient id="colorExit" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                              </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `${value/1000}k`} />
+                          <Tooltip 
+                              contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff'}}
+                              formatter={(value: number) => formatCurrency(value)}
+                          />
+                          <Legend wrapperStyle={{paddingTop: '20px'}} />
+                          <Area type="monotone" dataKey="Entradas" stroke="#10b981" fillOpacity={1} fill="url(#colorEntry)" strokeWidth={2} />
+                          <Area type="monotone" dataKey="Saídas" stroke="#ef4444" fillOpacity={1} fill="url(#colorExit)" strokeWidth={2} />
+                      </AreaChart>
+                  </ResponsiveContainer>
+              </div>
+          </div>
+
+          {/* Expense Breakdown */}
+          <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+              <h2 className="text-lg font-semibold text-slate-800 mb-2">Despesas</h2>
+              <div className="h-64 w-full relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                          <Pie
+                              data={expenseData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                          >
+                              {expenseData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                          </Pie>
+                          <Legend 
+                              layout="horizontal" 
+                              verticalAlign="bottom" 
+                              align="center"
+                              iconType="circle"
+                          />
+                          <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                          <p className="text-xs text-slate-500">Total Despesas</p>
+                          <p className="text-lg font-bold text-slate-800">{formatCurrency(expenseData.reduce((a, b) => a + b.value, 0))}</p>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </section>
+
+      {/* Summary Widgets */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Recebimentos Widget */}
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+              <h2 className="text-lg font-semibold text-slate-800 mb-6">Recebimentos</h2>
+              <div className="space-y-6">
+                  <div className="flex items-center">
+                      <div className="w-1.5 h-12 bg-yellow-400 rounded-full mr-4"></div>
+                      <div>
+                          <p className="text-sm text-slate-500">Faturas em aberto</p>
+                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.recOpen)}</p>
+                      </div>
+                  </div>
+                  <div className="flex items-center">
+                      <div className="w-1.5 h-12 bg-red-500 rounded-full mr-4"></div>
+                      <div>
+                          <p className="text-sm text-slate-500">Faturas em atraso</p>
+                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.recLate)}</p>
+                      </div>
+                  </div>
+                  <div className="flex items-center">
+                      <div className="w-1.5 h-12 bg-green-500 rounded-full mr-4"></div>
+                      <div>
+                          <p className="text-sm text-slate-500">Pago(s) em Esse mês</p>
+                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.recPaidMonth)}</p>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          {/* Pagamentos Widget */}
+          <div className="bg-white p-6 rounded-xl shadow-lg">
+              <h2 className="text-lg font-semibold text-slate-800 mb-6">Pagamentos (Despesas)</h2>
+              <div className="space-y-6">
+                  <div className="flex items-center">
+                      <div className="w-1.5 h-12 bg-yellow-400 rounded-full mr-4"></div>
+                      <div>
+                          <p className="text-sm text-slate-500">A vencer</p>
+                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.payOpen)}</p>
+                      </div>
+                  </div>
+                  <div className="flex items-center">
+                      <div className="w-1.5 h-12 bg-red-500 rounded-full mr-4"></div>
+                      <div>
+                          <p className="text-sm text-slate-500">Atrasadas</p>
+                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.payLate)}</p>
+                      </div>
+                  </div>
+                  <div className="flex items-center">
+                      <div className="w-1.5 h-12 bg-green-500 rounded-full mr-4"></div>
+                      <div>
+                          <p className="text-sm text-slate-500">Pago(s) em Esse mês</p>
+                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.payPaidMonth)}</p>
+                      </div>
+                  </div>
+              </div>
+          </div>
       </section>
 
       <section className="bg-white p-6 rounded-xl shadow-lg">
@@ -631,3 +533,12 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, setInstallments, co
 };
 
 export default Dashboard;
+
+const getStatusChip = (status: PaymentInstallment['status']) => {
+    switch (status) {
+        case 'Pendente': return 'bg-amber-100 text-amber-800';
+        case 'Pago em dia': return 'bg-green-100 text-green-800';
+        case 'Pago com atraso': return 'bg-yellow-100 text-yellow-800';
+        default: return 'bg-slate-100 text-slate-800';
+    }
+};

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import StatCard from './StatCard';
 import { PaymentInstallment, OtherPayment, Contract } from '../types';
@@ -29,18 +28,140 @@ const getStatusChip = (status: PaymentInstallment['status']) => {
     }
 };
 
+const PaymentRegistration: React.FC<{
+    installments: PaymentInstallment[];
+    onRegisterInstallment: (installmentId: number, paymentDate: Date) => void;
+    onRegisterOther: (description: string, paymentDate: Date, value: number) => void;
+}> = ({ installments, onRegisterInstallment, onRegisterOther }) => {
+    const [activeTab, setActiveTab] = useState<'installment' | 'other'>('installment');
+
+    // States for installment form
+    const [selectedInstallmentId, setSelectedInstallmentId] = useState('');
+    const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+    
+    // States for other payment form
+    const [otherDesc, setOtherDesc] = useState('');
+    const [otherDate, setOtherDate] = useState(new Date().toISOString().split('T')[0]);
+    const [otherValue, setOtherValue] = useState('');
+
+    const pendingInstallments = installments
+        .filter(i => i.status === 'Pendente')
+        .sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+    const handleInstallmentSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!selectedInstallmentId || !paymentDate) {
+            alert("Por favor, selecione uma parcela e a data de pagamento.");
+            return;
+        }
+        onRegisterInstallment(parseInt(selectedInstallmentId), new Date(`${paymentDate}T00:00:00`));
+        setSelectedInstallmentId('');
+    };
+
+    const handleOtherSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const valueNum = parseFloat(otherValue);
+        if (!otherDesc || !otherDate || isNaN(valueNum) || valueNum <= 0) {
+            alert("Por favor, preencha todos os campos com valores válidos.");
+            return;
+        }
+        onRegisterOther(otherDesc, new Date(`${otherDate}T00:00:00`), valueNum);
+        setOtherDesc('');
+        setOtherValue('');
+    };
+
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+            <div className="border-b border-slate-200 mb-6">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button
+                        onClick={() => setActiveTab('installment')}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                            activeTab === 'installment'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                    >
+                        Registrar Parcela
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('other')}
+                        className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                            activeTab === 'other'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                        }`}
+                    >
+                        Registrar Outros
+                    </button>
+                </nav>
+            </div>
+            
+            {activeTab === 'installment' && (
+                <form onSubmit={handleInstallmentSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div className="md:col-span-2">
+                        <label htmlFor="installment-select" className="block text-sm font-medium text-slate-600">Parcela Pendente</label>
+                        <select id="installment-select" value={selectedInstallmentId} onChange={e => setSelectedInstallmentId(e.target.value)} required className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3">
+                            <option value="">Selecione uma parcela...</option>
+                            {pendingInstallments.map(i => (
+                                <option key={i.id} value={i.id}>
+                                    {`${i.clientName} (${i.projectName}) - ${i.installment} de ${formatCurrency(i.value)} - Vence em ${formatDate(new Date(i.dueDate))}`}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="payment-date" className="block text-sm font-medium text-slate-600">Data do Pagamento</label>
+                        <input type="date" id="payment-date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} required className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
+                    </div>
+                    <div className="md:col-span-3">
+                        <button type="submit" className="w-full md:w-auto justify-center rounded-md border border-transparent bg-blue-600 py-2 px-8 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Registrar Pagamento de Parcela
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            {activeTab === 'other' && (
+                <form onSubmit={handleOtherSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                     <div className="md:col-span-2">
+                        <label htmlFor="other-desc" className="block text-sm font-medium text-slate-600">Descrição</label>
+                        <input type="text" id="other-desc" value={otherDesc} onChange={e => setOtherDesc(e.target.value)} required placeholder="Ex: Consultoria extra" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
+                    </div>
+                     <div>
+                        <label htmlFor="other-date" className="block text-sm font-medium text-slate-600">Data do Pagamento</label>
+                        <input type="date" id="other-date" value={otherDate} onChange={e => setOtherDate(e.target.value)} required className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
+                    </div>
+                     <div>
+                        <label htmlFor="other-value" className="block text-sm font-medium text-slate-600">Valor (R$)</label>
+                        <input type="number" id="other-value" value={otherValue} onChange={e => setOtherValue(e.target.value)} required placeholder="0.00" step="0.01" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
+                    </div>
+                    <div className="md:col-span-4">
+                        <button type="submit" className="w-full md:w-auto justify-center rounded-md border border-transparent bg-green-600 py-2 px-8 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                            Adicionar Recebimento
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
+    );
+}
+
 interface ProjectionsProps {
     installments: PaymentInstallment[];
     otherPayments: OtherPayment[];
     contracts: Contract[];
+    onRegisterInstallment: (installmentId: number, paymentDate: Date) => void;
+    onRegisterOther: (description: string, paymentDate: Date, value: number) => void;
 }
 
-const Projections: React.FC<ProjectionsProps> = ({ installments, otherPayments, contracts }) => {
+const Projections: React.FC<ProjectionsProps> = ({ installments, otherPayments, contracts, onRegisterInstallment, onRegisterOther }) => {
     const [selectedDate, setSelectedDate] = useState({
         month: new Date().getMonth(), // 0-11
         year: new Date().getFullYear(),
     });
     const [selectedClient, setSelectedClient] = useState('');
+    const [viewLatePayments, setViewLatePayments] = useState(false);
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     const [selectedInstallment, setSelectedInstallment] = useState<PaymentInstallment | null>(null);
 
@@ -81,8 +202,22 @@ const Projections: React.FC<ProjectionsProps> = ({ installments, otherPayments, 
         const today = new Date();
         today.setHours(0,0,0,0);
 
-        // MODALIDADE 1: Filtro por Cliente (Histórico Completo - Ignora Mês/Ano)
-        if (selectedClient) {
+        // MODALIDADE 1: Visualizar APENAS Atrasados (Geral)
+        if (viewLatePayments) {
+             installments.forEach(inst => {
+                const dueDate = new Date(inst.dueDate);
+                dueDate.setHours(0,0,0,0);
+                if (inst.status === 'Pendente' && dueDate < today) {
+                    tableItems.push({ ...inst, itemType: 'installment' });
+                    card1 += inst.value; // Total Atrasado
+                    card3 += inst.value; // Total Atrasado
+                    card4 += inst.value; // Total Atrasado
+                }
+            });
+            // Card 2 (Recebido) fica zerado pois estamos vendo pendências
+        }
+        // MODALIDADE 2: Filtro por Cliente (Histórico Completo - Ignora Mês/Ano)
+        else if (selectedClient) {
             installments.forEach(inst => {
                 if (inst.clientName !== selectedClient) return;
 
@@ -114,7 +249,7 @@ const Projections: React.FC<ProjectionsProps> = ({ installments, otherPayments, 
             // mas se tivermos lógica futura, adicionamos aqui. Por enquanto, oculta "Outros" no filtro de cliente.
 
         } 
-        // MODALIDADE 2: Filtro por Mês/Ano (Visão Geral do Escritório)
+        // MODALIDADE 3: Filtro por Mês/Ano (Visão Geral do Escritório)
         else {
             const firstDay = new Date(selectedDate.year, selectedDate.month, 1);
             const lastDay = new Date(selectedDate.year, selectedDate.month + 1, 0);
@@ -170,8 +305,24 @@ const Projections: React.FC<ProjectionsProps> = ({ installments, otherPayments, 
             card4Value: card4,
             tableItems,
         };
-    }, [installments, otherPayments, selectedDate, selectedClient]);
+    }, [installments, otherPayments, selectedDate, selectedClient, viewLatePayments]);
     
+    // Determine card titles based on view mode
+    const isLateView = viewLatePayments;
+    
+    const cardTitles = {
+        card1: isLateView ? "Total em Atraso" : (selectedClient ? "Valor Total Contrato" : "Previsto para o Mês"),
+        card2: isLateView ? "Total Recebido (N/A)" : (selectedClient ? "Total Recebido" : "Recebido no Mês"),
+        card3: isLateView ? "Total Pendente" : (selectedClient ? "Saldo a Receber" : "Pendente no Mês"),
+        card4: isLateView ? "Total Atrasado" : (selectedClient ? "Atrasado (Cliente)" : "Atrasado (Geral)"),
+    }
+
+    const getTableTitle = () => {
+        if (isLateView) return "Todas as Parcelas em Atraso";
+        if (selectedClient) return `Histórico Financeiro Completo: ${selectedClient}`;
+        return "Detalhes das Parcelas do Mês";
+    }
+
     return (
         <div className="space-y-8">
             <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
@@ -181,73 +332,108 @@ const Projections: React.FC<ProjectionsProps> = ({ installments, otherPayments, 
                 </p>
             </header>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col sm:flex-row sm:items-center gap-4">
-                <div>
-                    <label htmlFor="month-select" className="block text-sm font-medium text-slate-600">Mês</label>
-                    <select 
-                        id="month-select" 
-                        value={selectedDate.month} 
-                        onChange={e => handleDateChange('month', e.target.value)} 
-                        disabled={!!selectedClient}
-                        className="mt-1 block w-48 rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 disabled:bg-slate-100 disabled:text-slate-400"
-                    >
-                        {months.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
-                    </select>
+            <section>
+                <PaymentRegistration 
+                    installments={installments} 
+                    onRegisterInstallment={onRegisterInstallment}
+                    onRegisterOther={onRegisterOther}
+                />
+            </section>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col md:flex-row items-end md:items-center gap-4">
+                <div className="flex gap-4">
+                    <div>
+                        <label htmlFor="month-select" className="block text-sm font-medium text-slate-600">Mês</label>
+                        <select 
+                            id="month-select" 
+                            value={selectedDate.month} 
+                            onChange={e => handleDateChange('month', e.target.value)} 
+                            disabled={!!selectedClient || viewLatePayments}
+                            className="mt-1 block w-40 rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                            {months.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="year-select" className="block text-sm font-medium text-slate-600">Ano</label>
+                        <select 
+                            id="year-select" 
+                            value={selectedDate.year} 
+                            onChange={e => handleDateChange('year', e.target.value)} 
+                            disabled={!!selectedClient || viewLatePayments}
+                            className="mt-1 block w-28 rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                            {years.map(year => <option key={year} value={year}>{year}</option>)}
+                        </select>
+                    </div>
                 </div>
-                <div>
-                    <label htmlFor="year-select" className="block text-sm font-medium text-slate-600">Ano</label>
-                    <select 
-                        id="year-select" 
-                        value={selectedDate.year} 
-                        onChange={e => handleDateChange('year', e.target.value)} 
-                        disabled={!!selectedClient}
-                        className="mt-1 block w-32 rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 disabled:bg-slate-100 disabled:text-slate-400"
-                    >
-                        {years.map(year => <option key={year} value={year}>{year}</option>)}
-                    </select>
-                </div>
-                <div className="flex-1 sm:max-w-xs">
+                <div className="flex-1 w-full md:w-auto">
                     <label htmlFor="client-select" className="block text-sm font-medium text-slate-600">Filtrar por Cliente</label>
-                    <select 
-                        id="client-select" 
-                        value={selectedClient} 
-                        onChange={e => setSelectedClient(e.target.value)} 
-                        className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
+                    <div className="flex gap-2">
+                        <select 
+                            id="client-select" 
+                            value={selectedClient} 
+                            onChange={e => { setSelectedClient(e.target.value); setViewLatePayments(false); }} 
+                            disabled={viewLatePayments}
+                            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 disabled:bg-slate-100"
+                        >
+                            <option value="">Visão Geral (Por Mês)</option>
+                            <optgroup label="Clientes">
+                                {uniqueClients.map(client => (
+                                    <option key={client} value={client}>{client}</option>
+                                ))}
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-transparent">.</label>
+                    <button
+                        onClick={() => {
+                            if (viewLatePayments) {
+                                setViewLatePayments(false);
+                            } else {
+                                setViewLatePayments(true);
+                                setSelectedClient(''); // Clear client filter when entering late mode
+                            }
+                        }}
+                        className={`mt-1 flex items-center justify-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium transition-colors h-10 ${
+                            viewLatePayments 
+                                ? 'bg-red-600 text-white border-red-600 hover:bg-red-700' 
+                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                        }`}
                     >
-                        <option value="">Visão Geral (Por Mês)</option>
-                        {uniqueClients.map(client => (
-                            <option key={client} value={client}>{client}</option>
-                        ))}
-                    </select>
+                        {viewLatePayments ? 'Voltar para Visão Geral' : '⚠ Ver Atrasados'}
+                    </button>
                 </div>
             </div>
 
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title={selectedClient ? "Valor Total Contrato" : "Previsto para o Mês"}
+                    title={cardTitles.card1}
                     value={formatCurrency(monthlyData.card1Value)}
                     icon={<DollarIcon className="w-6 h-6 text-blue-500" />}
                 />
                 <StatCard
-                    title={selectedClient ? "Total Recebido" : "Recebido no Mês"}
+                    title={cardTitles.card2}
                     value={formatCurrency(monthlyData.card2Value)}
                     icon={<MoneyBagIcon className="w-6 h-6 text-green-500" />}
                 />
                 <StatCard
-                    title={selectedClient ? "Saldo a Receber" : "Pendente no Mês"}
+                    title={cardTitles.card3}
                     value={formatCurrency(monthlyData.card3Value)}
                     icon={<ChartBarIcon className="w-6 h-6 text-amber-500" />}
                 />
                 <StatCard
-                    title={selectedClient ? "Atrasado (Cliente)" : "Atrasado (Geral)"}
+                    title={cardTitles.card4}
                     value={formatCurrency(monthlyData.card4Value)}
                     icon={<ExclamationTriangleIcon className="w-6 h-6 text-red-500" />}
                 />
             </section>
 
             <section className="bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-lg font-semibold text-slate-800">
-                    {selectedClient ? `Histórico Financeiro Completo: ${selectedClient}` : "Detalhes das Parcelas do Mês"}
+                <h2 className={`text-lg font-semibold ${isLateView ? 'text-red-600' : 'text-slate-800'}`}>
+                    {getTableTitle()}
                 </h2>
                 <div className="mt-4 overflow-x-auto">
                     <table className="w-full text-left">
@@ -318,7 +504,8 @@ const Projections: React.FC<ProjectionsProps> = ({ installments, otherPayments, 
                 </div>
             </section>
             
-            {!selectedClient && (
+            {/* Show other payments history only when in Overview Mode (not client filtered, not late view) */}
+            {!selectedClient && !viewLatePayments && (
                 <section className="bg-white p-6 rounded-xl shadow-lg">
                     <h2 className="text-lg font-semibold text-slate-800">Histórico de Outros Recebimentos</h2>
                     <div className="mt-4 overflow-x-auto">

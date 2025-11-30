@@ -103,6 +103,12 @@ export const TrendingUpIcon: React.FC<{ className?: string }> = ({ className }) 
     </svg>
 );
 
+export const TrendingDownIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.511m-3.182 5.51-5.511-3.181" />
+    </svg>
+);
+
 export const CogIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-1.003 1.11-1.226l.05-.022c.556-.223 1.156-.223 1.712 0l.05.022c.55.223 1.02.684 1.11 1.226l.048.288c.03.18.06.358.098.535l.02.091c.42.164.82.386 1.19.658l.026.02c.48.355.755.935.72 1.54l-.007.126c-.037.65-.39.123-.74.15l-.01.004c-.88.084-1.743.34-2.56.744l-.016.008c-.46.204-.86.48-1.22.82l-.025.024c-.42.39-.98.64-1.58.64h-.01c-.6 0-1.16-.25-1.58-.64l-.025-.024c-.36-.34-.76-.616-1.22-.82l-.016-.008c-.817-.403-1.68-.66-2.56-.744l-.01-.004c-.35-.03-.703-.5-7.4-1.15l-.007-.126c-.035-.605.24-1.185.72-1.54l.026-.02c.37-.272.77-.494 1.19-.658l.02-.091c.038-.177.068-.355.098-.535l.048-.288ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
@@ -209,6 +215,12 @@ export const NotepadIcon: React.FC<{ className?: string }> = ({ className }) => 
     </svg>
 );
 
+export const CreditCardIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+    </svg>
+);
+
 export const MapPinIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -220,5 +232,11 @@ export const PrinterIcon: React.FC<{ className?: string }> = ({ className }) => 
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 9h13.5v6H5.25z" />
+    </svg>
+);
+
+export const BrandLogo: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25m-9-5.25v9l9 5.25m0-9v9" />
     </svg>
 );
