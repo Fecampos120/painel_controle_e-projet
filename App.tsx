@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   DashboardIcon, 
@@ -30,8 +29,8 @@ import ConstructionChecklist from './components/ConstructionChecklist';
 import Expenses from './components/Expenses';
 import TechnicalVisits from './components/TechnicalVisits';
 
-import { AppData, PaymentInstallment, Contract, OtherPayment, Partner, ProjectStageTemplateItem, ProjectSchedule, ProjectStage, ProjectProgress, StageProgress, ProjectChecklist, Expense, VisitLog } from './types';
-import { CLIENTS, MOCK_CONTRACTS, MOCK_REMINDERS, INITIAL_INSTALLMENTS, MOCK_PROJECT_SCHEDULES, MOCK_PROJECT_PROGRESS, MOCK_SERVICE_PRICES, MOCK_HOURLY_RATES, MOCK_MEASUREMENT_TIERS, MOCK_EXTRA_TIERS, DEFAULT_PROJECT_STAGES_TEMPLATE, MOCK_OTHER_PAYMENTS, MOCK_PARTNERS, GANTT_STAGES_CONFIG, MOCK_EXPENSES, MOCK_VISIT_LOGS } from './constants';
+import { AppData, PaymentInstallment, Contract, OtherPayment, Partner, ProjectStageTemplateItem, ProjectSchedule, ProjectStage, ProjectProgress, StageProgress, ProjectChecklist, Expense, VisitLog, FixedExpenseTemplate } from './types';
+import { CLIENTS, MOCK_CONTRACTS, MOCK_REMINDERS, INITIAL_INSTALLMENTS, MOCK_PROJECT_SCHEDULES, MOCK_PROJECT_PROGRESS, MOCK_SERVICE_PRICES, MOCK_HOURLY_RATES, MOCK_MEASUREMENT_TIERS, MOCK_EXTRA_TIERS, DEFAULT_PROJECT_STAGES_TEMPLATE, MOCK_OTHER_PAYMENTS, MOCK_PARTNERS, GANTT_STAGES_CONFIG, MOCK_EXPENSES, MOCK_VISIT_LOGS, MOCK_FIXED_EXPENSE_TEMPLATES, DEFAULT_SYSTEM_SETTINGS } from './constants';
 
 type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'partners' | 'checklist' | 'expenses' | 'tech-visits';
 
@@ -53,14 +52,18 @@ const getInitialData = (): AppData => {
         partners: MOCK_PARTNERS,
         checklists: [],
         expenses: MOCK_EXPENSES,
+        fixedExpenseTemplates: MOCK_FIXED_EXPENSE_TEMPLATES,
         visitLogs: MOCK_VISIT_LOGS,
+        systemSettings: DEFAULT_SYSTEM_SETTINGS,
     };
 
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
-            // Ensure expenses array exists if loading from older data
+            // Ensure new properties exist if loading from older data
             if(!parsed.expenses) parsed.expenses = [];
+            if(!parsed.fixedExpenseTemplates) parsed.fixedExpenseTemplates = [];
+            if(!parsed.systemSettings) parsed.systemSettings = DEFAULT_SYSTEM_SETTINGS;
             return { ...defaultData, ...parsed };
         } catch (e) {
             console.error("Failed to parse local storage", e);
@@ -91,6 +94,7 @@ const NavItem: React.FC<{
   </li>
 );
 
+// ... (Helper functions remain unchanged)
 const addWorkDays = (startDate: Date, days: number): Date => {
     const newDate = new Date(startDate);
     let dayOfWeek = newDate.getDay();
@@ -256,6 +260,7 @@ export default function App() {
       localStorage.setItem('E_PROJET_DATA_LOCAL', JSON.stringify(appData));
   }, [appData]);
 
+  // ... (Contract handlers, etc)
   const handleAddContract = (newContract: Omit<Contract, 'id'>) => {
     const contractWithId: Contract = { ...newContract, id: Date.now() };
     const { newInstallments, newSchedule, newProgress } = generateDependentData(contractWithId, appData.projectStagesTemplate);
@@ -406,6 +411,20 @@ export default function App() {
       });
   };
 
+  const handleAddFixedExpenseTemplate = (newTemplate: Omit<FixedExpenseTemplate, 'id'>) => {
+      setAppData({
+          ...appData,
+          fixedExpenseTemplates: [{ ...newTemplate, id: Date.now() }, ...(appData.fixedExpenseTemplates || [])]
+      });
+  };
+
+  const handleDeleteFixedExpenseTemplate = (id: number) => {
+      setAppData({
+          ...appData,
+          fixedExpenseTemplates: (appData.fixedExpenseTemplates || []).filter(t => t.id !== id)
+      });
+  };
+
   const handleAddVisitLog = (newLog: Omit<VisitLog, 'id' | 'createdAt'>) => {
       setAppData({
           ...appData,
@@ -472,6 +491,7 @@ export default function App() {
                     contracts={appData.contracts}
                     schedules={appData.schedules}
                     clients={appData.clients}
+                    systemSettings={appData.systemSettings}
                     onEditContract={handleStartEditContract}
                     onDeleteContract={handleDeleteContract}
                     onCreateProject={handleCreateProject}
@@ -499,7 +519,11 @@ export default function App() {
                   onRegisterOther={handleAddOtherPayment}
                 />;
       case 'receipts':
-        return <Receipts contracts={appData.contracts} installments={appData.installments} />;
+        return <Receipts 
+            contracts={appData.contracts} 
+            installments={appData.installments} 
+            systemSettings={appData.systemSettings}
+        />;
       case 'reminders':
         return <Reminders 
                   reminders={appData.reminders}
@@ -518,14 +542,18 @@ export default function App() {
           return <ConstructionChecklist
                     contracts={appData.contracts}
                     checklists={appData.checklists}
+                    systemSettings={appData.systemSettings}
                     onUpdateChecklist={handleUpdateChecklist}
                 />;
         case 'expenses':
             return <Expenses
                 expenses={appData.expenses || []}
+                fixedExpenseTemplates={appData.fixedExpenseTemplates || []}
                 onAddExpense={handleAddExpense}
                 onUpdateExpense={handleUpdateExpense}
                 onDeleteExpense={handleDeleteExpense}
+                onAddFixedExpenseTemplate={handleAddFixedExpenseTemplate}
+                onDeleteFixedExpenseTemplate={handleDeleteFixedExpenseTemplate}
             />;
         case 'tech-visits':
             return <TechnicalVisits
@@ -562,11 +590,15 @@ export default function App() {
       <aside className="w-64 flex-shrink-0 bg-gray-900 text-white">
         <div className="h-full flex flex-col">
           <div className="flex items-center p-6 border-b border-gray-800">
-            <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-lg overflow-hidden">
-                <BrandLogo className="w-full h-full text-white" />
+            <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-lg overflow-hidden shrink-0">
+                {appData.systemSettings?.logoUrl ? (
+                    <img src={appData.systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain bg-white" />
+                ) : (
+                    <BrandLogo className="w-full h-full text-white" />
+                )}
             </div>
             <div className="ml-3 overflow-hidden">
-                <h1 className="text-base font-bold text-white truncate">E-Projet</h1>
+                <h1 className="text-base font-bold text-white truncate" title={appData.systemSettings?.appName}>{appData.systemSettings?.appName}</h1>
                 <p className="text-xs text-slate-400 truncate">Painel de Controle</p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Contract, ProjectSchedule, Client, ProjectStage } from '../types';
+import { Contract, ProjectSchedule, Client, ProjectStage, SystemSettings } from '../types';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, ArchitectIcon, PrinterIcon, XIcon } from './Icons';
 
 // This is the new main component for this file, implementing the "Projetos" view.
@@ -21,6 +21,7 @@ interface ProjectsProps {
     contracts: Contract[];
     schedules: ProjectSchedule[];
     clients: Client[];
+    systemSettings?: SystemSettings;
     onEditContract: (contract: Contract) => void;
     onDeleteContract: (id: number) => void;
     onCreateProject: () => void;
@@ -44,10 +45,11 @@ const StatusChip: React.FC<{ status: DisplayProject['status'] }> = ({ status }) 
 interface ProjectReportModalProps {
     contract: Contract;
     schedule?: ProjectSchedule;
+    systemSettings?: SystemSettings;
     onClose: () => void;
 }
 
-const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, schedule, onClose }) => {
+const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, schedule, systemSettings, onClose }) => {
     const handlePrint = () => {
         window.print();
     };
@@ -107,8 +109,12 @@ const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, sched
                         </div>
                         <div className="text-right">
                             <div className="flex items-center justify-end space-x-2 font-bold text-xl">
-                                <ArchitectIcon className="w-6 h-6" />
-                                <span>STUDIO BATTELLO</span>
+                                {systemSettings?.logoUrl ? (
+                                    <img src={systemSettings.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
+                                ) : (
+                                    <ArchitectIcon className="w-6 h-6" />
+                                )}
+                                <span>{systemSettings?.companyName || "STUDIO BATTELLI"}</span>
                             </div>
                             <p className="text-xs text-slate-500">Arquitetura & Interiores</p>
                         </div>
@@ -193,7 +199,7 @@ const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, sched
                     </main>
                     
                     <footer className="mt-16 pt-8 border-t border-slate-200 text-center text-xs text-slate-400">
-                        <p>Relatório gerado automaticamente pelo sistema E-Projet.</p>
+                        <p>Relatório gerado automaticamente pelo sistema {systemSettings?.appName || "E-Projet"}.</p>
                     </footer>
                 </div>
             </div>
@@ -202,7 +208,7 @@ const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, sched
 };
 
 
-const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEditContract, onDeleteContract, onCreateProject }) => {
+const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, systemSettings, onEditContract, onDeleteContract, onCreateProject }) => {
     const [activeTab, setActiveTab] = useState<'ativos' | 'arquivados'>('ativos');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -427,6 +433,7 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, onEd
                 <ProjectReportModal 
                     contract={reportProject.contract}
                     schedule={reportProject.schedule}
+                    systemSettings={systemSettings}
                     onClose={() => setReportProject(null)}
                 />
             )}

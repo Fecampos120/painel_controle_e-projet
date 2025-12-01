@@ -1,5 +1,5 @@
 
-import { Client, PaymentInstallment, AttentionPoint, Reminder, Contract, ProjectProgress, Address, ProjectSchedule, ServicePrice, PriceTier, ProjectStageTemplateItem, OtherPayment, ProjectStage, Partner, StageProgress, ChecklistItemTemplate, Expense, VisitLog } from './types';
+import { Client, PaymentInstallment, AttentionPoint, Reminder, Contract, ProjectProgress, Address, ProjectSchedule, ServicePrice, PriceTier, ProjectStageTemplateItem, OtherPayment, ProjectStage, Partner, StageProgress, ChecklistItemTemplate, Expense, VisitLog, FixedExpenseTemplate, SystemSettings } from './types';
 
 export const CLIENTS: Client[] = [];
 
@@ -9,12 +9,29 @@ export const MOCK_REMINDERS: Reminder[] = [];
 
 const MOCK_ADDRESS: Address = { street: 'Rua Fictícia', number: '123', district: 'Centro', city: 'São Paulo', state: 'SP', cep: '01000-000' };
 
+export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
+    appName: 'Studio Battelli',
+    companyName: 'Studio Battelli',
+    professionalName: 'Erica Battelli',
+    email: 'contato@studiobattelli.com.br',
+    phone: '',
+    address: {
+        street: '',
+        number: '',
+        district: '',
+        city: '',
+        state: '',
+        cep: ''
+    }
+};
 
 export const MOCK_OTHER_PAYMENTS: OtherPayment[] = [];
 
 export const MOCK_PARTNERS: Partner[] = [];
 
 export const MOCK_EXPENSES: Expense[] = [];
+
+export const MOCK_FIXED_EXPENSE_TEMPLATES: FixedExpenseTemplate[] = [];
 
 export const MOCK_VISIT_LOGS: VisitLog[] = [];
 

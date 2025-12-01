@@ -48,6 +48,26 @@ export interface Expense {
     paidDate?: string; // YYYY-MM-DD
     status: 'Pago' | 'Pendente';
     recurrence?: boolean; // Para despesas fixas que se repetem
+    recurrenceId?: number; // Link to template
+}
+
+export interface FixedExpenseTemplate {
+    id: number;
+    description: string;
+    amount: number;
+    day: number;
+}
+
+// System Settings (White Label)
+export interface SystemSettings {
+    appName: string; // Nome no Menu (Ex: Studio Battelli)
+    companyName: string; // Nome nos Relatórios
+    professionalName: string; // Nome do Profissional
+    email: string;
+    phone: string;
+    website?: string;
+    logoUrl?: string; // Base64 image
+    address: Address;
 }
 
 // Technical Visit Log
@@ -87,8 +107,10 @@ export interface AppData {
     partners: Partner[];
     checklists: ProjectChecklist[];
     expenses: Expense[];
+    fixedExpenseTemplates?: FixedExpenseTemplate[];
     visitLogs: VisitLog[];
     notes?: Note[];
+    systemSettings: SystemSettings;
 }
 
 export interface Client {

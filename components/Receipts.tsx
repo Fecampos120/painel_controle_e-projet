@@ -1,14 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
-import { Contract, PaymentInstallment } from '../types';
-import { ArchitectIcon } from './Icons';
+import { Contract, PaymentInstallment, SystemSettings } from '../types';
+import { ArchitectIcon, BrandLogo } from './Icons';
 
 interface ReceiptsProps {
     contracts: Contract[];
     installments: PaymentInstallment[];
+    systemSettings: SystemSettings;
 }
 
-const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments }) => {
+const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments, systemSettings }) => {
     const [selectedContractId, setSelectedContractId] = useState<string>('');
 
     const selectedContract = useMemo(() => {
@@ -97,9 +98,13 @@ const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments }) => {
                                     <p className="text-slate-600 text-sm mt-1">Recibo e Cronograma de Pagamentos</p>
                                 </div>
                                 <div className="text-right">
-                                    <div className="flex items-center justify-end space-x-2 text-slate-800 font-bold text-xl">
-                                        <ArchitectIcon className="w-8 h-8" />
-                                        <span>STUDIO BATTELLO</span>
+                                    <div className="flex items-center justify-end space-x-3 text-slate-800 font-bold text-xl">
+                                        {systemSettings.logoUrl ? (
+                                            <img src={systemSettings.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
+                                        ) : (
+                                            <ArchitectIcon className="w-8 h-8" />
+                                        )}
+                                        <span>{systemSettings.companyName.toUpperCase()}</span>
                                     </div>
                                     <p className="text-xs text-slate-500 mt-1">Arquitetura & Interiores</p>
                                     <p className="text-xs text-slate-500">Data de Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
@@ -252,7 +257,7 @@ const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments }) => {
                                     </div>
                                     <div className="text-center">
                                         <div className="border-t border-slate-400 w-64 pt-2"></div>
-                                        <p className="text-sm font-bold text-slate-800">Erica Battelli Agudo Fileto</p>
+                                        <p className="text-sm font-bold text-slate-800">{systemSettings.professionalName}</p>
                                         <p className="text-xs text-slate-500">CONTRATADA</p>
                                     </div>
                                 </footer>

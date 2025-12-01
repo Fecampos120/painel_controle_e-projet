@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
-import { PlusIcon, TrashIcon, PencilIcon, XIcon } from './Icons';
-import { ServicePrice, PriceTier, AppData, ProjectStageTemplateItem } from '../types';
+import React, { useState, useRef } from 'react';
+import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon } from './Icons';
+import { ServicePrice, PriceTier, AppData, ProjectStageTemplateItem, SystemSettings } from '../types';
 
 // Generic type for items in sections
 type SettingItem = ServicePrice | PriceTier | ProjectStageTemplateItem;
@@ -60,6 +60,10 @@ const Settings: React.FC<SettingsProps> = ({ appData, setAppData }) => {
   const [currentSection, setCurrentSection] = useState<{key: keyof AppData, title: string} | null>(null);
   const [editingItem, setEditingItem] = useState<SettingItem | null>(null);
   const [formData, setFormData] = useState<Partial<SettingItem>>({});
+  
+  // System Settings State
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(appData.systemSettings);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sections: { [key in keyof AppData]?: any } = {
     servicePrices: {
@@ -200,14 +204,135 @@ const Settings: React.FC<SettingsProps> = ({ appData, setAppData }) => {
       }
   };
 
+  // System Settings Handlers
+  const handleSystemSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, value } = e.target;
+      if (name.includes('address.')) {
+          const field = name.split('.')[1];
+          setSystemSettings(prev => ({
+              ...prev,
+              address: { ...prev.address, [field]: value }
+          }));
+      } else {
+          setSystemSettings(prev => ({ ...prev, [name]: value }));
+      }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setSystemSettings(prev => ({ ...prev, logoUrl: reader.result as string }));
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const handleSaveSystemSettings = () => {
+      setAppData(prev => ({ ...prev, systemSettings }));
+      alert('Configurações do sistema salvas com sucesso!');
+  };
+
   return (
     <div className="space-y-8">
       <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
         <h1 className="text-3xl font-bold">Configurações</h1>
         <p className="mt-1 text-blue-100">
-          Personalize os valores padrão e modelos do sistema.
+          Personalize os valores padrão, modelos e a identidade da sua empresa.
         </p>
       </header>
+
+      {/* Personalização / White Label Section */}
+      <div className="bg-white p-6 rounded-xl shadow-lg border border-blue-100">
+          <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <div>
+                  <h2 className="text-xl font-bold text-slate-800">Identidade Visual e Dados da Empresa</h2>
+                  <p className="text-sm text-slate-500">Personalize o nome, logo e endereço que aparecerão no menu e nos relatórios.</p>
+              </div>
+              <button 
+                  onClick={handleSaveSystemSettings}
+                  className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition-colors"
+              >
+                  Salvar Alterações
+              </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Logo Upload */}
+              <div className="lg:col-span-1 flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                  <div className="w-32 h-32 mb-4 bg-white rounded-lg shadow-sm flex items-center justify-center overflow-hidden border">
+                      {systemSettings.logoUrl ? (
+                          <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                      ) : (
+                          <BrandLogo className="w-16 h-16 text-slate-300" />
+                      )}
+                  </div>
+                  <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleLogoUpload} 
+                      accept="image/*" 
+                      className="hidden" 
+                  />
+                  <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                  >
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                      Alterar Logotipo
+                  </button>
+              </div>
+
+              {/* Form Fields */}
+              <div className="lg:col-span-2 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700">Nome do App (Menu)</label>
+                          <input type="text" name="appName" value={systemSettings.appName} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700">Nome da Empresa (Relatórios)</label>
+                          <input type="text" name="companyName" value={systemSettings.companyName} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700">Nome do Profissional</label>
+                          <input type="text" name="professionalName" value={systemSettings.professionalName} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-slate-700">Telefone / Contato</label>
+                          <input type="text" name="phone" value={systemSettings.phone} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
+                      </div>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-slate-100">
+                      <h3 className="text-sm font-semibold text-slate-700 mb-3">Endereço Profissional</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                              <label className="block text-xs font-medium text-slate-500">Logradouro</label>
+                              <input type="text" name="address.street" value={systemSettings.address.street} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-3" />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-medium text-slate-500">Número</label>
+                              <input type="text" name="address.number" value={systemSettings.address.number} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-3" />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-medium text-slate-500">Bairro</label>
+                              <input type="text" name="address.district" value={systemSettings.address.district} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-3" />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-medium text-slate-500">Cidade</label>
+                              <input type="text" name="address.city" value={systemSettings.address.city} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-3" />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-medium text-slate-500">Estado</label>
+                              <input type="text" name="address.state" value={systemSettings.address.state} onChange={handleSystemSettingChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-3" />
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Render Dynamic Sections */}
