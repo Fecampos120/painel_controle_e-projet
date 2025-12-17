@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { 
   DashboardIcon, 
   BellIcon, 
@@ -9,11 +10,10 @@ import {
   ReceiptIcon, 
   CashIcon, 
   DatabaseIcon, 
-  UsersIcon, 
   ClipboardCheckIcon, 
   CreditCardIcon, 
-  MapPinIcon,
-  BrandLogo 
+  BrandLogo,
+  TrashIcon
 } from './components/Icons';
 import Dashboard from './components/Dashboard';
 import Reminders from './components/Reminders';
@@ -24,53 +24,54 @@ import Settings from './components/Settings';
 import Receipts from './components/Receipts';
 import Projections from './components/Projections';
 import Database from './components/Database';
-import Partners from './components/Partners';
 import ConstructionChecklist from './components/ConstructionChecklist';
 import Expenses from './components/Expenses';
-import TechnicalVisits from './components/TechnicalVisits';
+import Auth from './components/Auth';
+import { useUserData } from './hooks/useUserData';
+import { auth } from './firebase';
 
-import { AppData, PaymentInstallment, Contract, OtherPayment, Partner, ProjectStageTemplateItem, ProjectSchedule, ProjectStage, ProjectProgress, StageProgress, ProjectChecklist, Expense, VisitLog, FixedExpenseTemplate } from './types';
-import { CLIENTS, MOCK_CONTRACTS, MOCK_REMINDERS, INITIAL_INSTALLMENTS, MOCK_PROJECT_SCHEDULES, MOCK_PROJECT_PROGRESS, MOCK_SERVICE_PRICES, MOCK_HOURLY_RATES, MOCK_MEASUREMENT_TIERS, MOCK_EXTRA_TIERS, DEFAULT_PROJECT_STAGES_TEMPLATE, MOCK_OTHER_PAYMENTS, MOCK_PARTNERS, GANTT_STAGES_CONFIG, MOCK_EXPENSES, MOCK_VISIT_LOGS, MOCK_FIXED_EXPENSE_TEMPLATES, DEFAULT_SYSTEM_SETTINGS } from './constants';
+import { AppData, Contract, Expense, VisitLog } from './types';
+import { 
+  CLIENTS, 
+  MOCK_CONTRACTS, 
+  MOCK_REMINDERS, 
+  INITIAL_INSTALLMENTS, 
+  MOCK_PROJECT_SCHEDULES, 
+  MOCK_PROJECT_PROGRESS, 
+  MOCK_SERVICE_PRICES, 
+  MOCK_HOURLY_RATES, 
+  MOCK_MEASUREMENT_TIERS, 
+  MOCK_EXTRA_TIERS, 
+  DEFAULT_PROJECT_STAGES_TEMPLATE, 
+  MOCK_OTHER_PAYMENTS, 
+  MOCK_PARTNERS, 
+  MOCK_EXPENSES, 
+  MOCK_VISIT_LOGS, 
+  MOCK_FIXED_EXPENSE_TEMPLATES, 
+  DEFAULT_SYSTEM_SETTINGS 
+} from './constants';
 
-type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'partners' | 'checklist' | 'expenses' | 'tech-visits';
+type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'checklist' | 'expenses';
 
-const getInitialData = (): AppData => {
-    const saved = localStorage.getItem('E_PROJET_DATA_LOCAL');
-    const defaultData = {
-        clients: CLIENTS,
-        contracts: MOCK_CONTRACTS,
-        reminders: MOCK_REMINDERS,
-        installments: INITIAL_INSTALLMENTS,
-        schedules: MOCK_PROJECT_SCHEDULES,
-        projectProgress: MOCK_PROJECT_PROGRESS,
-        servicePrices: MOCK_SERVICE_PRICES,
-        hourlyRates: MOCK_HOURLY_RATES,
-        measurementTiers: MOCK_MEASUREMENT_TIERS,
-        extraTiers: MOCK_EXTRA_TIERS,
-        projectStagesTemplate: DEFAULT_PROJECT_STAGES_TEMPLATE,
-        otherPayments: MOCK_OTHER_PAYMENTS,
-        partners: MOCK_PARTNERS,
-        checklists: [],
-        expenses: MOCK_EXPENSES,
-        fixedExpenseTemplates: MOCK_FIXED_EXPENSE_TEMPLATES,
-        visitLogs: MOCK_VISIT_LOGS,
-        systemSettings: DEFAULT_SYSTEM_SETTINGS,
-    };
-
-    if (saved) {
-        try {
-            const parsed = JSON.parse(saved);
-            // Ensure new properties exist if loading from older data
-            if(!parsed.expenses) parsed.expenses = [];
-            if(!parsed.fixedExpenseTemplates) parsed.fixedExpenseTemplates = [];
-            if(!parsed.systemSettings) parsed.systemSettings = DEFAULT_SYSTEM_SETTINGS;
-            return { ...defaultData, ...parsed };
-        } catch (e) {
-            console.error("Failed to parse local storage", e);
-            return defaultData;
-        }
-    }
-    return defaultData;
+const INITIAL_DATA: AppData = {
+    clients: CLIENTS,
+    contracts: MOCK_CONTRACTS,
+    reminders: MOCK_REMINDERS,
+    installments: INITIAL_INSTALLMENTS,
+    schedules: MOCK_PROJECT_SCHEDULES,
+    projectProgress: MOCK_PROJECT_PROGRESS,
+    servicePrices: MOCK_SERVICE_PRICES,
+    hourlyRates: MOCK_HOURLY_RATES,
+    measurementTiers: MOCK_MEASUREMENT_TIERS,
+    extraTiers: MOCK_EXTRA_TIERS,
+    projectStagesTemplate: DEFAULT_PROJECT_STAGES_TEMPLATE,
+    otherPayments: MOCK_OTHER_PAYMENTS,
+    partners: MOCK_PARTNERS,
+    checklists: [],
+    expenses: MOCK_EXPENSES,
+    fixedExpenseTemplates: MOCK_FIXED_EXPENSE_TEMPLATES,
+    visitLogs: MOCK_VISIT_LOGS,
+    systemSettings: DEFAULT_SYSTEM_SETTINGS,
 };
 
 const NavItem: React.FC<{
@@ -94,386 +95,63 @@ const NavItem: React.FC<{
   </li>
 );
 
-// ... (Helper functions remain unchanged)
-const addWorkDays = (startDate: Date, days: number): Date => {
-    const newDate = new Date(startDate);
-    let dayOfWeek = newDate.getDay();
-    if (dayOfWeek === 6) { newDate.setDate(newDate.getDate() + 2); }
-    else if (dayOfWeek === 0) { newDate.setDate(newDate.getDate() + 1); }
-    let addedDays = 0;
-    while (addedDays < days) {
-        newDate.setDate(newDate.getDate() + 1);
-        dayOfWeek = newDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) { addedDays++; }
-    }
-    return newDate;
-};
-
-const createScheduleStages = (template: ProjectStageTemplateItem[], startDateString: string): ProjectStage[] => {
-    const stages: ProjectStage[] = [];
-    if (!startDateString) return stages;
-    let projectStartDateObj = new Date(startDateString);
-    let dayOfWeek = projectStartDateObj.getDay();
-    while (dayOfWeek === 0 || dayOfWeek === 6) { 
-        projectStartDateObj.setDate(projectStartDateObj.getDate() + 1);
-        dayOfWeek = projectStartDateObj.getDay();
-    }
-    template.forEach((stageTemplate, index) => {
-        let currentStageStartDate: Date;
-        if (index > 0) {
-            const prevStage = stages[index - 1];
-            const prevStageEndDate = prevStage.completionDate ? new Date(prevStage.completionDate) : new Date(prevStage.deadline!);
-            currentStageStartDate = addWorkDays(prevStageEndDate, 1);
-        } else {
-            currentStageStartDate = new Date(projectStartDateObj);
-        }
-        const duration = Math.max(0, stageTemplate.durationWorkDays > 0 ? stageTemplate.durationWorkDays - 1 : 0);
-        const deadline = addWorkDays(new Date(currentStageStartDate), duration);
-        stages.push({
-            id: stageTemplate.id,
-            name: stageTemplate.name,
-            durationWorkDays: stageTemplate.durationWorkDays,
-            startDate: currentStageStartDate.toISOString().split('T')[0],
-            deadline: deadline.toISOString().split('T')[0],
-        });
-    });
-    return stages;
-};
-
-const generateProjectProgressFromSchedule = (schedule: ProjectSchedule): ProjectProgress => {
-    const stageMapping: { [key: string]: string[] } = {
-        'Briefing': ['Reunião de Briefing', 'Medição'],
-        'Layout': ['Apresentação do Layout Planta Baixa', 'Revisão 01 (Planta Baixa)', 'Revisão 02 (Planta Baixa)', 'Revisão 03 (Planta Baixa)'],
-        '3D': ['Apresentação de 3D', 'Revisão 01 (3D)', 'Revisão 02 (3D)', 'Revisão 03 (3D)'],
-        'Executivo': ['Executivo'],
-        'Entrega': ['Entrega'],
-    };
-    const progressStages: StageProgress[] = GANTT_STAGES_CONFIG.map(ganttStage => {
-        const detailedStageNames = stageMapping[ganttStage.name] || [];
-        const relevantDetailedStages = schedule.stages.filter(s => detailedStageNames.includes(s.name));
-        if (relevantDetailedStages.length === 0) {
-            return { name: ganttStage.name, status: 'pending' };
-        }
-        const completedCount = relevantDetailedStages.filter(s => s.completionDate).length;
-        let status: 'completed' | 'in_progress' | 'pending';
-        if (completedCount === relevantDetailedStages.length) {
-            status = 'completed';
-        } else if (completedCount > 0) {
-            status = 'in_progress';
-        } else {
-            const firstStageOfGroup = relevantDetailedStages[0];
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const stageStartDate = firstStageOfGroup.startDate ? new Date(firstStageOfGroup.startDate) : null;
-            if(stageStartDate && stageStartDate <= today){
-                status = 'in_progress';
-            } else {
-                status = 'pending';
-            }
-        }
-        return { name: ganttStage.name, status };
-    });
-    return {
-        contractId: schedule.contractId,
-        projectName: schedule.projectName,
-        clientName: schedule.clientName,
-        stages: progressStages,
-    };
-};
-
-const recalculateScheduleStages = (stages: ProjectStage[], projectStartDate: string): ProjectStage[] => {
-    if (!projectStartDate) return stages;
-    const calculatedStages: ProjectStage[] = [];
-    let lastDate = new Date(projectStartDate);
-    lastDate.setMinutes(lastDate.getMinutes() + lastDate.getTimezoneOffset());
-    stages.forEach((stage, index) => {
-        let currentStageStartDate: Date;
-        if (index > 0) {
-            const prevStage = calculatedStages[index - 1];
-            const prevStageEndDate = prevStage.completionDate ? new Date(prevStage.completionDate) : new Date(prevStage.deadline!);
-            prevStageEndDate.setMinutes(prevStageEndDate.getMinutes() + prevStageEndDate.getTimezoneOffset());
-            currentStageStartDate = addWorkDays(prevStageEndDate, 1);
-        } else {
-            currentStageStartDate = new Date(lastDate);
-        }
-        const duration = Math.max(0, stage.durationWorkDays > 0 ? stage.durationWorkDays - 1 : 0);
-        const deadline = addWorkDays(new Date(currentStageStartDate), duration);
-        calculatedStages.push({
-            ...stage,
-            startDate: currentStageStartDate.toISOString().split('T')[0],
-            deadline: deadline.toISOString().split('T')[0],
-        });
-    });
-    return calculatedStages;
-};
-
-const generateDependentData = (contract: Contract, projectStagesTemplate: ProjectStageTemplateItem[]) => {
-    const newInstallments: PaymentInstallment[] = [];
-    if (contract.downPayment > 0) {
-        newInstallments.push({
-            id: Date.now(),
-            contractId: contract.id,
-            clientName: contract.clientName,
-            projectName: contract.projectName,
-            installment: 'Entrada',
-            dueDate: contract.downPaymentDate,
-            value: contract.downPayment,
-            status: 'Pendente',
-        });
-    }
-    if (contract.installments > 0 && contract.firstInstallmentDate) {
-        const firstDate = new Date(contract.firstInstallmentDate);
-        for (let i = 0; i < contract.installments; i++) {
-            const dueDate = new Date(firstDate);
-            dueDate.setMonth(dueDate.getMonth() + i);
-            newInstallments.push({
-                id: Date.now() + i + 1,
-                contractId: contract.id,
-                clientName: contract.clientName,
-                projectName: contract.projectName,
-                installment: `${i + 1}/${contract.installments}`,
-                dueDate: dueDate,
-                value: contract.installmentValue,
-                status: 'Pendente',
-            });
-        }
-    }
-    const newSchedule: ProjectSchedule = {
-        id: Date.now(),
-        contractId: contract.id,
-        clientName: contract.clientName,
-        projectName: contract.projectName,
-        startDate: new Date(contract.date).toISOString().split('T')[0],
-        stages: createScheduleStages(projectStagesTemplate, new Date(contract.date).toISOString()),
-    };
-    const newProgress = generateProjectProgressFromSchedule(newSchedule);
-    return { newInstallments, newSchedule, newProgress };
-};
-
 export default function App() {
-  const [appData, setAppData] = useState<AppData>(getInitialData());
+  const [user, setUser] = useState<any>(null);
+  const { data: appData, saveData: setAppData, loadingData } = useUserData(user, INITIAL_DATA);
   const [view, setView] = useState<View>('dashboard');
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
 
-  // Persistence effect
-  useEffect(() => {
-      localStorage.setItem('E_PROJET_DATA_LOCAL', JSON.stringify(appData));
-  }, [appData]);
+  if (!user) {
+    return <Auth onLoginSuccess={(u) => setUser(u)} />;
+  }
 
-  // ... (Contract handlers, etc)
+  if (loadingData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Sincronizando dados...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleLogout = () => {
+    if (auth) auth.signOut();
+    setUser(null);
+  };
+
   const handleAddContract = (newContract: Omit<Contract, 'id'>) => {
     const contractWithId: Contract = { ...newContract, id: Date.now() };
-    const { newInstallments, newSchedule, newProgress } = generateDependentData(contractWithId, appData.projectStagesTemplate);
     setAppData({
         ...appData,
         contracts: [contractWithId, ...appData.contracts],
-        installments: [...newInstallments, ...appData.installments],
-        schedules: [newSchedule, ...appData.schedules],
-        projectProgress: [newProgress, ...(appData.projectProgress || [])],
         clients: appData.clients.some(c => c.name === contractWithId.clientName) 
             ? appData.clients 
             : [{ id: Date.now() + 1, name: contractWithId.clientName }, ...appData.clients]
     });
     setView('contracts');
   };
-  
+
   const handleUpdateContract = (updatedContract: Contract) => {
-    const newInstallments: PaymentInstallment[] = [];
-    if (updatedContract.downPayment > 0) {
-        const existingDownPayment = appData.installments.find(i => i.contractId === updatedContract.id && i.installment === 'Entrada');
-        const isPaid = existingDownPayment?.status.includes('Pago');
-        newInstallments.push({
-            id: Date.now(),
-            contractId: updatedContract.id,
-            clientName: updatedContract.clientName,
-            projectName: updatedContract.projectName,
-            installment: 'Entrada',
-            dueDate: updatedContract.downPaymentDate,
-            value: updatedContract.downPayment,
-            status: isPaid ? existingDownPayment.status : 'Pendente',
-            paymentDate: isPaid ? existingDownPayment.paymentDate : undefined,
-        });
-    }
-    if (updatedContract.installments > 0 && updatedContract.firstInstallmentDate) {
-        const firstDate = new Date(updatedContract.firstInstallmentDate);
-        for (let i = 0; i < updatedContract.installments; i++) {
-            const dueDate = new Date(firstDate);
-            dueDate.setMonth(dueDate.getMonth() + i);
-            newInstallments.push({
-                id: Date.now() + i + 1,
-                contractId: updatedContract.id,
-                clientName: updatedContract.clientName,
-                projectName: updatedContract.projectName,
-                installment: `${i + 1}/${updatedContract.installments}`,
-                dueDate: dueDate,
-                value: updatedContract.installmentValue,
-                status: 'Pendente',
-            });
-        }
-    }
-    const existingSchedule = appData.schedules.find(s => s.contractId === updatedContract.id);
-    const baseStages = existingSchedule ? existingSchedule.stages : createScheduleStages(appData.projectStagesTemplate, new Date(updatedContract.date).toISOString());
-    const updatedStages = recalculateScheduleStages(baseStages, new Date(updatedContract.date).toISOString().split('T')[0]);
-    const newSchedule: ProjectSchedule = {
-        id: existingSchedule ? existingSchedule.id : Date.now(),
-        contractId: updatedContract.id,
-        clientName: updatedContract.clientName,
-        projectName: updatedContract.projectName,
-        startDate: new Date(updatedContract.date).toISOString().split('T')[0],
-        stages: updatedStages,
-    };
-    const newProgress = generateProjectProgressFromSchedule(newSchedule);
-    
     setAppData({
         ...appData,
-        contracts: appData.contracts.map(c => c.id === updatedContract.id ? updatedContract : c),
-        installments: [
-            ...appData.installments.filter(i => i.contractId !== updatedContract.id),
-            ...newInstallments
-        ],
-        schedules: [
-            ...appData.schedules.filter(s => s.contractId !== updatedContract.id),
-            newSchedule
-        ],
-        projectProgress: [
-            ...(appData.projectProgress || []).filter(p => p.contractId !== updatedContract.id),
-            newProgress
-        ],
+        contracts: appData.contracts.map(c => c.id === updatedContract.id ? updatedContract : c)
     });
     setEditingContract(null);
     setView('contracts');
   };
 
   const handleDeleteContract = (contractId: number) => {
-    setAppData({
-        ...appData,
-        contracts: appData.contracts.filter(c => c.id !== contractId),
-        installments: appData.installments.filter(i => i.contractId !== contractId),
-        schedules: appData.schedules.filter(s => s.contractId !== contractId),
-        projectProgress: appData.projectProgress?.filter(p => p.contractId !== contractId),
-        checklists: appData.checklists ? appData.checklists.filter(c => c.contractId !== contractId) : [],
-        visitLogs: appData.visitLogs ? appData.visitLogs.filter(v => v.contractId !== contractId) : [],
-    });
-  };
-  
-  const handleAddPartner = (newPartner: Omit<Partner, 'id'>) => {
-    setAppData({
-        ...appData,
-        partners: [{ ...newPartner, id: Date.now() }, ...appData.partners]
-    });
-  };
-
-  const handleUpdatePartner = (updatedPartner: Partner) => {
-    setAppData({
-        ...appData,
-        partners: appData.partners.map(p => p.id === updatedPartner.id ? updatedPartner : p)
-    });
-  };
-
-  const handleDeletePartner = (partnerId: number) => {
-    setAppData({
-        ...appData,
-        partners: appData.partners.filter(p => p.id !== partnerId)
-    });
-  };
-
-  const handleUpdateChecklist = (updatedChecklist: ProjectChecklist) => {
-    const currentChecklists = appData.checklists || [];
-    const existingIndex = currentChecklists.findIndex(c => c.contractId === updatedChecklist.contractId);
-    let newChecklists;
-    if (existingIndex >= 0) {
-        newChecklists = [...currentChecklists];
-        newChecklists[existingIndex] = updatedChecklist;
-    } else {
-        newChecklists = [...currentChecklists, updatedChecklist];
-    }
-    setAppData({ ...appData, checklists: newChecklists });
-  };
-
-  const handleAddExpense = (newExpense: Omit<Expense, 'id'>) => {
-      setAppData({
-          ...appData,
-          expenses: [{ ...newExpense, id: Date.now() }, ...(appData.expenses || [])]
-      });
-  };
-
-  const handleUpdateExpense = (updatedExpense: Expense) => {
-      setAppData({
-          ...appData,
-          expenses: (appData.expenses || []).map(e => e.id === updatedExpense.id ? updatedExpense : e)
-      });
-  };
-
-  const handleDeleteExpense = (id: number) => {
-      setAppData({
-          ...appData,
-          expenses: (appData.expenses || []).filter(e => e.id !== id)
-      });
-  };
-
-  const handleAddFixedExpenseTemplate = (newTemplate: Omit<FixedExpenseTemplate, 'id'>) => {
-      setAppData({
-          ...appData,
-          fixedExpenseTemplates: [{ ...newTemplate, id: Date.now() }, ...(appData.fixedExpenseTemplates || [])]
-      });
-  };
-
-  const handleDeleteFixedExpenseTemplate = (id: number) => {
-      setAppData({
-          ...appData,
-          fixedExpenseTemplates: (appData.fixedExpenseTemplates || []).filter(t => t.id !== id)
-      });
-  };
-
-  const handleAddVisitLog = (newLog: Omit<VisitLog, 'id' | 'createdAt'>) => {
-      setAppData({
-          ...appData,
-          visitLogs: [{ ...newLog, id: Date.now(), createdAt: new Date().toISOString() }, ...(appData.visitLogs || [])]
-      });
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Você tem certeza que deseja limpar TODOS os dados? Esta ação é irreversível e irá restaurar o aplicativo para o estado inicial.')) {
-        // Clear local storage and reload
-        localStorage.removeItem('E_PROJET_DATA_LOCAL');
-        window.location.reload();
+    if (window.confirm("Tem certeza que deseja excluir este projeto?")) {
+        setAppData({
+            ...appData,
+            contracts: appData.contracts.filter(c => c.id !== contractId),
+            installments: appData.installments.filter(i => i.contractId !== contractId),
+            schedules: appData.schedules.filter(s => s.contractId !== contractId)
+        });
     }
   };
-
-  const handleStartEditContract = (contract: Contract) => {
-    setEditingContract(contract);
-    setView('new-contract');
-  };
-  
-  const handleCreateProject = () => {
-      setEditingContract(null);
-      setView('new-contract');
-  }
-
-  const handleAddOtherPayment = (newPayment: Omit<OtherPayment, 'id'>) => {
-    const paymentWithId: OtherPayment = { ...newPayment, id: Date.now() };
-    setAppData({
-        ...appData,
-        otherPayments: [paymentWithId, ...appData.otherPayments]
-    });
-  };
-  
-  const handleRegisterPayment = (installmentId: number, paymentDate: Date) => {
-    setAppData({
-        ...appData,
-        installments: appData.installments.map(inst => {
-            if (inst.id === installmentId) {
-                const dueDate = new Date(inst.dueDate);
-                dueDate.setHours(0,0,0,0);
-                paymentDate.setHours(0,0,0,0);
-                const status = paymentDate <= dueDate ? 'Pago em dia' : 'Pago com atraso';
-                return { ...inst, status, paymentDate: paymentDate };
-            }
-            return inst;
-        })
-    });
-  };
-  
 
   const renderView = () => {
     switch (view) {
@@ -492,9 +170,9 @@ export default function App() {
                     schedules={appData.schedules}
                     clients={appData.clients}
                     systemSettings={appData.systemSettings}
-                    onEditContract={handleStartEditContract}
+                    onEditContract={(c) => { setEditingContract(c); setView('new-contract'); }}
                     onDeleteContract={handleDeleteContract}
-                    onCreateProject={handleCreateProject}
+                    onCreateProject={() => { setEditingContract(null); setView('new-contract'); }}
                 />;
       case 'new-contract':
         return <NewContract 
@@ -510,122 +188,98 @@ export default function App() {
                   setSchedules={(newSchedules) => setAppData({...appData, schedules: newSchedules})}
                   contracts={appData.contracts}
                 />;
+      case 'expenses':
+        return <Expenses
+                expenses={appData.expenses || []}
+                fixedExpenseTemplates={appData.fixedExpenseTemplates || []}
+                onAddExpense={(e) => setAppData({...appData, expenses: [{...e, id: Date.now()}, ...(appData.expenses || [])]})}
+                onUpdateExpense={(e) => setAppData({...appData, expenses: appData.expenses.map(exp => exp.id === e.id ? e : exp)})}
+                onDeleteExpense={(id) => setAppData({...appData, expenses: appData.expenses.filter(exp => exp.id !== id)})}
+                onAddFixedExpenseTemplate={(t) => setAppData({...appData, fixedExpenseTemplates: [...(appData.fixedExpenseTemplates || []), { ...t, id: Date.now() }]})}
+                onDeleteFixedExpenseTemplate={(id) => setAppData({...appData, fixedExpenseTemplates: appData.fixedExpenseTemplates?.filter(t => t.id !== id)})}
+            />;
       case 'projections':
         return <Projections 
                   installments={appData.installments} 
                   otherPayments={appData.otherPayments}
                   contracts={appData.contracts}
-                  onRegisterInstallment={handleRegisterPayment}
-                  onRegisterOther={handleAddOtherPayment}
+                  onRegisterInstallment={(id, date) => setAppData({...appData, installments: appData.installments.map(i => i.id === id ? {...i, status: date <= new Date(i.dueDate) ? 'Pago em dia' : 'Pago com atraso', paymentDate: date} : i)})}
+                  onRegisterOther={(desc, date, val) => setAppData({...appData, otherPayments: [{id: Date.now(), description: desc, paymentDate: date, value: val}, ...appData.otherPayments]})}
                 />;
-      case 'receipts':
-        return <Receipts 
-            contracts={appData.contracts} 
-            installments={appData.installments} 
-            systemSettings={appData.systemSettings}
-        />;
-      case 'reminders':
-        return <Reminders 
-                  reminders={appData.reminders}
-                  setReminders={(newReminders) => setAppData({...appData, reminders: newReminders})}
-                  clients={appData.clients}
-                />;
-       case 'partners':
-        return <Partners 
-                  partners={appData.partners}
-                  clients={appData.clients}
-                  onAddPartner={handleAddPartner}
-                  onUpdatePartner={handleUpdatePartner}
-                  onDeletePartner={handleDeletePartner}
-                />;
-        case 'checklist':
-          return <ConstructionChecklist
+      case 'checklist':
+        return <ConstructionChecklist
                     contracts={appData.contracts}
                     checklists={appData.checklists}
-                    systemSettings={appData.systemSettings}
-                    onUpdateChecklist={handleUpdateChecklist}
+                    onUpdateChecklist={(c) => setAppData({...appData, checklists: appData.checklists.some(cl => cl.contractId === c.contractId) ? appData.checklists.map(cl => cl.contractId === c.contractId ? c : cl) : [...appData.checklists, c]})}
                 />;
-        case 'expenses':
-            return <Expenses
-                expenses={appData.expenses || []}
-                fixedExpenseTemplates={appData.fixedExpenseTemplates || []}
-                onAddExpense={handleAddExpense}
-                onUpdateExpense={handleUpdateExpense}
-                onDeleteExpense={handleDeleteExpense}
-                onAddFixedExpenseTemplate={handleAddFixedExpenseTemplate}
-                onDeleteFixedExpenseTemplate={handleDeleteFixedExpenseTemplate}
-            />;
-        case 'tech-visits':
-            return <TechnicalVisits
-                contracts={appData.contracts}
-                visitLogs={appData.visitLogs || []}
-                onAddVisitLog={handleAddVisitLog}
-            />;
-       case 'database':
-        return <Database
-                  appData={appData}
-                  setAppData={setAppData as React.Dispatch<React.SetStateAction<AppData>>}
-                  onDeleteContract={handleDeleteContract}
-                  onResetData={handleResetData}
-                />;
+      case 'reminders':
+        return <Reminders reminders={appData.reminders} setReminders={(r) => setAppData({...appData, reminders: r})} clients={appData.clients} />;
       case 'settings':
-        return <Settings 
-                    appData={appData}
-                    setAppData={setAppData as React.Dispatch<React.SetStateAction<AppData>>}
-                />;
+        return <Settings appData={appData} setAppData={setAppData as any} />;
+      case 'database':
+        return <Database appData={appData} setAppData={setAppData as any} onDeleteContract={handleDeleteContract} onResetData={() => { if(confirm("Limpar tudo?")) { localStorage.clear(); location.reload(); } }} />;
+      case 'receipts':
+        return <Receipts contracts={appData.contracts} installments={appData.installments} systemSettings={appData.systemSettings} />;
       default:
-        return <Dashboard 
-                  installments={appData.installments}
-                  contracts={appData.contracts}
-                  schedules={appData.schedules}
-                  projectProgress={appData.projectProgress || []}
-                  otherPayments={appData.otherPayments}
-                  expenses={appData.expenses || []}
-               />;
+        return <Dashboard {...appData} />;
     }
   }
 
   return (
-    <div className="flex min-h-screen font-sans text-slate-800">
-      <aside className="w-64 flex-shrink-0 bg-gray-900 text-white">
+    <div className="flex min-h-screen font-sans text-slate-800 bg-slate-50">
+      <aside className="w-64 flex-shrink-0 bg-gray-900 text-white hidden md:block">
         <div className="h-full flex flex-col">
           <div className="flex items-center p-6 border-b border-gray-800">
-            <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-lg overflow-hidden shrink-0">
-                {appData.systemSettings?.logoUrl ? (
-                    <img src={appData.systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain bg-white" />
-                ) : (
-                    <BrandLogo className="w-full h-full text-white" />
-                )}
+            <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-lg shrink-0">
+                <BrandLogo className="w-7 h-7 text-white" />
             </div>
             <div className="ml-3 overflow-hidden">
-                <h1 className="text-base font-bold text-white truncate" title={appData.systemSettings?.appName}>{appData.systemSettings?.appName}</h1>
-                <p className="text-xs text-slate-400 truncate">Painel de Controle</p>
+                <h1 className="text-base font-bold text-white truncate">{appData.systemSettings?.appName}</h1>
+                <p className="text-xs text-slate-400">{appData.systemSettings?.professionalName}</p>
             </div>
           </div>
-          <nav className="mt-6 flex-1 overflow-y-auto custom-scrollbar">
-            <p className="px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
-            <ul className="mt-3 space-y-1">
+          <nav className="mt-6 flex-1 overflow-y-auto">
+            <p className="px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Principal</p>
+            <ul className="space-y-1">
                 <NavItem icon={<DashboardIcon className="w-5 h-5" />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />
                 <NavItem icon={<FileTextIcon className="w-5 h-5" />} label="Projetos" isActive={view === 'contracts'} onClick={() => setView('contracts')} />
-                <NavItem icon={<PlusIcon className="w-5 h-5" />} label="Novo Contrato" isActive={view === 'new-contract'} onClick={() => { setEditingContract(null); setView('new-contract'); }} />
-                <NavItem icon={<TrendingUpIcon className="w-5 h-5" />} label="Progresso" isActive={view === 'progress'} onClick={() => setView('progress')} />
+                <NavItem icon={<TrendingUpIcon className="w-5 h-5" />} label="Andamento" isActive={view === 'progress'} onClick={() => setView('progress')} />
                 <NavItem icon={<ClipboardCheckIcon className="w-5 h-5" />} label="Checklist Obra" isActive={view === 'checklist'} onClick={() => setView('checklist')} />
-                <NavItem icon={<MapPinIcon className="w-5 h-5" />} label="Visitas Técnicas" isActive={view === 'tech-visits'} onClick={() => setView('tech-visits')} />
-                <NavItem icon={<CashIcon className="w-5 h-5" />} label="Projeções e Recebidos" isActive={view === 'projections'} onClick={() => setView('projections')} />
-                <NavItem icon={<ReceiptIcon className="w-5 h-5" />} label="Recibos" isActive={view === 'receipts'} onClick={() => setView('receipts')} />
-                <NavItem icon={<BellIcon className="w-5 h-5" />} label="Lembretes" isActive={view === 'reminders'} onClick={() => setView('reminders')} />
-                <NavItem icon={<CreditCardIcon className="w-5 h-5" />} label="Despesas" isActive={view === 'expenses'} onClick={() => setView('expenses')} />
-                <NavItem icon={<UsersIcon className="w-5 h-5" />} label="Parceiros" isActive={view === 'partners'} onClick={() => setView('partners')} />
             </ul>
-            <p className="px-6 mt-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Configurações</p>
-             <ul className="mt-3 space-y-1 pb-4">
+            <p className="px-6 mt-6 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Financeiro</p>
+            <ul className="space-y-1">
+                <NavItem icon={<CashIcon className="w-5 h-5" />} label="Recebíveis" isActive={view === 'projections'} onClick={() => setView('projections')} />
+                <NavItem icon={<CreditCardIcon className="w-5 h-5" />} label="Despesas" isActive={view === 'expenses'} onClick={() => setView('expenses')} />
+                <NavItem icon={<ReceiptIcon className="w-5 h-5" />} label="Recibos" isActive={view === 'receipts'} onClick={() => setView('receipts')} />
+            </ul>
+            <p className="px-6 mt-6 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Suporte</p>
+            <ul className="space-y-1">
+                <NavItem icon={<BellIcon className="w-5 h-5" />} label="Lembretes" isActive={view === 'reminders'} onClick={() => setView('reminders')} />
                 <NavItem icon={<DatabaseIcon className="w-5 h-5" />} label="Banco de Dados" isActive={view === 'database'} onClick={() => setView('database')} />
                 <NavItem icon={<CogIcon className="w-5 h-5" />} label="Configurações" isActive={view === 'settings'} onClick={() => setView('settings')} />
             </ul>
           </nav>
+          
+          <div className="p-4 bg-gray-950 border-t border-gray-800">
+            <div className="flex items-center mb-4">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold">
+                    {user.displayName?.charAt(0) || user.email?.charAt(0)}
+                </div>
+                <div className="ml-3 overflow-hidden">
+                    <p className="text-sm font-medium truncate">{user.displayName || 'Usuário'}</p>
+                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                </div>
+            </div>
+            <button 
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center px-3 py-2 text-xs font-semibold bg-red-600/10 text-red-500 rounded-md hover:bg-red-600/20 transition-colors"
+            >
+                <TrashIcon className="w-4 h-4 mr-2" /> Sair da Conta
+            </button>
+          </div>
         </div>
       </aside>
-      <main className="flex-1 p-6 sm:p-8 lg:p-10 overflow-auto bg-slate-100/80 backdrop-blur-sm">
+      <main className="flex-1 p-6 lg:p-10 overflow-auto">
         {renderView()}
       </main>
     </div>

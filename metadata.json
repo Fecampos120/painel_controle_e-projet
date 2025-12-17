@@ -1,5 +1,7 @@
 {
-  "name": "Painel do Arquiteto E-Projet",
-  "description": "Um painel de controle para arquitetos gerenciarem suas finanças e o andamento de seus projetos e tarefas.",
-  "requestFramePermissions": []
+  "name": "E-Projet Arquiteto",
+  "description": "Painel completo para gestão financeira e de projetos arquitetônicos.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
