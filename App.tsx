@@ -13,7 +13,9 @@ import {
   ClipboardCheckIcon, 
   CreditCardIcon, 
   BrandLogo,
-  TrashIcon
+  TrashIcon,
+  MapPinIcon,
+  NotepadIcon
 } from './components/Icons';
 import Dashboard from './components/Dashboard';
 import Reminders from './components/Reminders';
@@ -26,11 +28,12 @@ import Projections from './components/Projections';
 import Database from './components/Database';
 import ConstructionChecklist from './components/ConstructionChecklist';
 import Expenses from './components/Expenses';
+import TechnicalVisits from './components/TechnicalVisits';
+import Notes from './components/Notes';
 import Auth from './components/Auth';
 import { useUserData } from './hooks/useUserData';
-import { auth } from './firebase';
 
-import { AppData, Contract, Expense, VisitLog } from './types';
+import { AppData, Contract } from './types';
 import { 
   CLIENTS, 
   MOCK_CONTRACTS, 
@@ -51,7 +54,7 @@ import {
   DEFAULT_SYSTEM_SETTINGS 
 } from './constants';
 
-type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'checklist' | 'expenses';
+type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'checklist' | 'expenses' | 'visits' | 'notes';
 
 const INITIAL_DATA: AppData = {
     clients: CLIENTS,
@@ -71,6 +74,7 @@ const INITIAL_DATA: AppData = {
     expenses: MOCK_EXPENSES,
     fixedExpenseTemplates: MOCK_FIXED_EXPENSE_TEMPLATES,
     visitLogs: MOCK_VISIT_LOGS,
+    notes: [],
     systemSettings: DEFAULT_SYSTEM_SETTINGS,
 };
 
@@ -83,7 +87,7 @@ const NavItem: React.FC<{
   <li className="px-3">
     <button
       onClick={onClick}
-      className={`flex items-center w-full px-3 py-2.5 text-left text-sm rounded-md transition-colors duration-200 ${
+      className={`flex items-center w-full px-3 py-2 text-left text-sm rounded-md transition-colors duration-200 ${
         isActive 
           ? 'bg-blue-600 text-white font-semibold shadow-inner' 
           : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
@@ -110,14 +114,13 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">Sincronizando dados...</p>
+          <p className="text-slate-600 font-medium">Carregando painel...</p>
         </div>
       </div>
     );
   }
 
   const handleLogout = () => {
-    if (auth) auth.signOut();
     setUser(null);
   };
 
@@ -148,7 +151,9 @@ export default function App() {
             ...appData,
             contracts: appData.contracts.filter(c => c.id !== contractId),
             installments: appData.installments.filter(i => i.contractId !== contractId),
-            schedules: appData.schedules.filter(s => s.contractId !== contractId)
+            schedules: appData.schedules.filter(s => s.contractId !== contractId),
+            visitLogs: appData.visitLogs.filter(v => v.contractId !== contractId),
+            notes: (appData.notes || []).filter(n => n.contractId !== contractId)
         });
     }
   };
@@ -188,6 +193,20 @@ export default function App() {
                   setSchedules={(newSchedules) => setAppData({...appData, schedules: newSchedules})}
                   contracts={appData.contracts}
                 />;
+      case 'visits':
+        return <TechnicalVisits
+                  contracts={appData.contracts}
+                  visitLogs={appData.visitLogs}
+                  onAddVisitLog={(log) => setAppData({...appData, visitLogs: [{...log, id: Date.now(), createdAt: new Date().toISOString()}, ...appData.visitLogs]})}
+                />;
+      case 'notes':
+        return <Notes
+                  notes={appData.notes || []}
+                  contracts={appData.contracts}
+                  onAddNote={(note) => setAppData({...appData, notes: [{...note, id: Date.now(), createdAt: new Date().toISOString()}, ...(appData.notes || [])]})}
+                  onUpdateNote={(note) => setAppData({...appData, notes: (appData.notes || []).map(n => n.id === note.id ? note : n)})}
+                  onDeleteNote={(id) => setAppData({...appData, notes: (appData.notes || []).filter(n => n.id !== id)})}
+                />;
       case 'expenses':
         return <Expenses
                 expenses={appData.expenses || []}
@@ -210,6 +229,7 @@ export default function App() {
         return <ConstructionChecklist
                     contracts={appData.contracts}
                     checklists={appData.checklists}
+                    systemSettings={appData.systemSettings}
                     onUpdateChecklist={(c) => setAppData({...appData, checklists: appData.checklists.some(cl => cl.contractId === c.contractId) ? appData.checklists.map(cl => cl.contractId === c.contractId ? c : cl) : [...appData.checklists, c]})}
                 />;
       case 'reminders':
@@ -238,25 +258,27 @@ export default function App() {
                 <p className="text-xs text-slate-400">{appData.systemSettings?.professionalName}</p>
             </div>
           </div>
-          <nav className="mt-6 flex-1 overflow-y-auto">
-            <p className="px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Principal</p>
-            <ul className="space-y-1">
-                <NavItem icon={<DashboardIcon className="w-5 h-5" />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />
-                <NavItem icon={<FileTextIcon className="w-5 h-5" />} label="Projetos" isActive={view === 'contracts'} onClick={() => setView('contracts')} />
-                <NavItem icon={<TrendingUpIcon className="w-5 h-5" />} label="Andamento" isActive={view === 'progress'} onClick={() => setView('progress')} />
-                <NavItem icon={<ClipboardCheckIcon className="w-5 h-5" />} label="Checklist Obra" isActive={view === 'checklist'} onClick={() => setView('checklist')} />
+          <nav className="mt-4 flex-1 overflow-y-auto">
+            <p className="px-6 text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Principal</p>
+            <ul className="space-y-0.5">
+                <NavItem icon={<DashboardIcon className="w-4 h-4" />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />
+                <NavItem icon={<FileTextIcon className="w-4 h-4" />} label="Projetos" isActive={view === 'contracts'} onClick={() => setView('contracts')} />
+                <NavItem icon={<TrendingUpIcon className="w-4 h-4" />} label="Andamento" isActive={view === 'progress'} onClick={() => setView('progress')} />
+                <NavItem icon={<MapPinIcon className="w-4 h-4" />} label="Visitas Técnicas" isActive={view === 'visits'} onClick={() => setView('visits')} />
+                <NavItem icon={<ClipboardCheckIcon className="w-4 h-4" />} label="Checklist Obra" isActive={view === 'checklist'} onClick={() => setView('checklist')} />
             </ul>
-            <p className="px-6 mt-6 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Financeiro</p>
-            <ul className="space-y-1">
-                <NavItem icon={<CashIcon className="w-5 h-5" />} label="Recebíveis" isActive={view === 'projections'} onClick={() => setView('projections')} />
-                <NavItem icon={<CreditCardIcon className="w-5 h-5" />} label="Despesas" isActive={view === 'expenses'} onClick={() => setView('expenses')} />
-                <NavItem icon={<ReceiptIcon className="w-5 h-5" />} label="Recibos" isActive={view === 'receipts'} onClick={() => setView('receipts')} />
+            <p className="px-6 mt-4 text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Financeiro</p>
+            <ul className="space-y-0.5">
+                <NavItem icon={<CashIcon className="w-4 h-4" />} label="Recebíveis" isActive={view === 'projections'} onClick={() => setView('projections')} />
+                <NavItem icon={<CreditCardIcon className="w-4 h-4" />} label="Despesas" isActive={view === 'expenses'} onClick={() => setView('expenses')} />
+                <NavItem icon={<ReceiptIcon className="w-4 h-4" />} label="Recibos" isActive={view === 'receipts'} onClick={() => setView('receipts')} />
             </ul>
-            <p className="px-6 mt-6 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Suporte</p>
-            <ul className="space-y-1">
-                <NavItem icon={<BellIcon className="w-5 h-5" />} label="Lembretes" isActive={view === 'reminders'} onClick={() => setView('reminders')} />
-                <NavItem icon={<DatabaseIcon className="w-5 h-5" />} label="Banco de Dados" isActive={view === 'database'} onClick={() => setView('database')} />
-                <NavItem icon={<CogIcon className="w-5 h-5" />} label="Configurações" isActive={view === 'settings'} onClick={() => setView('settings')} />
+            <p className="px-6 mt-4 text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Apoio</p>
+            <ul className="space-y-0.5">
+                <NavItem icon={<NotepadIcon className="w-4 h-4" />} label="Anotações" isActive={view === 'notes'} onClick={() => setView('notes')} />
+                <NavItem icon={<BellIcon className="w-4 h-4" />} label="Lembretes" isActive={view === 'reminders'} onClick={() => setView('reminders')} />
+                <NavItem icon={<DatabaseIcon className="w-4 h-4" />} label="Banco de Dados" isActive={view === 'database'} onClick={() => setView('database')} />
+                <NavItem icon={<CogIcon className="w-4 h-4" />} label="Configurações" isActive={view === 'settings'} onClick={() => setView('settings')} />
             </ul>
           </nav>
           
@@ -267,14 +289,14 @@ export default function App() {
                 </div>
                 <div className="ml-3 overflow-hidden">
                     <p className="text-sm font-medium truncate">{user.displayName || 'Usuário'}</p>
-                    <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
                 </div>
             </div>
             <button 
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center px-3 py-2 text-xs font-semibold bg-red-600/10 text-red-500 rounded-md hover:bg-red-600/20 transition-colors"
+                className="w-full flex items-center justify-center px-3 py-2 text-[10px] font-semibold bg-red-600/10 text-red-500 rounded-md hover:bg-red-600/20 transition-colors"
             >
-                <TrashIcon className="w-4 h-4 mr-2" /> Sair da Conta
+                <TrashIcon className="w-4 h-4 mr-2" /> Sair do Sistema
             </button>
           </div>
         </div>
