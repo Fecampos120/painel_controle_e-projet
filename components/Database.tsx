@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { AppData, Client, Contract, Reminder, PaymentInstallment } from '../types';
 import { PencilIcon, TrashIcon, XIcon, PlusIcon, ExclamationTriangleIcon, DownloadIcon, UploadIcon } from './Icons';
@@ -186,6 +185,7 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
                         installments: prev.installments.filter(i => !contractIdsToDelete.has(i.contractId)),
                         schedules: prev.schedules.filter(s => !contractIdsToDelete.has(s.contractId)),
                         projectProgress: prev.projectProgress?.filter(p => !contractIdsToDelete.has(p.contractId)),
+                        // Fix: Correctly use .has() on a Set instead of .includes() which is for arrays
                         checklists: prev.checklists ? prev.checklists.filter(c => !contractIdsToDelete.has(c.contractId)) : [],
                     };
                 });
@@ -224,310 +224,174 @@ const Database: React.FC<DatabaseProps> = ({ appData, setAppData, onDeleteContra
     const handleExportData = () => {
         try {
             const dataStr = JSON.stringify(appData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: "application/json" });
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(dataBlob);
             const link = document.createElement('a');
             link.href = url;
-            const date = new Date().toISOString().split('T')[0];
-            link.download = `e-projet_backup_${date}.json`;
+            link.download = `eprojet_backup_${new Date().toISOString().split('T')[0]}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         } catch (error) {
-            console.error("Erro ao exportar dados:", error);
-            alert("Não foi possível exportar os dados.");
+            console.error("Erro ao exportar dados", error);
+            alert("Erro ao exportar backup.");
         }
     };
 
-    const handleImportClick = () => {
-        importInputRef.current?.click();
-    };
-
-    const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
+    const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!window.confirm('Tem certeza que deseja importar este arquivo? Todos os dados atuais serão substituídos. Esta ação não pode ser desfeita.')) {
-            if(importInputRef.current) importInputRef.current.value = "";
-            return;
-        }
-
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = (event) => {
             try {
-                const text = e.target?.result;
-                if (typeof text !== 'string') throw new Error("O arquivo não pôde ser lido.");
-                
-                const importedData = JSON.parse(text);
-
-                if (importedData && typeof importedData === 'object' && 'contracts' in importedData && 'clients' in importedData) {
+                const importedData = JSON.parse(event.target?.result as string);
+                if (window.confirm("Isso substituirá TODOS os dados atuais. Deseja continuar?")) {
                     setAppData(importedData);
-                    alert('Dados importados com sucesso!');
-                } else {
-                    throw new Error("O arquivo de backup parece ser inválido ou está corrompido.");
+                    alert("Dados importados com sucesso!");
                 }
-            } catch (error) {
-                console.error("Erro ao importar dados:", error);
-                alert(`Não foi possível importar os dados. Erro: ${error instanceof Error ? error.message : String(error)}`);
-            } finally {
-                if(importInputRef.current) importInputRef.current.value = "";
+            } catch (err) {
+                console.error("Erro ao importar dados", err);
+                alert("Arquivo inválido.");
             }
         };
-        reader.onerror = () => {
-             alert('Erro ao ler o arquivo.');
-             if(importInputRef.current) importInputRef.current.value = "";
-        }
         reader.readAsText(file);
     };
 
-
-    const renderCell = (item: Item, columnKey: string) => {
-        let value = (item as any)[columnKey];
-        if (typeof value === 'boolean') {
-            return value ? 'Sim' : 'Não';
-        }
-        if (value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)))) {
-            return new Date(value).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-        }
-         if ((columnKey === 'totalValue' || columnKey === 'value') && typeof value === 'number') {
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-        }
-        return value;
-    };
-
-    const renderModalFormFields = () => {
-        switch (activeTable) {
-            case 'clients':
-                return (
-                    <input name="name" value={(formData as Client).name || ''} onChange={handleFormChange} placeholder="Nome do Cliente" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
-                );
-            case 'contracts':
-                return (
-                    <div className="space-y-4">
-                        <select name="clientName" value={(formData as Contract).clientName || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 bg-white">
-                            <option value="">Selecione um Cliente</option>
-                            {appData.clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                        </select>
-                        <input name="projectName" value={(formData as Contract).projectName || ''} onChange={handleFormChange} placeholder="Nome do Projeto" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                        <input name="totalValue" type="number" value={(formData as Contract).totalValue || ''} onChange={handleFormChange} placeholder="Valor Total" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                        <select name="status" value={(formData as Contract).status || 'Ativo'} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 bg-white">
-                            <option>Ativo</option>
-                            <option>Concluído</option>
-                            <option>Cancelado</option>
-                        </select>
-                    </div>
-                );
-            case 'reminders':
-                 return (
-                    <div className="space-y-4">
-                        <select name="clientName" value={(formData as Reminder).clientName || ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3 bg-white">
-                            <option value="">Selecione um Cliente</option>
-                            {appData.clients.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                        </select>
-                        <input name="description" value={(formData as Reminder).description || ''} onChange={handleFormChange} placeholder="Descrição" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                        <input name="date" type="date" value={(formData as Reminder).date ? new Date((formData as Reminder).date).toISOString().split('T')[0] : ''} onChange={handleFormChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"/>
-                         <label className="flex items-center"><input name="completed" type="checkbox" checked={(formData as Reminder).completed || false} onChange={handleFormChange} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" /> <span className="ml-2 text-sm">Concluído</span></label>
-                    </div>
-                 );
-            default:
-                return <p>Configuração de formulário não encontrada.</p>;
-        }
-    };
-
-
     return (
         <div className="space-y-8">
-            <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-                <h1 className="text-3xl font-bold">Banco de Dados</h1>
-                <p className="mt-1 text-blue-100">
-                    Gerencie os dados mestres da sua aplicação.
-                </p>
+            <header className="bg-slate-900 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold">Banco de Dados</h1>
+                        <p className="mt-1 text-slate-400">
+                            Gestão técnica das tabelas do sistema. Use com cautela.
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={handleExportData} className="flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors">
+                            <DownloadIcon className="w-5 h-5 mr-2" /> Exportar Backup
+                        </button>
+                        <input type="file" ref={importInputRef} onChange={handleImportData} className="hidden" accept=".json" />
+                        <button onClick={() => importInputRef.current?.click()} className="flex items-center px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors">
+                            <UploadIcon className="w-5 h-5 mr-2" /> Importar Backup
+                        </button>
+                    </div>
+                </div>
             </header>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="border-b border-slate-200">
-                    <nav className="-mb-px flex space-x-6">
+            <div className="flex flex-col lg:flex-row gap-8">
+                <aside className="lg:w-64 flex-shrink-0">
+                    <nav className="space-y-1">
                         {(Object.keys(tableConfig) as TableKey[]).map(key => (
                             <button
                                 key={key}
                                 onClick={() => setActiveTable(key)}
-                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                                    activeTable === key
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                                }`}
+                                className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTable === key ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`}
                             >
                                 {tableConfig[key].title}
+                                <span className="ml-2 px-1.5 py-0.5 bg-black/10 rounded text-[10px]">
+                                    {(appData[key] as any[])?.length || 0}
+                                </span>
                             </button>
                         ))}
                     </nav>
-                </div>
-                
-                <div className="mt-6">
-                    <div className="flex justify-between items-center mb-4">
-                        {selectedIds.size > 0 ? (
-                            <button
-                                onClick={handleDeleteSelected}
-                                className="flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-lg shadow-sm hover:bg-red-700 transition-colors"
-                            >
-                                <TrashIcon className="w-5 h-5 mr-2" />
-                                Excluir Selecionados ({selectedIds.size})
-                            </button>
-                        ) : (
-                            <div />
-                        )}
-                        <button 
-                            onClick={() => openModal()} 
-                            disabled={activeTable === 'installments'}
-                            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
-                            title={activeTable === 'installments' ? 'Parcelas são geradas a partir de contratos' : 'Adicionar Novo'}
-                        >
-                            <PlusIcon className="w-5 h-5 mr-2" />
-                            Adicionar Novo
+                    
+                    <div className="mt-8 pt-8 border-t border-slate-200">
+                        <button onClick={onResetData} className="w-full flex items-center justify-center px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors">
+                           <ExclamationTriangleIcon className="w-5 h-5 mr-2" /> Resetar Sistema
                         </button>
                     </div>
-                    <div className="overflow-x-auto border rounded-lg">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200">
+                </aside>
+
+                <div className="flex-1 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                    <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                        <h2 className="font-bold text-slate-800">{tableConfig[activeTable].title}</h2>
+                        <div className="flex gap-2">
+                             {selectedIds.size > 0 && (
+                                <button onClick={handleDeleteSelected} className="flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-md text-xs font-bold hover:bg-red-200">
+                                    <TrashIcon className="w-4 h-4 mr-1" /> Excluir {selectedIds.size}
+                                </button>
+                            )}
+                            <button onClick={() => openModal()} className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700">
+                                <PlusIcon className="w-4 h-4 mr-1" /> Novo Item
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-100 border-b border-slate-200">
                                 <tr>
-                                    <th className="p-3 w-4">
-                                        <input 
-                                            type="checkbox"
-                                            checked={allVisibleItems.length > 0 && selectedIds.size === allVisibleItems.length}
-                                            onChange={handleSelectAll}
-                                            disabled={activeTable === 'installments'}
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:bg-slate-200 disabled:cursor-not-allowed"
-                                        />
+                                    <th className="p-3 w-10">
+                                        <input type="checkbox" onChange={handleSelectAll} checked={selectedIds.size === allVisibleItems.length && allVisibleItems.length > 0} className="rounded" />
                                     </th>
                                     {tableConfig[activeTable].columns.map(col => (
-                                        <th key={String(col.key)} className="p-3 text-sm font-semibold text-slate-600">{col.label}</th>
+                                        <th key={col.key as string} className="p-3 font-semibold text-slate-500">{col.label}</th>
                                     ))}
-                                    <th className="p-3 text-sm font-semibold text-slate-600 text-right">Ações</th>
+                                    <th className="p-3 text-right">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {(appData[activeTable] as Item[] || []).map(item => (
-                                    <tr key={item.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50">
-                                        <td className="p-3 w-4">
-                                            <input 
-                                                type="checkbox"
-                                                checked={selectedIds.has(item.id)}
-                                                onChange={() => handleSelectItem(item.id)}
-                                                disabled={activeTable === 'installments'}
-                                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:bg-slate-200 disabled:cursor-not-allowed"
-                                            />
+                            <tbody className="divide-y divide-slate-100">
+                                {allVisibleItems.map((item) => (
+                                    <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.has(item.id) ? 'bg-blue-50/50' : ''}`}>
+                                        <td className="p-3">
+                                            <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => handleSelectItem(item.id)} className="rounded" />
                                         </td>
-                                        {tableConfig[activeTable].columns.map(col => (
-                                            <td key={String(col.key)} className="p-3 text-slate-700 text-sm">{renderCell(item, String(col.key))}</td>
-                                        ))}
-                                        <td className="p-3 text-right">
-                                            <button 
-                                                onClick={() => openModal(item)} 
-                                                className="p-2 text-slate-500 hover:text-blue-600 disabled:text-slate-300 disabled:cursor-not-allowed" 
-                                                aria-label="Editar"
-                                                disabled={activeTable === 'installments'}
-                                                title={activeTable === 'installments' ? 'Parcelas não podem ser editadas aqui' : 'Editar item'}
-                                            >
-                                                <PencilIcon className="w-5 h-5" />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(item.id)} 
-                                                className="p-2 text-slate-500 hover:text-red-600 disabled:text-slate-300 disabled:cursor-not-allowed" 
-                                                aria-label="Deletar"
-                                                disabled={activeTable === 'installments'}
-                                                title={activeTable === 'installments' ? 'Parcelas são excluídas com o contrato' : 'Deletar item'}
-                                            >
-                                                <TrashIcon className="w-5 h-5" />
-                                            </button>
+                                        {tableConfig[activeTable].columns.map(col => {
+                                            const val = (item as any)[col.key];
+                                            let displayVal = val;
+                                            if (val instanceof Date) displayVal = val.toLocaleDateString('pt-BR');
+                                            if (typeof val === 'boolean') displayVal = val ? 'Sim' : 'Não';
+                                            if (typeof val === 'number' && col.key === 'totalValue') displayVal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+                                            
+                                            return <td key={col.key as string} className="p-3 text-slate-700">{displayVal}</td>;
+                                        })}
+                                        <td className="p-3 text-right space-x-1">
+                                            <button onClick={() => openModal(item)} className="p-1.5 text-slate-400 hover:text-blue-600"><PencilIcon className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDelete(item.id)} className="p-1.5 text-slate-400 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
                                         </td>
                                     </tr>
                                 ))}
+                                {allVisibleItems.length === 0 && (
+                                    <tr>
+                                        <td colSpan={tableConfig[activeTable].columns.length + 2} className="p-8 text-center text-slate-400 italic">
+                                            Nenhum registro nesta tabela.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
-                         {(appData[activeTable] as Item[] || []).length === 0 && (
-                            <div className="text-center p-6 text-slate-500">
-                                Nenhum item encontrado.
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-lg font-semibold text-slate-800">Backup e Restauração de Dados</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                    Salve todos os seus dados em um arquivo seguro no seu computador. Você pode usar este arquivo para restaurar seus dados em outro dispositivo ou como um backup.
-                </p>
-                <div className="mt-6 flex flex-col sm:flex-row gap-4 border-t border-slate-200 pt-6">
-                    <button
-                        onClick={handleExportData}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                        <DownloadIcon className="w-5 h-5 mr-2" />
-                        Exportar Dados
-                    </button>
-                    <button
-                        onClick={handleImportClick}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                        <UploadIcon className="w-5 h-5 mr-2" />
-                        Importar Dados
-                    </button>
-                    <input
-                        type="file"
-                        ref={importInputRef}
-                        onChange={handleImportData}
-                        className="hidden"
-                        accept=".json"
-                    />
-                </div>
-            </div>
-
-
-            <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-xl shadow-lg">
-                <div className="flex">
-                    <div className="flex-shrink-0">
-                        <ExclamationTriangleIcon className="h-6 w-6 text-red-500" aria-hidden="true" />
-                    </div>
-                    <div className="ml-4">
-                        <h3 className="text-lg font-semibold text-red-800">Zona de Perigo</h3>
-                        <div className="mt-2 text-sm text-red-700">
-                            <p>
-                                A ação abaixo é destrutiva e irreversível. Tenha certeza do que está fazendo antes de prosseguir.
-                            </p>
-                        </div>
-                        <div className="mt-4">
-                            <button
-                                onClick={onResetData}
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                            >
-                                <TrashIcon className="-ml-1 mr-2 h-5 w-5" />
-                                Limpar Banco de Dados
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
                         <div className="flex justify-between items-center p-4 border-b">
-                            <h3 className="text-lg font-semibold">{editingItem ? 'Editar' : 'Adicionar'} {tableConfig[activeTable].title}</h3>
-                            <button onClick={closeModal} className="text-slate-400 hover:text-slate-600" aria-label="Fechar">
-                                <XIcon className="w-6 h-6" />
-                            </button>
+                            <h3 className="text-lg font-semibold">{editingItem ? 'Editar' : 'Criar'} {tableConfig[activeTable].title}</h3>
+                            <button onClick={closeModal} className="text-slate-400 hover:text-slate-600"><XIcon className="w-6 h-6" /></button>
                         </div>
-                        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                            <div className="p-6 space-y-4">
-                                {renderModalFormFields()}
-                            </div>
-                            <div className="flex justify-end space-x-4 p-4 bg-slate-50 rounded-b-lg">
-                                <button type="button" onClick={closeModal} className="px-6 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
-                                <button type="submit" className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">Salvar</button>
-                            </div>
-                        </form>
+                        <div className="p-6 space-y-4">
+                            {tableConfig[activeTable].columns.filter(c => c.key !== 'id').map(col => (
+                                <div key={col.key as string}>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">{col.label}</label>
+                                    <input
+                                        name={col.key as string}
+                                        type={col.key === 'totalValue' || col.key === 'value' ? 'number' : 'text'}
+                                        value={(formData as any)[col.key] || ''}
+                                        onChange={handleFormChange}
+                                        className="w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-end space-x-4 p-4 bg-slate-50 rounded-b-lg">
+                            <button onClick={closeModal} className="px-6 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
+                            <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white rounded-md font-bold shadow-lg hover:bg-blue-700">Salvar</button>
+                        </div>
                     </div>
                 </div>
             )}

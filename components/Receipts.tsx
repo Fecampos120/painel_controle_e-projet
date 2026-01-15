@@ -258,7 +258,7 @@ const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments, systemSett
                                     <div className="text-center">
                                         <div className="border-t border-slate-400 w-64 pt-2"></div>
                                         <p className="text-sm font-bold text-slate-800">{systemSettings.professionalName}</p>
-                                        <p className="text-xs text-slate-500">CONTRATADA</p>
+                                        <p className="text-xs text-slate-500">CONTRADA</p>
                                     </div>
                                 </footer>
                             </main>

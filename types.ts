@@ -1,160 +1,4 @@
 
-// Represents a single stage item in the customizable template
-export interface ProjectStageTemplateItem {
-    id: number;
-    name: string;
-    durationWorkDays: number;
-    sequence: number;
-}
-
-export interface OtherPayment {
-    id: number;
-    description: string;
-    paymentDate: Date;
-    value: number;
-}
-
-// Represents a partner or supplier
-export interface Partner {
-    id: number;
-    name: string;
-    type: string;
-    contactPerson?: string;
-    phone?: string;
-    email?: string;
-    address?: Address;
-    clientIds?: number[];
-}
-
-// Checklist Types
-export interface ChecklistItemTemplate {
-    id: number;
-    text: string;
-    stage: string;
-}
-
-export interface ProjectChecklist {
-    contractId: number;
-    completedItemIds: number[];
-}
-
-// Expense Types (Despesas)
-export interface Expense {
-    id: number;
-    description: string;
-    category: 'Fixa' | 'Variável';
-    amount: number;
-    dueDate: string; // YYYY-MM-DD
-    paidDate?: string; // YYYY-MM-DD
-    status: 'Pago' | 'Pendente';
-    recurrence?: boolean; // Para despesas fixas que se repetem
-    recurrenceId?: number; // Link to template
-}
-
-export interface FixedExpenseTemplate {
-    id: number;
-    description: string;
-    amount: number;
-    day: number;
-}
-
-// System Settings (White Label)
-export interface SystemSettings {
-    appName: string; // Nome no Menu (Ex: Studio Battelli)
-    companyName: string; // Nome nos Relatórios
-    professionalName: string; // Nome do Profissional
-    email: string;
-    phone: string;
-    website?: string;
-    logoUrl?: string; // Base64 image
-    address: Address;
-}
-
-// Technical Visit Log
-export interface VisitLog {
-    id: number;
-    contractId: number;
-    date: string;
-    notes: string;
-    createdAt: string;
-}
-
-// Notes
-export interface Note {
-    id: number;
-    title: string;
-    content: string;
-    alertDate?: string;
-    contractId?: number;
-    completed: boolean;
-    createdAt?: string;
-}
-
-export interface AppData {
-    // Fix: Add clients to AppData to be used in the Database component.
-    clients: Client[];
-    contracts: Contract[];
-    reminders: Reminder[];
-    installments: PaymentInstallment[];
-    schedules: ProjectSchedule[];
-    servicePrices: ServicePrice[];
-    hourlyRates: ServicePrice[];
-    measurementTiers: PriceTier[];
-    extraTiers: PriceTier[];
-    projectProgress?: ProjectProgress[]; // Optional for now
-    projectStagesTemplate: ProjectStageTemplateItem[];
-    otherPayments: OtherPayment[];
-    partners: Partner[];
-    checklists: ProjectChecklist[];
-    expenses: Expense[];
-    fixedExpenseTemplates?: FixedExpenseTemplate[];
-    visitLogs: VisitLog[];
-    notes?: Note[];
-    systemSettings: SystemSettings;
-}
-
-export interface Client {
-  id: number;
-  name: string;
-  logoUrl?: string;
-}
-
-export enum ProjectStatus {
-  OnTime = 'No Prazo',
-  InProgress = 'Em Andamento',
-  Delayed = 'Atrasado',
-}
-
-export interface PaymentInstallment {
-  id: number;
-  contractId: number;
-  clientName: string;
-  projectName: string;
-  installment: string;
-  dueDate: Date;
-  value: number;
-  status: 'Pendente' | 'Pago em dia' | 'Pago com atraso';
-  paymentDate?: Date;
-}
-
-
-export interface AttentionPoint {
-  clientName: string;
-  description: string;
-  daysRemaining: number;
-  // Fix: Added 'payment' to the union type to allow for overdue payment attention points.
-  type?: 'stage' | 'contract' | 'payment';
-}
-
-export interface Reminder {
-  id: number;
-  clientId: number;
-  clientName: string;
-  description: string;
-  date: Date;
-  completed: boolean;
-}
-
 export interface Address {
     street: string;
     number: string;
@@ -165,18 +9,25 @@ export interface Address {
     cep: string;
 }
 
+export interface Client {
+    id: number;
+    name: string;
+    logoUrl?: string;
+    address?: Address;
+}
+
 export interface Attachment {
     name: string;
     type: string;
-    content: string; // Base64 encoded content
+    content: string;
 }
 
 export interface ContractService {
     id: number;
     serviceName: string;
     calculationMethod: 'metragem' | 'hora' | 'manual';
-    area: string;
-    hours: string;
+    area?: string;
+    hours?: string;
     value: string;
 }
 
@@ -185,32 +36,53 @@ export interface Contract {
     clientName: string;
     projectName: string;
     totalValue: number;
-    status: 'Ativo' | 'Concluído' | 'Cancelado';
     date: Date;
-    durationMonths: number;
+    status: 'Ativo' | 'Concluído' | 'Cancelado';
     clientAddress: Address;
     projectAddress: Address;
-    downPayment: number;
     installments: number;
     installmentValue: number;
     serviceType: string;
-    attachments?: {
-        signedContract: Attachment[];
-        workFiles: Attachment[];
-        sitePhotos: Attachment[];
-    };
     services: ContractService[];
     discountType: string;
     discountValue: number;
     mileageDistance?: number;
     mileageCost?: number;
+    durationMonths: number;
     techVisits?: {
         enabled: boolean;
         quantity: number;
         totalValue: number;
     };
+    downPayment: number;
     downPaymentDate: Date;
-    firstInstallmentDate: Date;
+    firstInstallmentDate?: Date;
+    attachments?: {
+        signedContract: Attachment[];
+        workFiles: Attachment[];
+        sitePhotos: Attachment[];
+    };
+}
+
+export interface Reminder {
+    id: number;
+    clientId: number;
+    clientName: string;
+    description: string;
+    date: Date;
+    completed: boolean;
+}
+
+export interface PaymentInstallment {
+    id: number;
+    contractId: number;
+    clientName: string;
+    projectName: string;
+    installment: string;
+    dueDate: Date;
+    value: number;
+    status: 'Pendente' | 'Pago em dia' | 'Pago com atraso';
+    paymentDate?: Date;
 }
 
 export interface ProjectStage {
@@ -225,50 +97,193 @@ export interface ProjectStage {
 export interface ProjectSchedule {
     id: number;
     contractId: number;
-    projectName: string;
     clientName: string;
+    projectName: string;
     startDate: string;
     stages: ProjectStage[];
 }
 
-export interface StageProgress {
-    name: string;
-    status: 'completed' | 'in_progress' | 'pending';
-}
-
-export interface ProjectProgress {
-    contractId: number;
-    projectName: string;
-    clientName: string;
-    stages: StageProgress[];
-}
-
-export interface GanttStage {
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  status: 'completed' | 'in_progress' | 'pending';
-  progress: number; // Percentage 0-100
-}
-
-export interface GanttProject {
-  contractId: number;
-  projectName: string;
-  clientName: string;
-  stages: GanttStage[];
-  schedule: ProjectSchedule; // Include original schedule for editing
-  daysRemaining?: number;
-}
-
 export interface ServicePrice {
-  id: number;
-  name: string;
-  price?: number;
-  unit: 'm²' | 'hora' | 'un' | 'mês';
+    id: number;
+    name: string;
+    price?: number;
+    unit: string;
 }
 
 export interface PriceTier {
-  id: number;
-  range: string;
-  price: number;
+    id: number;
+    range: string;
+    price: number;
+}
+
+export interface ProjectProgress {
+    id: number;
+    contractId: number;
+    progress: number;
+}
+
+export interface ProjectStageTemplateItem {
+    id: number;
+    sequence: number;
+    name: string;
+    durationWorkDays: number;
+}
+
+export interface OtherPayment {
+    id: number;
+    description: string;
+    paymentDate: Date;
+    value: number;
+}
+
+export interface Partner {
+    id: number;
+    name: string;
+    type: string;
+    contactPerson?: string;
+    phone?: string;
+    email?: string;
+    address?: Address;
+    clientIds?: number[];
+}
+
+export interface ChecklistItemTemplate {
+    id: number;
+    text: string;
+    stage: string;
+}
+
+export interface ProjectChecklist {
+    contractId: number;
+    completedItemIds: number[];
+}
+
+export interface Expense {
+    id: number;
+    description: string;
+    category: 'Fixa' | 'Variável';
+    amount: number;
+    dueDate: string;
+    status: 'Pendente' | 'Pago';
+    paidDate?: string;
+    recurrence?: boolean;
+    recurrenceId?: number;
+}
+
+export interface FixedExpenseTemplate {
+    id: number;
+    description: string;
+    amount: number;
+    day: number;
+}
+
+export interface VisitLog {
+    id: number;
+    contractId: number;
+    date: string;
+    notes: string;
+    createdAt?: Date;
+}
+
+export interface Note {
+    id: number;
+    title: string;
+    content: string;
+    createdAt: Date;
+    alertDate?: string;
+    completed: boolean;
+    contractId?: number;
+}
+
+export interface SystemSettings {
+    appName: string;
+    companyName: string;
+    professionalName: string;
+    phone: string;
+    logoUrl?: string;
+    address: Address;
+}
+
+export interface PricingParticipant {
+    id: number;
+    name: string;
+    hourlyRate: number;
+    isPrincipal: boolean;
+}
+
+export interface PricingTask {
+    id: number;
+    description: string;
+    hours: number;
+    participantId: number;
+}
+
+export interface PricingEnvironment {
+    id: number;
+    name: string;
+    tasks: PricingTask[];
+}
+
+export interface PricingStage {
+    id: number;
+    number: number;
+    name: string;
+    tasks: PricingTask[];
+    environments?: PricingEnvironment[];
+    isOpen: boolean;
+}
+
+export interface PricingModel {
+    projectName: string;
+    participants: PricingParticipant[];
+    stages: PricingStage[];
+    taxPercentage: number;
+    profitPercentage: number;
+}
+
+export interface AttentionPoint {
+    clientName: string;
+    description: string;
+    daysRemaining: number;
+    type: 'stage' | 'payment';
+}
+
+export interface GanttStage {
+    name: string;
+    startDate: Date;
+    endDate: Date;
+    status: 'pending' | 'in_progress' | 'completed';
+    progress: number;
+}
+
+export interface GanttProject {
+    contractId: number;
+    clientName: string;
+    projectName: string;
+    schedule: ProjectSchedule;
+    stages: GanttStage[];
+    daysRemaining?: number;
+}
+
+export interface AppData {
+    clients: Client[];
+    contracts: Contract[];
+    reminders: Reminder[];
+    installments: PaymentInstallment[];
+    schedules: ProjectSchedule[];
+    servicePrices: ServicePrice[];
+    hourlyRates: ServicePrice[];
+    measurementTiers: PriceTier[];
+    extraTiers: PriceTier[];
+    projectProgress?: ProjectProgress[];
+    projectStagesTemplate: ProjectStageTemplateItem[];
+    otherPayments: OtherPayment[];
+    partners: Partner[];
+    checklists: ProjectChecklist[];
+    expenses: Expense[];
+    fixedExpenseTemplates: FixedExpenseTemplate[];
+    visitLogs: VisitLog[];
+    notes: Note[];
+    systemSettings: SystemSettings;
+    pricing?: PricingModel;
 }

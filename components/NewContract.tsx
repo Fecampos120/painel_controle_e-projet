@@ -576,14 +576,14 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onUpd
                 ...editingContract, // Preserve old fields like status, original attachments etc.
                 ...contractDataFromForm, // Overwrite with new form data
                 attachments: updatedAttachments, // Use the merged list of attachments
-            };
+            } as Contract;
             onUpdateContract(updatedContract);
         } else {
             const newContract = {
                 ...contractDataFromForm,
                 status: 'Ativo' as const, // Set defaults for new contract
                 attachments: newAttachments,
-            };
+            } as any;
             onAddContract(newContract);
         }
     };

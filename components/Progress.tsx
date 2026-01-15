@@ -426,7 +426,7 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                                     dayTasks.push({
                                         clientName: schedule.clientName,
                                         stageName: stage.name,
-                                        status: stage.deadline < new Date().toISOString().split('T')[0] ? 'late' : 'on_time'
+                                        status: stage.deadline! < new Date().toISOString().split('T')[0] ? 'late' : 'on_time'
                                     });
                                 }
                             });
