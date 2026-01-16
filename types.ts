@@ -31,6 +31,19 @@ export interface ContractService {
     value: string;
 }
 
+export interface Budget {
+    id: number;
+    clientName: string;
+    projectName: string;
+    totalValue: number;
+    createdAt: Date;
+    status: 'Aberto' | 'Aprovado' | 'Perdido';
+    lastContactDate: Date;
+    services: ContractService[];
+    clientEmail?: string;
+    clientPhone?: string;
+}
+
 export interface Contract {
     id: number;
     clientName: string;
@@ -62,6 +75,7 @@ export interface Contract {
         workFiles: Attachment[];
         sitePhotos: Attachment[];
     };
+    budgetId?: number; // Referência ao orçamento original
 }
 
 export interface Reminder {
@@ -268,6 +282,7 @@ export interface GanttProject {
 export interface AppData {
     clients: Client[];
     contracts: Contract[];
+    budgets: Budget[]; // Novo campo
     reminders: Reminder[];
     installments: PaymentInstallment[];
     schedules: ProjectSchedule[];

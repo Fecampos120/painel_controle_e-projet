@@ -14,6 +14,7 @@ import Expenses from './components/Expenses';
 import TechnicalVisits from './components/TechnicalVisits';
 import Notes from './components/Notes';
 import Pricing from './components/Pricing';
+import Budgets from './components/Budgets';
 import Auth from './components/Auth';
 import { useUserData } from './hooks/useUserData';
 
@@ -23,15 +24,16 @@ import {
     MoneyBagIcon, 
     TrendingUpIcon, 
     MapPinIcon, 
-    ClipboardCheckIcon,
     NotepadIcon,
     CogIcon,
-    DatabaseIcon,
     CreditCardIcon,
-    ReceiptIcon
+    ReceiptIcon,
+    WalletIcon,
+    CheckCircleIcon,
+    BrandLogo
 } from './components/Icons';
 
-import { AppData, Contract, Expense, FixedExpenseTemplate, Note, Partner, ProjectChecklist, ProjectSchedule, Reminder, VisitLog } from './types';
+import { AppData, Contract, Budget, Expense, PaymentInstallment } from './types';
 import { 
   MOCK_FIXED_EXPENSE_TEMPLATES, 
   DEFAULT_SYSTEM_SETTINGS,
@@ -42,11 +44,12 @@ import {
   INITIAL_PROJECT_STAGES_TEMPLATE
 } from './constants';
 
-type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'checklist' | 'expenses' | 'visits' | 'notes' | 'pricing';
+type View = 'dashboard' | 'contracts' | 'new-contract' | 'progress' | 'projections' | 'receipts' | 'reminders' | 'settings' | 'database' | 'checklist' | 'expenses' | 'visits' | 'notes' | 'pricing' | 'budgets';
 
 const INITIAL_DATA: AppData = {
     clients: [],
     contracts: [],
+    budgets: [],
     reminders: [],
     installments: [],
     schedules: [],
@@ -68,9 +71,16 @@ const INITIAL_DATA: AppData = {
 };
 
 const NavItem: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
-    <li className={`flex items-center p-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`} onClick={onClick}>
-        <span className="mr-3">{icon}</span>
-        <span className="text-sm font-medium">{label}</span>
+    <li 
+      className={`flex items-center p-3 rounded-xl cursor-pointer transition-all duration-300 group ${isActive ? 'bg-blue-600 shadow-lg shadow-blue-900/20 translate-x-2' : 'hover:bg-slate-800 hover:translate-x-1'}`} 
+      onClick={onClick}
+    >
+        <div className={`mr-4 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-105 opacity-70 group-hover:opacity-100'}`}>
+          {icon}
+        </div>
+        <span className={`text-sm font-bold tracking-wide transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+          {label}
+        </span>
     </li>
 );
 
@@ -79,13 +89,14 @@ const App: React.FC = () => {
     const { data: appData, saveData: setAppData, loadingData } = useUserData(user, INITIAL_DATA);
     const [view, setView] = useState<View>('dashboard');
     const [editingContract, setEditingContract] = useState<Contract | null>(null);
+    const [budgetToConvert, setBudgetToConvert] = useState<Budget | null>(null);
 
     if (!user) {
         return <Auth onLoginSuccess={setUser} />;
     }
 
     if (loadingData) {
-        return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+        return <div className="flex items-center justify-center h-screen bg-slate-900 text-white font-bold">Carregando Estúdio...</div>;
     }
 
     const renderView = () => {
@@ -99,11 +110,16 @@ const App: React.FC = () => {
                           otherPayments={appData.otherPayments}
                           expenses={appData.expenses || []}
                         />;
-            case 'pricing':
-                return <Pricing 
-                            expenses={appData.expenses || []} 
-                            pricingData={appData.pricing}
-                            onUpdatePricing={(p) => setAppData({...appData, pricing: p})} 
+            case 'budgets':
+                return <Budgets 
+                            budgets={appData.budgets || []}
+                            onAddBudget={() => { setBudgetToConvert(null); setEditingContract(null); setView('new-contract'); }}
+                            onDeleteBudget={(id) => setAppData({...appData, budgets: appData.budgets.filter(b => b.id !== id)})}
+                            onApproveBudget={(budget) => {
+                                setBudgetToConvert(budget);
+                                setEditingContract(null);
+                                setView('new-contract');
+                            }}
                         />;
             case 'contracts':
                 return <Contracts 
@@ -111,18 +127,63 @@ const App: React.FC = () => {
                             schedules={appData.schedules}
                             clients={appData.clients}
                             systemSettings={appData.systemSettings}
-                            onEditContract={(c) => { setEditingContract(c); setView('new-contract'); }}
+                            onEditContract={(c) => { setEditingContract(c); setBudgetToConvert(null); setView('new-contract'); }}
                             onDeleteContract={(id) => setAppData({...appData, contracts: appData.contracts.filter(c => c.id !== id)})}
-                            onCreateProject={() => { setEditingContract(null); setView('new-contract'); }}
+                            onCreateProject={() => { setEditingContract(null); setBudgetToConvert(null); setView('new-contract'); }}
                         />;
             case 'new-contract':
                 return <NewContract 
                             appData={appData}
                             editingContract={editingContract}
-                            onCancel={() => setView('contracts')}
+                            budgetToConvert={budgetToConvert}
+                            onCancel={() => setView(budgetToConvert ? 'budgets' : 'contracts')}
+                            onAddBudgetOnly={(b) => {
+                                const newBudget = { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' as const };
+                                setAppData({...appData, budgets: [...(appData.budgets || []), newBudget]});
+                                setView('budgets');
+                            }}
                             onAddContract={(c) => {
                                 const id = Date.now();
-                                setAppData({...appData, contracts: [...appData.contracts, { ...c, id }] as Contract[], view: 'contracts' as any});
+                                let updatedBudgets = appData.budgets;
+                                if (budgetToConvert) {
+                                    updatedBudgets = appData.budgets.map(b => b.id === budgetToConvert.id ? { ...b, status: 'Aprovado' } : b);
+                                }
+
+                                const installments: PaymentInstallment[] = [];
+                                if (c.downPayment > 0) {
+                                    installments.push({
+                                        id: Date.now() + 1,
+                                        contractId: id,
+                                        clientName: c.clientName,
+                                        projectName: c.projectName,
+                                        installment: 'Entrada',
+                                        dueDate: c.downPaymentDate,
+                                        value: c.downPayment,
+                                        status: 'Pendente'
+                                    });
+                                }
+
+                                for(let i = 1; i <= c.installments; i++) {
+                                    const dueDate = new Date(c.firstInstallmentDate || new Date());
+                                    dueDate.setMonth(dueDate.getMonth() + (i - 1));
+                                    installments.push({
+                                        id: Date.now() + i + 10,
+                                        contractId: id,
+                                        clientName: c.clientName,
+                                        projectName: c.projectName,
+                                        installment: i.toString(),
+                                        dueDate: dueDate,
+                                        value: c.installmentValue,
+                                        status: 'Pendente'
+                                    });
+                                }
+
+                                setAppData({
+                                    ...appData, 
+                                    contracts: [...appData.contracts, { ...c, id }] as Contract[],
+                                    budgets: updatedBudgets,
+                                    installments: [...appData.installments, ...installments]
+                                });
                                 setView('contracts');
                             }}
                             onUpdateContract={(c) => {
@@ -130,12 +191,14 @@ const App: React.FC = () => {
                                 setView('contracts');
                             }}
                         />;
-            case 'progress':
-                return <Progress 
-                            schedules={appData.schedules}
-                            setSchedules={(s) => setAppData({...appData, schedules: s})}
+            case 'receipts':
+                return <Receipts 
                             contracts={appData.contracts}
+                            installments={appData.installments}
+                            systemSettings={appData.systemSettings}
                         />;
+            case 'progress':
+                return <Progress schedules={appData.schedules} setSchedules={(s) => setAppData({...appData, schedules: s})} contracts={appData.contracts} />;
             case 'projections':
                 return <Projections 
                             installments={appData.installments}
@@ -155,31 +218,7 @@ const App: React.FC = () => {
                             }}
                         />;
             case 'reminders':
-                return <Reminders 
-                            reminders={appData.reminders}
-                            setReminders={(r) => setAppData({...appData, reminders: r})}
-                            clients={appData.clients}
-                        />;
-            case 'receipts':
-                return <Receipts 
-                            contracts={appData.contracts}
-                            installments={appData.installments}
-                            systemSettings={appData.systemSettings}
-                        />;
-            case 'checklist':
-                return <ConstructionChecklist 
-                            contracts={appData.contracts}
-                            checklists={appData.checklists}
-                            systemSettings={appData.systemSettings}
-                            onUpdateChecklist={(c) => {
-                                const exists = appData.checklists.find(check => check.contractId === c.contractId);
-                                if (exists) {
-                                    setAppData({...appData, checklists: appData.checklists.map(check => check.contractId === c.contractId ? c : check)});
-                                } else {
-                                    setAppData({...appData, checklists: [...appData.checklists, c]});
-                                }
-                            }}
-                        />;
+                return <Reminders reminders={appData.reminders} setReminders={(r) => setAppData({...appData, reminders: r})} clients={appData.clients} />;
             case 'expenses':
                 return <Expenses 
                             expenses={appData.expenses}
@@ -190,71 +229,58 @@ const App: React.FC = () => {
                             onAddFixedExpenseTemplate={(t) => setAppData({...appData, fixedExpenseTemplates: [...appData.fixedExpenseTemplates, { ...t, id: Date.now() }]})}
                             onDeleteFixedExpenseTemplate={(id) => setAppData({...appData, fixedExpenseTemplates: appData.fixedExpenseTemplates.filter(t => t.id !== id)})}
                         />;
-            case 'visits':
-                return <TechnicalVisits 
-                            contracts={appData.contracts}
-                            visitLogs={appData.visitLogs}
-                            onAddVisitLog={(l) => setAppData({...appData, visitLogs: [...appData.visitLogs, { ...l, id: Date.now() }]})}
-                        />;
-            case 'notes':
-                return <Notes 
-                            notes={appData.notes}
-                            contracts={appData.contracts}
-                            onAddNote={(n) => setAppData({...appData, notes: [...appData.notes, { ...n, id: Date.now(), createdAt: new Date() }]})}
-                            onUpdateNote={(n) => setAppData({...appData, notes: appData.notes.map(note => note.id === n.id ? n : note)})}
-                            onDeleteNote={(id) => setAppData({...appData, notes: appData.notes.filter(n => n.id !== id)})}
-                        />;
             case 'database':
-                return <Database 
-                            appData={appData}
-                            setAppData={setAppData}
-                            onDeleteContract={(id) => setAppData({...appData, contracts: appData.contracts.filter(c => c.id !== id)})}
-                            onResetData={() => { if(window.confirm('Resetar tudo?')) setAppData(INITIAL_DATA); }}
-                        />;
+                return <Database appData={appData} setAppData={setAppData} onDeleteContract={(id) => setAppData({...appData, contracts: appData.contracts.filter(c => c.id !== id)})} onResetData={() => { if(window.confirm('Resetar tudo?')) setAppData(INITIAL_DATA); }} />;
             case 'settings':
-                return <Settings 
-                            appData={appData}
-                            setAppData={setAppData}
-                        />;
+                return <Settings appData={appData} setAppData={setAppData} />;
+            case 'notes':
+                return <Notes notes={appData.notes} onAddNote={(n) => setAppData({...appData, notes: [...appData.notes, {...n, id: Date.now(), createdAt: new Date()}]})} onUpdateNote={(n) => setAppData({...appData, notes: appData.notes.map(note => note.id === n.id ? n : note)})} onDeleteNote={(id) => setAppData({...appData, notes: appData.notes.filter(n => n.id !== id)})} contracts={appData.contracts} />;
+            case 'pricing':
+                return <Pricing expenses={appData.expenses} pricingData={appData.pricing} onUpdatePricing={(p) => setAppData({...appData, pricing: p})} />;
             default:
-                return <Dashboard 
-                          installments={appData.installments}
-                          contracts={appData.contracts}
-                          schedules={appData.schedules}
-                          projectProgress={appData.projectProgress || []}
-                          otherPayments={appData.otherPayments}
-                          expenses={appData.expenses || []}
-                        />;
+                return <Dashboard installments={appData.installments} contracts={appData.contracts} schedules={appData.schedules} projectProgress={appData.projectProgress || []} otherPayments={appData.otherPayments} expenses={appData.expenses || []} />;
         }
     };
 
     return (
-        <div className="flex min-h-screen bg-slate-50">
-            {/* Sidebar */}
-            <aside className="w-64 bg-slate-900 flex-shrink-0 flex flex-col no-print">
-                <div className="p-6 border-b border-slate-800">
-                    <h1 className="text-xl font-bold text-white uppercase tracking-wider">{appData.systemSettings.appName}</h1>
+        <div className="flex min-h-screen bg-[#f8fafc]">
+            <aside className="w-72 bg-slate-900 flex-shrink-0 flex flex-col no-print border-r border-slate-800 shadow-2xl">
+                <div className="p-8 border-b border-slate-800 flex items-center justify-center">
+                    <div className="flex flex-col items-center">
+                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg mb-3">
+                           {/* Add missing BrandLogo component */}
+                           <BrandLogo className="w-8 h-8 text-white" />
+                        </div>
+                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em]">{appData.systemSettings.appName}</h1>
+                    </div>
                 </div>
-                <nav className="flex-1 overflow-y-auto p-4">
-                    <ul className="space-y-1">
-                        <NavItem icon={<DashboardIcon className="w-5 h-5" />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />
-                        <NavItem icon={<FileTextIcon className="w-5 h-5" />} label="Projetos" isActive={view === 'contracts'} onClick={() => setView('contracts')} />
-                        <NavItem icon={<MoneyBagIcon className="w-5 h-5" />} label="Precificação" isActive={view === 'pricing'} onClick={() => setView('pricing')} />
-                        <NavItem icon={<TrendingUpIcon className="w-5 h-5" />} label="Andamento" isActive={view === 'progress'} onClick={() => setView('progress')} />
-                        <NavItem icon={<ReceiptIcon className="w-5 h-5" />} label="Financeiro" isActive={view === 'projections'} onClick={() => setView('projections')} />
-                        <NavItem icon={<CreditCardIcon className="w-5 h-5" />} label="Despesas" isActive={view === 'expenses'} onClick={() => setView('expenses')} />
-                        <NavItem icon={<MapPinIcon className="w-5 h-5" />} label="Visitas Técnicas" isActive={view === 'visits'} onClick={() => setView('visits')} />
-                        <NavItem icon={<ClipboardCheckIcon className="w-5 h-5" />} label="Checklist Obra" isActive={view === 'checklist'} onClick={() => setView('checklist')} />
-                        <NavItem icon={<NotepadIcon className="w-5 h-5" />} label="Notas" isActive={view === 'notes'} onClick={() => setView('notes')} />
-                        <NavItem icon={<CogIcon className="w-5 h-5" />} label="Configurações" isActive={view === 'settings'} onClick={() => setView('settings')} />
-                        <NavItem icon={<DatabaseIcon className="w-5 h-5" />} label="Banco de Dados" isActive={view === 'database'} onClick={() => setView('database')} />
+                <nav className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                    <ul className="space-y-2">
+                        <NavItem icon={<DashboardIcon className="w-7 h-7" />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />
+                        <NavItem icon={<WalletIcon className="w-7 h-7" />} label="Orçamentos" isActive={view === 'budgets'} onClick={() => setView('budgets')} />
+                        <NavItem icon={<FileTextIcon className="w-7 h-7" />} label="Projetos" isActive={view === 'contracts'} onClick={() => setView('contracts')} />
+                        <NavItem icon={<MoneyBagIcon className="w-7 h-7" />} label="Precificação" isActive={view === 'pricing'} onClick={() => setView('pricing')} />
+                        <NavItem icon={<TrendingUpIcon className="w-7 h-7" />} label="Andamento" isActive={view === 'progress'} onClick={() => setView('progress')} />
+                        <NavItem icon={<ReceiptIcon className="w-7 h-7" />} label="Financeiro" isActive={view === 'projections'} onClick={() => setView('projections')} />
+                        <NavItem icon={<CreditCardIcon className="w-7 h-7" />} label="Despesas" isActive={view === 'expenses'} onClick={() => setView('expenses')} />
+                        <NavItem icon={<NotepadIcon className="w-7 h-7" />} label="Notas" isActive={view === 'notes'} onClick={() => setView('notes')} />
+                        <NavItem icon={<CogIcon className="w-7 h-7" />} label="Ajustes" isActive={view === 'settings'} onClick={() => setView('settings')} />
                     </ul>
                 </nav>
+                <div className="p-6 border-t border-slate-800">
+                    <div className="flex items-center space-x-3 p-3 bg-slate-800/50 rounded-xl">
+                        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center font-bold text-blue-400">
+                            AB
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-white uppercase">Studio Battelli</p>
+                            <p className="text-[10px] text-slate-500 font-medium">Versão Pro 2.5</p>
+                        </div>
+                    </div>
+                </div>
             </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto p-8">
-                <div className="max-w-7xl mx-auto">
+            <main className="flex-1 overflow-y-auto bg-slate-50/50">
+                <div className="max-w-[1400px] mx-auto p-10">
                     {renderView()}
                 </div>
             </main>

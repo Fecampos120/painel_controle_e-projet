@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Contract, PaymentInstallment, SystemSettings } from '../types';
-import { ArchitectIcon, BrandLogo } from './Icons';
+import { ArchitectIcon, PrinterIcon } from './Icons';
 
 interface ReceiptsProps {
     contracts: Contract[];
@@ -24,257 +24,134 @@ const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments, systemSett
             .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     }, [selectedContract, installments]);
 
-    const handlePrint = () => {
-        window.print();
-    };
-    
     const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-    const formatDate = (date: Date) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(date));
+    const formatDate = (date: any) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(date));
 
     return (
-        <>
-            <style>{`
-                @media print {
-                    body > #root > div > aside, .no-print {
-                        display: none;
-                    }
-                    body > #root > div > main {
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        overflow: visible !important;
-                        background: white !important;
-                    }
-                    .printable-area {
-                        box-shadow: none !important;
-                        border: none !important;
-                        margin: 0 auto;
-                        padding: 0;
-                        width: 100%;
-                        color: black;
-                        font-size: 11pt;
-                    }
-                    .page-break {
-                        page-break-after: always;
-                    }
-                    @page {
-                        margin: 1.5cm;
-                    }
-                }
-            `}</style>
-            <div className="space-y-8">
-                <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 no-print">
-                    <h1 className="text-3xl font-bold">Recibos e Demonstrativos</h1>
-                    <p className="mt-1 text-blue-100">
-                        Gere recibos detalhados com discriminação de serviços e cronograma de pagamentos.
-                    </p>
-                </header>
-                
-                <div className="bg-white p-6 rounded-xl shadow-lg no-print">
-                    <label htmlFor="contract-select" className="block text-sm font-medium text-slate-700">Selecione um Projeto/Contrato</label>
-                    <select
-                        id="contract-select"
-                        value={selectedContractId}
-                        onChange={(e) => setSelectedContractId(e.target.value)}
-                        className="mt-1 block w-full max-w-md rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
-                    >
-                        <option value="">Selecione...</option>
-                        {contracts.map(contract => (
-                            <option key={contract.id} value={contract.id}>
-                                {contract.projectName} - {contract.clientName}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+        <div className="space-y-6">
+            <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 no-print">
+                <h1 className="text-3xl font-bold">Documentos e Recibos</h1>
+                <p className="mt-1 text-blue-100">Gere demonstrativos detalhados para seus clientes.</p>
+            </header>
 
-                {selectedContract && (
-                    <div>
-                        <div className="printable-area bg-white p-10 rounded-xl shadow-lg border border-slate-200 max-w-4xl mx-auto font-serif relative">
-                            {/* Decorative Header Border */}
-                            <div className="absolute top-0 left-0 w-full h-3 bg-slate-800 rounded-t-xl print:rounded-none"></div>
-
-                            <header className="flex justify-between items-end border-b-2 border-slate-800 pb-6 mb-8 pt-4">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-widest">Demonstrativo Financeiro</h1>
-                                    <p className="text-slate-600 text-sm mt-1">Recibo e Cronograma de Pagamentos</p>
-                                </div>
-                                <div className="text-right">
-                                    <div className="flex items-center justify-end space-x-3 text-slate-800 font-bold text-xl">
-                                        {systemSettings.logoUrl ? (
-                                            <img src={systemSettings.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
-                                        ) : (
-                                            <ArchitectIcon className="w-8 h-8" />
-                                        )}
-                                        <span>{systemSettings.companyName.toUpperCase()}</span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1">Arquitetura & Interiores</p>
-                                    <p className="text-xs text-slate-500">Data de Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
-                                </div>
-                            </header>
-
-                            <main className="space-y-8">
-                                {/* Dados do Contrato */}
-                                <section className="grid grid-cols-2 gap-8">
-                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-transparent print:border-slate-200">
-                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">CONTRATANTE (Cliente)</h3>
-                                        <p className="text-lg font-bold text-slate-800">{selectedContract.clientName}</p>
-                                        <p className="text-sm text-slate-600 mt-1">
-                                            {selectedContract.clientAddress.street}, {selectedContract.clientAddress.number} {selectedContract.clientAddress.complement && `- ${selectedContract.clientAddress.complement}`}
-                                        </p>
-                                        <p className="text-sm text-slate-600">
-                                            {selectedContract.clientAddress.district} - {selectedContract.clientAddress.city}/{selectedContract.clientAddress.state}
-                                        </p>
-                                        <p className="text-sm text-slate-600">CEP: {selectedContract.clientAddress.cep}</p>
-                                    </div>
-                                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 print:bg-transparent print:border-slate-200">
-                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">OBJETO (Projeto)</h3>
-                                        <p className="text-lg font-bold text-slate-800">{selectedContract.projectName}</p>
-                                        <p className="text-sm text-slate-600 mt-1"><span className="font-semibold">Tipo:</span> {selectedContract.serviceType}</p>
-                                        <p className="text-sm text-slate-600"><span className="font-semibold">Local da Obra:</span> {selectedContract.projectAddress.street}, {selectedContract.projectAddress.number}</p>
-                                        <p className="text-sm text-slate-600">{selectedContract.projectAddress.city}/{selectedContract.projectAddress.state}</p>
-                                    </div>
-                                </section>
-
-                                {/* Discriminação dos Serviços */}
-                                <section>
-                                    <h2 className="text-sm font-bold text-slate-800 uppercase border-b-2 border-slate-200 pb-2 mb-4">1. Discriminação dos Serviços Contratados</h2>
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-slate-100 text-slate-700 print:bg-slate-100">
-                                            <tr>
-                                                <th className="py-2 px-3 text-left font-semibold">Serviço</th>
-                                                <th className="py-2 px-3 text-center font-semibold">Detalhe de Cálculo</th>
-                                                <th className="py-2 px-3 text-right font-semibold">Valor Total</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-200 border border-slate-200">
-                                            {selectedContract.services.map((service, index) => (
-                                                <tr key={index}>
-                                                    <td className="py-3 px-3 text-slate-800 font-medium">{service.serviceName}</td>
-                                                    <td className="py-3 px-3 text-center text-slate-600">
-                                                        {service.calculationMethod === 'metragem' && service.area ? `${service.area} m²` : 
-                                                         service.calculationMethod === 'hora' && service.hours ? `${service.hours} Horas Técnicas` : 
-                                                         'Valor Fixo / Pacote'}
-                                                    </td>
-                                                    <td className="py-3 px-3 text-right text-slate-800">{formatCurrency(parseFloat(service.value))}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </section>
-
-                                {/* Resumo Financeiro */}
-                                <section className="flex justify-end">
-                                    <div className="w-1/2 space-y-2">
-                                        <div className="flex justify-between text-sm text-slate-600">
-                                            <span>Subtotal Serviços:</span>
-                                            <span>{formatCurrency(selectedContract.services.reduce((acc, s) => acc + parseFloat(s.value), 0))}</span>
-                                        </div>
-                                        {/* Lógica para Exibir Visitas Técnicas OU Deslocamento */}
-                                        {selectedContract.techVisits?.enabled ? (
-                                            <div className="flex justify-between text-sm text-slate-600">
-                                                <span>Visitas Técnicas ({selectedContract.techVisits.quantity}x) + Deslocamento:</span>
-                                                <span>{formatCurrency(selectedContract.mileageCost || 0)}</span>
-                                            </div>
-                                        ) : (
-                                            (selectedContract.mileageCost || 0) > 0 && (
-                                                <div className="flex justify-between text-sm text-slate-600">
-                                                    <span>Adicional Deslocamento ({selectedContract.mileageDistance}km):</span>
-                                                    <span>{formatCurrency(selectedContract.mileageCost || 0)}</span>
-                                                </div>
-                                            )
-                                        )}
-
-                                        {(selectedContract.discountValue || 0) > 0 && (
-                                            <div className="flex justify-between text-sm text-red-600">
-                                                <span>Desconto ({selectedContract.discountType}):</span>
-                                                <span>- {formatCurrency(selectedContract.discountValue)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between text-lg font-bold text-slate-900 border-t-2 border-slate-800 pt-2 mt-2">
-                                            <span>TOTAL DO CONTRATO:</span>
-                                            <span>{formatCurrency(selectedContract.totalValue)}</span>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* Cronograma de Pagamento */}
-                                <section>
-                                    <h2 className="text-sm font-bold text-slate-800 uppercase border-b-2 border-slate-200 pb-2 mb-4">2. Cronograma de Pagamento e Vencimentos</h2>
-                                    <div className="overflow-hidden rounded-lg border border-slate-200">
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-slate-800 text-white print:bg-slate-800 print:text-white">
-                                                <tr>
-                                                    <th className="py-2 px-4 text-left font-semibold">Descrição</th>
-                                                    <th className="py-2 px-4 text-left font-semibold">Vencimento</th>
-                                                    <th className="py-2 px-4 text-right font-semibold">Valor</th>
-                                                    <th className="py-2 px-4 text-center font-semibold">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-200">
-                                                {contractInstallments.map((inst, idx) => {
-                                                    const isPaid = inst.status.includes('Pago');
-                                                    return (
-                                                        <tr key={inst.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                                                            <td className="py-3 px-4 text-slate-800 font-medium">
-                                                                {inst.installment === 'Entrada' ? 'Entrada / Sinal' : `Parcela ${inst.installment}`}
-                                                            </td>
-                                                            <td className="py-3 px-4 text-slate-700">
-                                                                {formatDate(inst.dueDate)}
-                                                            </td>
-                                                            <td className="py-3 px-4 text-right text-slate-800 font-bold">
-                                                                {formatCurrency(inst.value)}
-                                                            </td>
-                                                            <td className="py-3 px-4 text-center">
-                                                                <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase border ${
-                                                                    isPaid 
-                                                                    ? 'bg-green-100 text-green-800 border-green-200' 
-                                                                    : 'bg-white text-slate-500 border-slate-300'
-                                                                }`}>
-                                                                    {inst.status}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-2 italic">* Recibo válido somente mediante comprovação bancária para pagamentos via transferência/PIX ou compensação de cheque/boleto.</p>
-                                </section>
-
-                                {/* Declaração */}
-                                <section className="bg-slate-50 p-6 border border-slate-200 rounded-lg mt-8 print:mt-12 text-center">
-                                    <p className="text-slate-700 leading-relaxed text-sm">
-                                        Reconhecemos a exatidão dos dados e valores discriminados neste documento, servindo o presente como demonstrativo financeiro do contrato de prestação de serviços de arquitetura firmado entre as partes.
-                                    </p>
-                                </section>
-
-                                {/* Assinaturas */}
-                                <footer className="flex justify-between items-end pt-16 print:pt-20 px-8">
-                                    <div className="text-center">
-                                        <div className="border-t border-slate-400 w-64 pt-2"></div>
-                                        <p className="text-sm font-bold text-slate-800">{selectedContract.clientName}</p>
-                                        <p className="text-xs text-slate-500">CONTRATANTE</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="border-t border-slate-400 w-64 pt-2"></div>
-                                        <p className="text-sm font-bold text-slate-800">{systemSettings.professionalName}</p>
-                                        <p className="text-xs text-slate-500">CONTRADA</p>
-                                    </div>
-                                </footer>
-                            </main>
-                        </div>
-                        <div className="text-center mt-6 no-print pb-10">
-                            <button 
-                                onClick={handlePrint}
-                                className="px-8 py-3 border border-transparent rounded-full shadow-md text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transform transition hover:-translate-y-1"
-                            >
-                                Imprimir / Salvar PDF
-                            </button>
-                        </div>
-                    </div>
-                )}
+            <div className="bg-white p-6 rounded-xl shadow-lg no-print">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Selecione o Projeto para gerar o Recibo:</label>
+                <select 
+                    value={selectedContractId} 
+                    onChange={e => setSelectedContractId(e.target.value)}
+                    className="w-full max-w-md h-12 px-4 rounded-lg border-slate-300 focus:ring-blue-500"
+                >
+                    <option value="">Selecione um projeto concluído/ativo...</option>
+                    {contracts.map(c => <option key={c.id} value={c.id}>{c.clientName} - {c.projectName}</option>)}
+                </select>
             </div>
-        </>
+
+            {selectedContract && (
+                <div className="printable-area bg-white p-12 shadow-2xl border border-slate-200 rounded-xl max-w-4xl mx-auto font-serif text-slate-900">
+                    <header className="flex justify-between items-start border-b-4 border-slate-800 pb-8 mb-10">
+                        <div className="flex items-center gap-4">
+                            {systemSettings.logoUrl ? <img src={systemSettings.logoUrl} className="h-16 w-auto" alt="Logo" /> : <ArchitectIcon className="w-12 h-12 text-slate-800" />}
+                            <div>
+                                <h1 className="text-3xl font-black uppercase tracking-tighter leading-none">{systemSettings.companyName}</h1>
+                                <p className="text-xs font-bold text-slate-500 tracking-widest mt-1">ARQUITETURA & DESIGN</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <h2 className="text-xl font-bold text-slate-800 mb-1">DEMONSTRATIVO DE SERVIÇOS</h2>
+                            <p className="text-sm text-slate-500">Ref: #{selectedContract.id}</p>
+                            <p className="text-sm text-slate-500">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
+                        </div>
+                    </header>
+
+                    <section className="grid grid-cols-2 gap-12 mb-10">
+                        <div>
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">CONTRATANTE</h3>
+                            <p className="text-xl font-bold">{selectedContract.clientName}</p>
+                            <p className="text-sm text-slate-600 mt-1">{selectedContract.clientAddress.street}, {selectedContract.clientAddress.number}</p>
+                            <p className="text-sm text-slate-600">{selectedContract.clientAddress.city} - {selectedContract.clientAddress.state}</p>
+                        </div>
+                        <div className="bg-slate-50 p-6 rounded-lg border border-slate-100">
+                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">RESUMO DO PROJETO</h3>
+                            <p className="font-bold text-slate-800">{selectedContract.projectName}</p>
+                            <p className="text-sm text-slate-600 mt-2">Valor Total Fechado: <span className="font-bold">{formatCurrency(selectedContract.totalValue)}</span></p>
+                            <p className="text-sm text-slate-600">Data de Início: {formatDate(selectedContract.date)}</p>
+                        </div>
+                    </section>
+
+                    <section className="mb-10">
+                        <h3 className="text-sm font-black text-slate-800 uppercase border-b-2 border-slate-800 pb-2 mb-4">1. DESCRIÇÃO DOS SERVIÇOS CONTRATADOS</h3>
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-100">
+                                <tr>
+                                    <th className="p-3 text-left">Item / Descrição</th>
+                                    <th className="p-3 text-center">Tipo</th>
+                                    <th className="p-3 text-right">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {selectedContract.services.map((s, i) => (
+                                    <tr key={i}>
+                                        <td className="p-3 font-bold">{s.serviceName}</td>
+                                        <td className="p-3 text-center text-slate-500 uppercase text-[10px] font-bold">{s.calculationMethod}</td>
+                                        <td className="p-3 text-right font-medium">{formatCurrency(parseFloat(s.value))}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="border-t-2 border-slate-800 font-bold">
+                                <tr>
+                                    <td colSpan={2} className="p-3 text-right">TOTAL BRUTO:</td>
+                                    <td className="p-3 text-right">{formatCurrency(selectedContract.totalValue + (selectedContract.discountValue || 0))}</td>
+                                </tr>
+                                {selectedContract.discountValue > 0 && (
+                                    <tr className="text-red-600 italic">
+                                        <td colSpan={2} className="p-3 text-right">DESCONTO APLICADO:</td>
+                                        <td className="p-3 text-right">- {formatCurrency(selectedContract.discountValue)}</td>
+                                    </tr>
+                                )}
+                            </tfoot>
+                        </table>
+                    </section>
+
+                    <section className="mb-12">
+                        <h3 className="text-sm font-black text-slate-800 uppercase border-b-2 border-slate-800 pb-2 mb-4">2. CRONOGRAMA DE PAGAMENTOS</h3>
+                        <div className="grid grid-cols-1 gap-2">
+                            {contractInstallments.map((inst, i) => (
+                                <div key={i} className="flex justify-between items-center p-3 border rounded bg-white">
+                                    <div>
+                                        <span className="text-xs font-bold text-slate-400 mr-4">#{i+1}</span>
+                                        <span className="font-bold">{inst.installment === 'Entrada' ? 'SINAL / ENTRADA' : `PARCELA ${inst.installment}`}</span>
+                                        <span className="ml-4 text-sm text-slate-500">Vencimento: {formatDate(inst.dueDate)}</span>
+                                    </div>
+                                    <span className="font-black text-lg">{formatCurrency(inst.value)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+
+                    <footer className="mt-20 pt-10 border-t border-slate-200 flex justify-between px-10">
+                        <div className="text-center">
+                            <div className="w-48 h-px bg-slate-400 mb-2 mx-auto"></div>
+                            <p className="text-xs font-bold uppercase">{selectedContract.clientName}</p>
+                            <p className="text-[10px] text-slate-400">CONTRATANTE</p>
+                        </div>
+                        <div className="text-center">
+                            <div className="w-48 h-px bg-slate-400 mb-2 mx-auto"></div>
+                            <p className="text-xs font-bold uppercase">{systemSettings.professionalName}</p>
+                            <p className="text-[10px] text-slate-400">CONTRATADA (Responsável Técnico)</p>
+                        </div>
+                    </footer>
+
+                    <div className="mt-20 no-print text-center">
+                         <button 
+                            onClick={() => window.print()}
+                            className="px-12 py-4 bg-slate-900 text-white font-bold rounded-full shadow-2xl hover:scale-105 transition-transform"
+                        >
+                            <PrinterIcon className="w-6 h-6 inline mr-2" /> IMPRIMIR RECIBO DETALHADO
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 
