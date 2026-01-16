@@ -29,10 +29,11 @@ import {
     WalletIcon,
     BrandLogo,
     UsersIcon,
-    HistoryIcon
+    HistoryIcon,
+    ArchitectIcon
 } from './components/Icons';
 
-import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectStage, Meeting, ProjectUpdate, VisitLog } from './types';
+import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectStage, Meeting, ProjectUpdate, VisitLog, ProjectChecklist, Expense, FixedExpenseTemplate } from './types';
 import { 
   MOCK_FIXED_EXPENSE_TEMPLATES, 
   DEFAULT_SYSTEM_SETTINGS,
@@ -101,29 +102,58 @@ const App: React.FC = () => {
         return <div className="flex items-center justify-center h-screen bg-[#0f172a] text-white font-bold">Carregando Estúdio...</div>;
     }
 
+    const handleUpdateChecklist = (newChecklist: ProjectChecklist) => {
+        setAppData(prev => {
+            const checklists = [...(prev.checklists || [])];
+            const index = checklists.findIndex(c => c.contractId === newChecklist.contractId);
+            if (index > -1) checklists[index] = newChecklist;
+            else checklists.push(newChecklist);
+            return { ...prev, checklists };
+        });
+    };
+
     const renderView = () => {
         switch (view) {
             case 'dashboard':
                 return <Dashboard installments={appData.installments} contracts={appData.contracts} schedules={appData.schedules} projectProgress={appData.projectProgress || []} otherPayments={appData.otherPayments} expenses={appData.expenses || []} />;
             case 'budgets':
-                return <Budgets budgets={appData.budgets} onAddBudget={() => {setBudgetToConvert(null); setEditingContract(null); setView('new-contract')}} onDeleteBudget={(id) => setAppData({...appData, budgets: appData.budgets.filter(b => b.id !== id)})} onApproveBudget={(b) => {setBudgetToConvert(b); setEditingContract(null); setView('new-contract')}} />;
+                return <Budgets budgets={appData.budgets} onAddBudget={() => {setBudgetToConvert(null); setEditingContract(null); setView('new-contract')}} onDeleteBudget={(id) => setAppData(prev => ({...prev, budgets: prev.budgets.filter(b => b.id !== id)}))} onApproveBudget={(b) => {setBudgetToConvert(b); setEditingContract(null); setView('new-contract')}} />;
             case 'contracts':
-                return <Contracts contracts={appData.contracts} schedules={appData.schedules} clients={appData.clients} systemSettings={appData.systemSettings} onEditContract={(c) => {setEditingContract(c); setBudgetToConvert(null); setView('new-contract')}} onDeleteContract={(id) => setAppData({...appData, contracts: appData.contracts.filter(c => c.id !== id)})} onCreateProject={() => {setEditingContract(null); setBudgetToConvert(null); setView('new-contract')}} onViewPortal={(id) => {setSelectedProjectId(id); setView('project-portal')}} />;
+                return <Contracts contracts={appData.contracts} schedules={appData.schedules} clients={appData.clients} systemSettings={appData.systemSettings} onEditContract={(c) => {setEditingContract(c); setBudgetToConvert(null); setView('new-contract')}} onDeleteContract={(id) => setAppData(prev => ({...prev, contracts: prev.contracts.filter(c => c.id !== id)}))} onCreateProject={() => {setEditingContract(null); setBudgetToConvert(null); setView('new-contract')}} onViewPortal={(id) => {setSelectedProjectId(id); setView('project-portal')}} />;
             case 'new-contract':
                 return <NewContract 
                             appData={appData}
                             editingContract={editingContract}
                             budgetToConvert={budgetToConvert}
                             onCancel={() => setView(budgetToConvert ? 'budgets' : 'contracts')}
-                            onAddBudgetOnly={(b) => {setAppData({...appData, budgets: [...(appData.budgets || []), { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]}); setView('budgets');}}
+                            onAddBudgetOnly={(b) => {setAppData(prev => ({...prev, budgets: [...(prev.budgets || []), { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); setView('budgets');}}
                             onAddContract={(c) => {
-                                const id = Date.now();
-                                const schedule: ProjectSchedule = { id: Date.now() + 500, contractId: id, clientName: c.clientName, projectName: c.projectName, startDate: new Date(c.date).toISOString().split('T')[0], stages: appData.projectStagesTemplate.map(t => ({ id: Date.now() + t.id, name: t.name, durationWorkDays: t.durationWorkDays })) };
-                                setAppData({...appData, contracts: [...appData.contracts, { ...c, id }] as Contract[], schedules: [...appData.schedules, schedule]});
+                                const contractId = Date.now();
+                                const schedule: ProjectSchedule = { id: Date.now() + 500, contractId, clientName: c.clientName, projectName: c.projectName, startDate: new Date(c.date).toISOString().split('T')[0], stages: appData.projectStagesTemplate.map(t => ({ id: Date.now() + t.id + Math.random(), name: t.name, durationWorkDays: t.durationWorkDays })) };
+                                const newInstallments: PaymentInstallment[] = [];
+                                if (c.downPayment > 0) {
+                                    newInstallments.push({ id: Date.now() + 1000, contractId, clientName: c.clientName, projectName: c.projectName, installment: 'Entrada', dueDate: new Date(c.downPaymentDate), value: c.downPayment, status: 'Pendente' });
+                                }
+                                if (c.installments > 0) {
+                                    const baseDate = c.firstInstallmentDate ? new Date(c.firstInstallmentDate) : new Date(c.downPaymentDate);
+                                    if (!c.firstInstallmentDate) baseDate.setMonth(baseDate.getMonth() + 1);
+                                    for (let i = 1; i <= c.installments; i++) {
+                                        const dueDate = new Date(baseDate);
+                                        dueDate.setMonth(dueDate.getMonth() + (i - 1));
+                                        newInstallments.push({ id: Date.now() + 2000 + i, contractId, clientName: c.clientName, projectName: c.projectName, installment: `${i}/${c.installments}`, dueDate: dueDate, value: c.installmentValue, status: 'Pendente' });
+                                    }
+                                }
+                                setAppData(prev => ({
+                                    ...prev, 
+                                    contracts: [...prev.contracts, { ...c, id: contractId }] as Contract[], 
+                                    schedules: [...prev.schedules, schedule],
+                                    installments: [...prev.installments, ...newInstallments],
+                                    budgets: budgetToConvert ? prev.budgets.filter(b => b.id !== budgetToConvert.id) : prev.budgets
+                                }));
                                 setView('contracts');
                             }}
                             onUpdateContract={(c) => {
-                                setAppData({...appData, contracts: appData.contracts.map(contract => contract.id === c.id ? c : contract)});
+                                setAppData(prev => ({...prev, contracts: prev.contracts.map(contract => contract.id === c.id ? c : contract)}));
                                 setView('contracts');
                             }}
                         />;
@@ -138,6 +168,11 @@ const App: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {activeProjects.map(project => (
                                 <div key={project.id} onClick={() => { setSelectedProjectId(project.id); setView('project-portal'); }} className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 hover:border-blue-500 cursor-pointer group transition-all">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                            <ArchitectIcon className="w-6 h-6" />
+                                        </div>
+                                    </div>
                                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{project.projectName}</h3>
                                     <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">{project.clientName}</p>
                                 </div>
@@ -156,20 +191,29 @@ const App: React.FC = () => {
                         meetings={appData.meetings.filter(m => m.contractId === selectedProjectId)}
                         updates={appData.projectUpdates.filter(u => u.contractId === selectedProjectId)}
                         visitLogs={appData.visitLogs.filter(v => v.contractId === selectedProjectId)}
-                        onAddVisitLog={(v) => setAppData({...appData, visitLogs: [...appData.visitLogs, { ...v, id: Date.now() }]})}
-                        onBack={() => setView('contracts')}
+                        onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now() }]}))}
+                        onUpdateChecklist={handleUpdateChecklist}
+                        onBack={() => setView('client-area')}
                     />
                 ) : null;
             case 'pricing':
-                return <Pricing expenses={appData.expenses} pricingData={appData.pricing} onUpdatePricing={(p) => setAppData({...appData, pricing: p})} />;
+                return <Pricing expenses={appData.expenses} pricingData={appData.pricing} onUpdatePricing={(p) => setAppData(prev => ({...prev, pricing: p}))} />;
             case 'progress':
-                return <Progress schedules={appData.schedules} setSchedules={(s) => setAppData({...appData, schedules: s})} contracts={appData.contracts} />;
+                return <Progress schedules={appData.schedules} setSchedules={(s) => setAppData(prev => ({...prev, schedules: s}))} contracts={appData.contracts} />;
             case 'projections':
-                return <Projections installments={appData.installments} otherPayments={appData.otherPayments} contracts={appData.contracts} onRegisterInstallment={(id, date) => setAppData({...appData, installments: appData.installments.map(i => i.id === id ? {...i, status: 'Pago em dia', paymentDate: date} : i)})} onRegisterOther={(desc, date, val) => setAppData({...appData, otherPayments: [...appData.otherPayments, {id: Date.now(), description: desc, paymentDate: date, value: val}]})} />;
+                return <Projections installments={appData.installments} otherPayments={appData.otherPayments} contracts={appData.contracts} onRegisterInstallment={(id, date) => setAppData(prev => ({...prev, installments: prev.installments.map(i => i.id === id ? {...i, status: 'Pago em dia', paymentDate: date} : i)}))} onRegisterOther={(desc, date, val) => setAppData(prev => ({...prev, otherPayments: [...prev.otherPayments, {id: Date.now(), description: desc, paymentDate: date, value: val}]}))} />;
             case 'expenses':
-                return <Expenses expenses={appData.expenses} fixedExpenseTemplates={appData.fixedExpenseTemplates} onAddExpense={(e) => setAppData({...appData, expenses: [...appData.expenses, {...e, id: Date.now()}]})} onDeleteExpense={(id) => setAppData({...appData, expenses: appData.expenses.filter(e => e.id !== id)})} onUpdateExpense={(e) => setAppData({...appData, expenses: appData.expenses.map(exp => exp.id === e.id ? e : exp)})} onAddFixedExpenseTemplate={(t) => setAppData({...appData, fixedExpenseTemplates: [...appData.fixedExpenseTemplates, {...t, id: Date.now()}]})} onDeleteFixedExpenseTemplate={(id) => setAppData({...appData, fixedExpenseTemplates: appData.fixedExpenseTemplates.filter(t => t.id !== id)})} />;
+                return <Expenses 
+                    expenses={appData.expenses} 
+                    fixedExpenseTemplates={appData.fixedExpenseTemplates} 
+                    onAddExpense={(e) => setAppData(prev => ({...prev, expenses: [...prev.expenses, {...e, id: Date.now() + Math.random()}]}))} 
+                    onDeleteExpense={(id) => setAppData(prev => ({...prev, expenses: prev.expenses.filter(e => e.id !== id)}))} 
+                    onUpdateExpense={(e) => setAppData(prev => ({...prev, expenses: prev.expenses.map(exp => exp.id === e.id ? e : exp)}))} 
+                    onAddFixedExpenseTemplate={(t) => setAppData(prev => ({...prev, fixedExpenseTemplates: [...prev.fixedExpenseTemplates, {...t, id: Date.now() + Math.random()}]}))} 
+                    onDeleteFixedExpenseTemplate={(id) => setAppData(prev => ({...prev, fixedExpenseTemplates: prev.fixedExpenseTemplates.filter(t => t.id !== id)}))} 
+                />;
             case 'notes':
-                return <Notes notes={appData.notes} onUpdateNote={(n) => setAppData({...appData, notes: appData.notes.map(note => note.id === n.id ? n : note)})} onDeleteNote={(id) => setAppData({...appData, notes: appData.notes.filter(n => n.id !== id)})} onAddNote={(n) => setAppData({...appData, notes: [...appData.notes, {...n, id: Date.now(), createdAt: new Date()}]})} contracts={appData.contracts} />;
+                return <Notes notes={appData.notes} onUpdateNote={(n) => setAppData(prev => ({...prev, notes: prev.notes.map(note => note.id === n.id ? n : note)}))} onDeleteNote={(id) => setAppData(prev => ({...prev, notes: prev.notes.filter(n => n.id !== id)}))} onAddNote={(n) => setAppData(prev => ({...prev, notes: [...prev.notes, {...n, id: Date.now(), createdAt: new Date()}]}))} contracts={appData.contracts} />;
             case 'settings':
                 return <Settings appData={appData} setAppData={setAppData} />;
             default:
@@ -179,7 +223,6 @@ const App: React.FC = () => {
 
     return (
         <div className="flex min-h-screen bg-[#f1f5f9]">
-            {/* Sidebar Replicada da Imagem */}
             <aside className="w-64 bg-[#0f172a] flex-shrink-0 flex flex-col no-print shadow-2xl z-40">
                 <div className="p-8 border-b border-slate-800/50 flex flex-col items-center">
                     <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg mb-4">
@@ -203,7 +246,7 @@ const App: React.FC = () => {
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Studio Battelli v2.5</p>
                 </div>
             </aside>
-            <main className="flex-1 overflow-y-auto p-10 bg-[#f1f5f9]">
+            <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-[#f1f5f9]">
                 {renderView()}
             </main>
         </div>

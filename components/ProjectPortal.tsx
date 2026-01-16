@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import { Contract, ProjectSchedule, ProjectChecklist, PaymentInstallment, VisitLog, Meeting, ProjectUpdate } from '../types';
+// Fix: Added ChecklistItemTemplate to imports
+import { Contract, ProjectSchedule, ProjectChecklist, PaymentInstallment, VisitLog, Meeting, ProjectUpdate, ChecklistItemTemplate } from '../types';
+import { CHECKLIST_TEMPLATE } from '../constants';
 import { 
     ChevronLeftIcon, 
     CheckCircleIcon, 
@@ -13,7 +15,8 @@ import {
     HistoryIcon,
     PlusIcon,
     XIcon,
-    UsersIcon
+    UsersIcon,
+    NotepadIcon
 } from './Icons';
 
 interface ProjectPortalProps {
@@ -25,18 +28,21 @@ interface ProjectPortalProps {
     updates: ProjectUpdate[];
     visitLogs: VisitLog[];
     onAddVisitLog: (log: Omit<VisitLog, 'id' | 'createdAt'>) => void;
+    onUpdateChecklist: (checklist: ProjectChecklist) => void;
     onBack: () => void;
 }
 
 const ProjectPortal: React.FC<ProjectPortalProps> = ({ 
     contract, 
     schedule, 
+    checklist,
     installments, 
     visitLogs,
     onAddVisitLog,
+    onUpdateChecklist,
     onBack 
 }) => {
-    const [activeTab, setActiveTab] = useState<'geral' | 'visitas' | 'financeiro'>('geral');
+    const [activeTab, setActiveTab] = useState<'geral' | 'visitas' | 'financeiro' | 'checklist'>('geral');
     const [isAddVisitOpen, setIsAddVisitOpen] = useState(false);
     const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], notes: '' });
 
@@ -59,6 +65,27 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
         setIsAddVisitOpen(false);
         setVisitForm({ date: new Date().toISOString().split('T')[0], notes: '' });
     };
+
+    const handleToggleChecklistItem = (itemId: number) => {
+        const isCompleted = checklist.completedItemIds.includes(itemId);
+        const newCompletedIds = isCompleted 
+            ? checklist.completedItemIds.filter(id => id !== itemId)
+            : [...checklist.completedItemIds, itemId];
+        
+        onUpdateChecklist({
+            contractId: contract.id,
+            completedItemIds: newCompletedIds
+        });
+    };
+
+    const groupedChecklist = useMemo(() => {
+        const groups: { [key: string]: typeof CHECKLIST_TEMPLATE } = {};
+        CHECKLIST_TEMPLATE.forEach(item => {
+            if (!groups[item.stage]) groups[item.stage] = [];
+            groups[item.stage].push(item);
+        });
+        return groups;
+    }, []);
 
     return (
         <div className="space-y-8 animate-fadeIn pb-20">
@@ -84,10 +111,15 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                             </p>
                         </div>
                     </div>
+                    <div className="text-center md:text-right">
+                         <span className={`px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest ${contract.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                            PROJETO {contract.status}
+                         </span>
+                    </div>
                 </div>
                 <div className="mt-8 space-y-2">
                     <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <span>Progresso do Projeto</span>
+                        <span>Progresso Geral do Escopo</span>
                         <span>{progressPercent}%</span>
                     </div>
                     <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
@@ -96,16 +128,17 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                 </div>
             </header>
 
-            <div className="flex border-b border-slate-200 space-x-4 no-print">
+            <div className="flex border-b border-slate-200 space-x-2 md:space-x-4 no-print overflow-x-auto">
                 {[
-                    { id: 'geral', label: 'Visão Geral', icon: <TrendingUpIcon className="w-4 h-4" /> },
-                    { id: 'visitas', label: 'Visitas Técnicas', icon: <MapPinIcon className="w-4 h-4" /> },
+                    { id: 'geral', label: 'Cronograma', icon: <TrendingUpIcon className="w-4 h-4" /> },
+                    { id: 'checklist', label: 'Checklist Obra', icon: <CheckCircleIcon className="w-4 h-4" /> },
+                    { id: 'visitas', label: 'Visitas', icon: <MapPinIcon className="w-4 h-4" /> },
                     { id: 'financeiro', label: 'Financeiro', icon: <DollarIcon className="w-4 h-4" /> }
                 ].map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex items-center px-4 pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`flex items-center whitespace-nowrap px-4 pb-3 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
                     >
                         <span className="mr-2">{tab.icon}</span> {tab.label}
                     </button>
@@ -115,7 +148,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
             {activeTab === 'geral' && (
                 <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-100 space-y-6">
                     <h3 className="text-xl font-black text-slate-800 uppercase flex items-center">
-                        <TrendingUpIcon className="w-6 h-6 mr-3 text-blue-500" /> Cronograma
+                        <TrendingUpIcon className="w-6 h-6 mr-3 text-blue-500" /> Fluxo de Etapas
                     </h3>
                     <div className="space-y-4">
                         {schedule?.stages.map((stage, idx) => (
@@ -124,11 +157,49 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                                     {stage.completionDate ? <CheckCircleIcon className="w-6 h-6" /> : idx + 1}
                                 </div>
                                 <div className="flex-1 border-b border-slate-50 pb-2">
-                                    <p className="font-bold text-slate-800 uppercase text-sm">{stage.name}</p>
-                                    <p className="text-[10px] text-slate-400 uppercase font-bold">Entrega: {formatDate(stage.deadline)}</p>
+                                    <div className="flex justify-between items-start">
+                                        <p className="font-bold text-slate-800 uppercase text-sm">{stage.name}</p>
+                                        {stage.completionDate && <span className="text-[9px] font-black text-green-600 uppercase">Concluído em {formatDate(stage.completionDate)}</span>}
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 uppercase font-bold">Entrega prevista: {formatDate(stage.deadline)}</p>
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'checklist' && (
+                <div className="space-y-6">
+                    <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-100">
+                        <h3 className="text-xl font-black text-slate-800 uppercase mb-8 flex items-center">
+                            <CheckCircleIcon className="w-6 h-6 mr-3 text-green-500" /> Acompanhamento Técnico de Obra
+                        </h3>
+                        <div className="space-y-10">
+                            {/* Fix: Added explicit cast to fix "Property 'map' does not exist on type 'unknown'" error */}
+                            {(Object.entries(groupedChecklist) as [string, ChecklistItemTemplate[]][]).map(([stage, items]) => (
+                                <div key={stage} className="space-y-4">
+                                    <h4 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] border-b border-blue-50 pb-2">{stage}</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {items.map(item => {
+                                            const isDone = checklist.completedItemIds.includes(item.id);
+                                            return (
+                                                <div 
+                                                    key={item.id} 
+                                                    onClick={() => handleToggleChecklistItem(item.id)}
+                                                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${isDone ? 'bg-green-50 border-green-100' : 'bg-white border-slate-100 hover:border-blue-200'}`}
+                                                >
+                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 ${isDone ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200 text-transparent'}`}>
+                                                        <CheckCircleIcon className="w-4 h-4" />
+                                                    </div>
+                                                    <span className={`text-sm font-bold ${isDone ? 'text-green-800 line-through' : 'text-slate-600'}`}>{item.text}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}

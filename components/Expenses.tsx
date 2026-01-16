@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Expense, FixedExpenseTemplate } from '../types';
 import StatCard from './StatCard';
-import { CreditCardIcon, TrendingDownIcon, TrashIcon, CheckCircleIcon, PlusIcon, XIcon, PencilIcon, HistoryIcon } from './Icons';
+import { CreditCardIcon, TrendingDownIcon, TrashIcon, CheckCircleIcon, PlusIcon, XIcon, CogIcon, ExclamationTriangleIcon } from './Icons';
 
 interface ExpensesProps {
     expenses: Expense[];
@@ -12,8 +12,6 @@ interface ExpensesProps {
     onUpdateExpense: (expense: Expense) => void;
     onAddFixedExpenseTemplate: (template: Omit<FixedExpenseTemplate, 'id'>) => void;
     onDeleteFixedExpenseTemplate: (id: number) => void;
-    // Adicionamos um handler em massa para salvar as mudanças do mês
-    onBulkUpdateExpenses?: (expenses: Expense[]) => void;
 }
 
 const formatCurrency = (value: number) => {
@@ -21,7 +19,7 @@ const formatCurrency = (value: number) => {
 };
 
 const Expenses: React.FC<ExpensesProps> = ({ 
-    expenses, 
+    expenses = [], 
     fixedExpenseTemplates = [], 
     onAddExpense, 
     onDeleteExpense, 
@@ -34,13 +32,8 @@ const Expenses: React.FC<ExpensesProps> = ({
         year: new Date().getFullYear(),
     });
 
-    const [draftExpenses, setDraftExpenses] = useState<Expense[]>(expenses);
-    const [hasChanges, setHasChanges] = useState(false);
-
-    useEffect(() => {
-        if (!hasChanges) setDraftExpenses(expenses);
-    }, [expenses, hasChanges]);
-
+    const [isFixedManagerOpen, setIsFixedManagerOpen] = useState(false);
+    const [fixedTemplateForm, setFixedTemplateForm] = useState({ description: '', amount: '', day: '5' });
     const [formData, setFormData] = useState({
         description: '',
         category: 'Variável' as Expense['category'],
@@ -49,15 +42,42 @@ const Expenses: React.FC<ExpensesProps> = ({
         status: 'Pendente' as Expense['status'],
     });
 
-    const [isFixedManagerOpen, setIsFixedManagerOpen] = useState(false);
-    const [fixedTemplateData, setFixedTemplateData] = useState({ description: '', amount: '', day: '5' });
-
+    // Filtra as despesas do mês selecionado
     const filteredExpenses = useMemo(() => {
-        return draftExpenses.filter(expense => {
-            const expenseDate = new Date(expense.dueDate);
+        return expenses.filter(expense => {
+            const expenseDate = new Date(expense.dueDate + 'T12:00:00');
             return expenseDate.getMonth() === selectedDate.month && expenseDate.getFullYear() === selectedDate.year;
         }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-    }, [draftExpenses, selectedDate]);
+    }, [expenses, selectedDate]);
+
+    // Identifica quais modelos fixos ainda não foram lançados NESTE mês selecionado
+    const missingFixedTemplates = useMemo(() => {
+        return fixedExpenseTemplates.filter(template => 
+            !filteredExpenses.some(e => e.description === template.description && e.category === 'Fixa')
+        );
+    }, [fixedExpenseTemplates, filteredExpenses]);
+
+    // EFEITO DE AUTO-LANÇAMENTO: 
+    // Sempre que o mês muda ou a lista de templates muda, lança o que estiver faltando automaticamente.
+    useEffect(() => {
+        if (missingFixedTemplates.length > 0) {
+            const monthStr = String(selectedDate.month + 1).padStart(2, '0');
+            const yearStr = String(selectedDate.year);
+            
+            missingFixedTemplates.forEach(template => {
+                const dayStr = String(template.day).padStart(2, '0');
+                const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
+                
+                onAddExpense({
+                    description: template.description,
+                    category: 'Fixa',
+                    amount: template.amount,
+                    dueDate: dateStr,
+                    status: 'Pendente'
+                });
+            });
+        }
+    }, [selectedDate, fixedExpenseTemplates, missingFixedTemplates, onAddExpense]);
 
     const stats = useMemo(() => {
         let total = 0, fixed = 0, variable = 0, paid = 0;
@@ -69,167 +89,226 @@ const Expenses: React.FC<ExpensesProps> = ({
         return { total, fixed, variable, paid };
     }, [filteredExpenses]);
 
-    const handleSave = () => {
-        // Como o app usa LocalStorage direto via props, vamos atualizar as despesas alteradas
-        // No mundo real, aqui seria um setAppData completo
-        draftExpenses.forEach(de => {
-            const original = expenses.find(e => e.id === de.id);
-            if (original && JSON.stringify(original) !== JSON.stringify(de)) {
-                onUpdateExpense(de);
-            }
-        });
-        setHasChanges(false);
-        alert('Alterações salvas!');
-    };
-
-    const handleUndo = () => {
-        if (window.confirm('Descartar alterações e voltar ao estado salvo?')) {
-            setDraftExpenses(expenses);
-            setHasChanges(false);
-        }
-    };
-
-    const handleClearMonth = () => {
-        if (window.confirm('Deseja excluir TODAS as despesas visualizadas neste mês?')) {
-            const idsToRemove = filteredExpenses.map(e => e.id);
-            setDraftExpenses(prev => prev.filter(e => !idsToRemove.includes(e.id)));
-            setHasChanges(true);
-        }
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleAddVariable = (e: React.FormEvent) => {
         e.preventDefault();
         const amount = parseFloat(formData.amount);
         if (!formData.description || isNaN(amount) || amount <= 0) return;
 
-        const newExp: Expense = {
-            id: Date.now(),
+        onAddExpense({
             description: formData.description,
             category: formData.category,
             amount: amount,
             dueDate: formData.dueDate,
             status: formData.status,
             paidDate: formData.status === 'Pago' ? formData.dueDate : undefined
-        };
-
-        setDraftExpenses(prev => [...prev, newExp]);
-        setHasChanges(true);
+        });
         setFormData({ ...formData, description: '', amount: '' });
     };
 
-    const handleToggleStatus = (expenseId: number) => {
-        setDraftExpenses(prev => prev.map(e => {
-            if (e.id !== expenseId) return e;
-            const newStatus = e.status === 'Pendente' ? 'Pago' : 'Pendente';
-            return { ...e, status: newStatus, paidDate: newStatus === 'Pago' ? new Date().toISOString().split('T')[0] : undefined };
-        }));
-        setHasChanges(true);
+    const handleAddFixedTemplate = (e: React.FormEvent) => {
+        e.preventDefault();
+        const amt = parseFloat(fixedTemplateForm.amount);
+        if (!fixedTemplateForm.description || isNaN(amt)) return;
+        onAddFixedExpenseTemplate({
+            description: fixedTemplateForm.description,
+            amount: amt,
+            day: parseInt(fixedTemplateForm.day)
+        });
+        setFixedTemplateForm({ description: '', amount: '', day: '5' });
     };
 
     return (
-        <div className="space-y-8 pb-32">
-            <header className="bg-red-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-                <div className="flex justify-between items-center">
+        <div className="space-y-8 animate-fadeIn pb-24">
+            <header className="bg-red-600 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold">Financeiro: Despesas</h1>
-                        <p className="mt-1 text-red-100">Gestão de custos do escritório.</p>
+                        <h1 className="text-3xl font-black uppercase tracking-tight">Fluxo de Despesas</h1>
+                        <p className="mt-1 text-red-100 italic text-sm">Custos fixos são replicados automaticamente para todos os meses.</p>
                     </div>
-                    <button onClick={handleClearMonth} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-black uppercase flex items-center transition-all">
-                        <TrashIcon className="w-4 h-4 mr-2" /> Limpar Mês
+                    <button 
+                        type="button"
+                        onClick={() => setIsFixedManagerOpen(true)} 
+                        className="px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/30 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center shadow-lg"
+                    >
+                        <CogIcon className="w-5 h-5 mr-2" /> Gerenciar Modelos Fixos
                     </button>
                 </div>
             </header>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex gap-4">
-                    <select value={selectedDate.month} onChange={e => setSelectedDate(prev => ({ ...prev, month: parseInt(e.target.value) }))} className="rounded-md border-slate-300 h-10 px-3">
-                        {Array.from({ length: 12 }, (_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}</option>)}
-                    </select>
-                    <select value={selectedDate.year} onChange={e => setSelectedDate(prev => ({ ...prev, year: parseInt(e.target.value) }))} className="rounded-md border-slate-300 h-10 px-3">
-                        {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mês de Referência</label>
+                        <div className="flex gap-2">
+                            <select value={selectedDate.month} onChange={e => setSelectedDate(prev => ({ ...prev, month: parseInt(e.target.value) }))} className="rounded-lg border-slate-200 h-11 px-4 font-bold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-red-500">
+                                {Array.from({ length: 12 }, (_, i) => <option key={i} value={i}>{new Date(0, i).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>)}
+                            </select>
+                            <select value={selectedDate.year} onChange={e => setSelectedDate(prev => ({ ...prev, year: parseInt(e.target.value) }))} className="rounded-lg border-slate-200 h-11 px-4 font-bold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-red-500">
+                                {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <button onClick={() => setIsFixedManagerOpen(true)} className="px-4 py-2 border border-orange-500 text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-md font-bold text-xs uppercase tracking-widest transition-colors">
-                    + Configurar Fixas
-                </button>
+                
+                <div className="flex items-center text-slate-400 gap-2">
+                    <CheckCircleIcon className="w-4 h-4 text-green-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Sistema de Auto-Replicação Ativo</span>
+                </div>
             </div>
 
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total do Mês" value={formatCurrency(stats.total)} icon={<CreditCardIcon className="w-6 h-6 text-red-500" />} />
-                <StatCard title="Custos Fixos" value={formatCurrency(stats.fixed)} icon={<TrendingDownIcon className="w-6 h-6 text-orange-500" />} />
-                <StatCard title="Pago no Mês" value={formatCurrency(stats.paid)} icon={<CheckCircleIcon className="w-6 h-6 text-green-500" />} />
-                <StatCard title="A Pagar" value={formatCurrency(stats.total - stats.paid)} icon={<XIcon className="w-6 h-6 text-slate-400" />} />
+                <StatCard title="Previsão Total" value={formatCurrency(stats.total)} icon={<CreditCardIcon className="w-6 h-6 text-red-600" />} />
+                <StatCard title="Total Fixo" value={formatCurrency(stats.fixed)} icon={<TrendingDownIcon className="w-6 h-6 text-orange-500" />} />
+                <StatCard title="Total Pago" value={formatCurrency(stats.paid)} icon={<CheckCircleIcon className="w-6 h-6 text-green-500" />} />
+                <StatCard title="Saldo Devedor" value={formatCurrency(stats.total - stats.paid)} icon={<XIcon className="w-6 h-6 text-slate-300" />} />
             </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1">
-                    <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-100">
-                        <h2 className="text-lg font-bold text-slate-800 mb-4 uppercase text-xs tracking-widest">Nova Despesa</h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <input type="text" required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Descrição..." className="w-full rounded-md border-slate-300 h-10 px-3" />
-                            <div className="grid grid-cols-2 gap-4">
-                                <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value as any })} className="rounded-md border-slate-300 h-10 px-2 bg-white">
-                                    <option value="Fixa">Fixa</option>
-                                    <option value="Variável">Variável</option>
-                                </select>
-                                <input type="number" required step="0.01" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} placeholder="0.00" className="rounded-md border-slate-300 h-10 px-3 font-bold" />
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 sticky top-6">
+                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Nova Despesa Variável</h2>
+                        <form onSubmit={handleAddVariable} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">O que você comprou?</label>
+                                <input type="text" required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Ex: Papelaria, Software..." className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-500" />
                             </div>
-                            <input type="date" required value={formData.dueDate} onChange={e => setFormData({ ...formData, dueDate: e.target.value })} className="w-full rounded-md border-slate-300 h-10 px-3" />
-                            <button type="submit" className="w-full py-3 bg-red-600 text-white font-black uppercase text-xs tracking-widest rounded-lg shadow-lg hover:bg-red-700 transition-all">Lançar Despesa</button>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Valor (R$)</label>
+                                    <input type="number" required step="0.01" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} placeholder="0,00" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-black outline-none focus:ring-2 focus:ring-red-500" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Vencimento</label>
+                                    <input type="date" required value={formData.dueDate} onChange={e => setFormData({ ...formData, dueDate: e.target.value })} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-500" />
+                                </div>
+                            </div>
+                            <button type="submit" className="w-full py-4 bg-slate-900 text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-xl hover:bg-slate-800 transition-all">Lançar Variável</button>
                         </form>
+                        
+                        <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                             <p className="text-[9px] font-bold text-slate-400 uppercase leading-relaxed text-center">
+                                Dica: Despesas que se repetem todo mês devem ser cadastradas em "Gerenciar Modelos Fixos".
+                             </p>
+                        </div>
                     </div>
                 </div>
 
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                <div className="lg:col-span-2">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 tracking-widest">
+                            <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-400 tracking-widest">
                                 <tr>
-                                    <th className="p-4">Dia</th>
-                                    <th className="p-4">Descrição</th>
-                                    <th className="p-4 text-right">Valor</th>
-                                    <th className="p-4 text-center">Status</th>
-                                    <th className="p-4 text-right">Ação</th>
+                                    <th className="p-5">Dia</th>
+                                    <th className="p-5">Descrição</th>
+                                    <th className="p-5 text-right">Valor</th>
+                                    <th className="p-5 text-center">Status</th>
+                                    <th className="p-5 text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {filteredExpenses.map(exp => (
-                                    <tr key={exp.id} className="hover:bg-slate-50/50">
-                                        <td className="p-4 text-slate-400 font-bold">{new Date(exp.dueDate).getUTCDate()}</td>
-                                        <td className="p-4 font-bold text-slate-700">{exp.description} <span className="ml-2 text-[9px] text-slate-300 font-black uppercase">{exp.category}</span></td>
-                                        <td className="p-4 text-right font-black text-slate-800">{formatCurrency(exp.amount)}</td>
-                                        <td className="p-4 text-center">
-                                            <button onClick={() => handleToggleStatus(exp.id)} className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border tracking-widest transition-all ${exp.status === 'Pago' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="p-5 text-slate-400 font-bold text-sm">{new Date(exp.dueDate + 'T12:00:00').getDate()}</td>
+                                        <td className="p-5">
+                                            <p className="font-bold text-slate-800 text-sm">{exp.description}</p>
+                                            <span className={`text-[9px] font-black uppercase tracking-widest ${exp.category === 'Fixa' ? 'text-orange-500' : 'text-blue-500'}`}>{exp.category}</span>
+                                        </td>
+                                        <td className="p-5 text-right font-black text-slate-900">{formatCurrency(exp.amount)}</td>
+                                        <td className="p-5 text-center">
+                                            <button 
+                                                onClick={() => onUpdateExpense({ ...exp, status: exp.status === 'Pago' ? 'Pendente' : 'Pago', paidDate: exp.status === 'Pendente' ? new Date().toISOString().split('T')[0] : undefined })} 
+                                                className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${exp.status === 'Pago' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
+                                            >
                                                 {exp.status}
                                             </button>
                                         </td>
-                                        <td className="p-4 text-right">
-                                            <button onClick={() => { setDraftExpenses(prev => prev.filter(e => e.id !== exp.id)); setHasChanges(true); }} className="text-slate-300 hover:text-red-500">
+                                        <td className="p-5 text-right">
+                                            <button onClick={() => onDeleteExpense(exp.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
                                                 <TrashIcon className="w-5 h-5 ml-auto" />
                                             </button>
                                         </td>
                                     </tr>
                                 ))}
-                                {filteredExpenses.length === 0 && <tr><td colSpan={5} className="p-10 text-center text-slate-400 italic">Sem lançamentos para este mês.</td></tr>}
+                                {filteredExpenses.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="p-20 text-center">
+                                            <div className="flex flex-col items-center opacity-30">
+                                                <CreditCardIcon className="w-12 h-12 mb-4" />
+                                                <p className="text-sm font-black uppercase tracking-widest">Nenhuma despesa registrada</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            {hasChanges && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-50 no-print animate-slideUp">
-                    <div className="bg-slate-900 text-white rounded-2xl shadow-2xl p-4 border border-slate-700 flex items-center justify-between gap-4 backdrop-blur-sm bg-slate-900/95 ring-8 ring-black/5">
-                        <div className="flex items-center space-x-3">
-                             <HistoryIcon className="w-5 h-5 text-blue-400" />
-                             <div>
-                                <p className="text-xs font-black uppercase tracking-widest">Mudanças no Financeiro</p>
-                                <p className="text-[10px] text-slate-400 mt-1">Lembre de salvar para consolidar no caixa.</p>
-                             </div>
+            {/* MODAL CONFIGURAR FIXAS */}
+            {isFixedManagerOpen && (
+                <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-slideUp">
+                        <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+                            <div>
+                                <h3 className="text-2xl font-black uppercase tracking-tight">Modelos de Despesas Fixas</h3>
+                                <p className="text-slate-400 text-xs font-bold mt-1">O que você cadastrar aqui aparecerá automaticamente em todos os meses.</p>
+                            </div>
+                            <button onClick={() => setIsFixedManagerOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors outline-none">
+                                <XIcon className="w-8 h-8 text-slate-400" />
+                            </button>
                         </div>
-                        <div className="flex gap-2">
-                            <button onClick={handleUndo} className="px-5 py-2.5 bg-slate-800 text-slate-300 font-black text-[10px] uppercase rounded-xl hover:bg-slate-700 transition-all">DESFAZER</button>
-                            <button onClick={handleSave} className="px-8 py-2.5 bg-green-600 text-white font-black text-[10px] uppercase rounded-xl hover:bg-green-700 shadow-xl shadow-green-900/20 transition-all">SALVAR MODIFICAÇÕES</button>
+                        
+                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center">
+                                    <PlusIcon className="w-4 h-4 mr-2 text-blue-500" /> Adicionar Novo Modelo
+                                </h4>
+                                <form onSubmit={handleAddFixedTemplate} className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Descrição da Conta</label>
+                                        <input type="text" required value={fixedTemplateForm.description} onChange={e => setFixedTemplateForm({...fixedTemplateForm, description: e.target.value})} placeholder="Aluguel, Adobe, Internet..." className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase">Valor Médio R$</label>
+                                            <input type="number" required step="0.01" value={fixedTemplateForm.amount} onChange={e => setFixedTemplateForm({...fixedTemplateForm, amount: e.target.value})} placeholder="0.00" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-blue-500" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase">Dia Venc.</label>
+                                            <input type="number" min="1" max="31" value={fixedTemplateForm.day} onChange={e => setFixedTemplateForm({...fixedTemplateForm, day: e.target.value})} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl text-center outline-none focus:ring-2 focus:ring-blue-500" />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-lg hover:bg-blue-700 transition-all">Salvar e Ativar</button>
+                                </form>
+                            </div>
+
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Modelos Ativos ({fixedExpenseTemplates.length})</h4>
+                                <div className="space-y-3">
+                                    {fixedExpenseTemplates.map(t => (
+                                        <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center shadow-sm group">
+                                            <div>
+                                                <p className="font-bold text-slate-800 text-sm">{t.description}</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase">Todo dia {t.day} • {formatCurrency(t.amount)}</p>
+                                            </div>
+                                            <button onClick={() => onDeleteFixedExpenseTemplate(t.id)} className="text-red-300 hover:text-red-600 transition-colors">
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {fixedExpenseTemplates.length === 0 && (
+                                        <div className="text-center py-10 opacity-30">
+                                            <ExclamationTriangleIcon className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                                            <p className="text-[9px] font-black uppercase tracking-widest">Sem modelos salvos</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-center">
+                            <button onClick={() => setIsFixedManagerOpen(false)} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl uppercase text-xs tracking-widest shadow-xl hover:bg-slate-800 transition-all">Concluir Configuração</button>
                         </div>
                     </div>
                 </div>
