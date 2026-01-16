@@ -111,15 +111,22 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         setContractTypes(prev => prev.map(ct => {
             if (ct.id !== id) return ct;
             const updated = { ...ct, [field]: value };
+            
+            // Busca o serviço nos modelos de preço para sugestão inicial
             const s = [...appData.servicePrices, ...appData.hourlyRates].find(srv => srv.name === updated.serviceName);
+            
+            // Se mudou o serviço, sugere o método de cálculo do banco
             if (field === 'serviceName' && s) {
                 updated.calculationMethod = s.unit === 'm²' ? 'metragem' : s.unit === 'hora' ? 'hora' : 'manual';
             }
+
+            // Recalcula valor se for metragem ou hora e não estiver em modo manual
             if (updated.calculationMethod === 'metragem') {
                 updated.value = (parseFloat(updated.area || '0') * (s?.price || 0)).toFixed(2);
             } else if (updated.calculationMethod === 'hora') {
                 updated.value = (parseFloat(updated.hours || '0') * (s?.price || 0)).toFixed(2);
             }
+            
             return updated;
         }));
     };
@@ -205,14 +212,42 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                         {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                                     </select>
                                 </div>
-                                <div className="w-full md:w-32 space-y-1 text-center">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{ct.calculationMethod === 'hora' ? 'Horas' : 'Qtd (m²)'}</label>
-                                    <input type="number" value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} className="w-full h-11 text-center bg-white border-slate-200 rounded-lg font-bold" />
+
+                                <div className="w-full md:w-32 space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cobrança</label>
+                                    <select 
+                                        value={ct.calculationMethod} 
+                                        onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} 
+                                        className="w-full h-11 px-3 bg-white border-slate-200 rounded-lg text-[11px] font-bold"
+                                    >
+                                        <option value="metragem">Por m²</option>
+                                        <option value="hora">Por Hora</option>
+                                        <option value="manual">Manual / Fixo</option>
+                                    </select>
                                 </div>
-                                <div className="w-full md:w-48 space-y-1">
+
+                                <div className="w-full md:w-28 space-y-1 text-center">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        {ct.calculationMethod === 'hora' ? 'Horas' : ct.calculationMethod === 'metragem' ? 'Qtd (m²)' : 'Qtd'}
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} 
+                                        onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} 
+                                        className="w-full h-11 text-center bg-white border-slate-200 rounded-lg font-bold" 
+                                    />
+                                </div>
+
+                                <div className="w-full md:w-44 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Total (R$)</label>
-                                    <input type="number" value={ct.value} onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} className="w-full h-11 px-4 bg-white border-slate-200 rounded-lg font-black text-slate-800" />
+                                    <input 
+                                        type="number" 
+                                        value={ct.value} 
+                                        onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} 
+                                        className="w-full h-11 px-4 bg-white border-slate-200 rounded-lg font-black text-slate-800" 
+                                    />
                                 </div>
+
                                 <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-11 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-lg transition-colors">REMOVER</button>
                             </div>
                         ))}
