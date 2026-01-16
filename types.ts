@@ -1,4 +1,5 @@
 
+
 export interface Address {
     street: string;
     number: string;
@@ -118,6 +119,14 @@ export interface PaymentInstallment {
     paymentDate?: Date;
 }
 
+// Fixed missing AttentionPoint export
+export interface AttentionPoint {
+    clientName: string;
+    description: string;
+    daysRemaining: number;
+    type: 'stage' | 'payment';
+}
+
 export interface ProjectStage {
     id: number;
     name: string;
@@ -186,9 +195,17 @@ export interface ChecklistItemTemplate {
     stage: string;
 }
 
+export interface ProjectChecklistItem {
+    id: number;
+    text: string;
+    stage: string;
+    completed: boolean;
+    completionDate?: string;
+}
+
 export interface ProjectChecklist {
     contractId: number;
-    completedItemIds: number[];
+    items: ProjectChecklistItem[];
 }
 
 export interface Expense {
@@ -274,30 +291,6 @@ export interface PricingModel {
     profitPercentage: number;
 }
 
-export interface AttentionPoint {
-    clientName: string;
-    description: string;
-    daysRemaining: number;
-    type: 'stage' | 'payment';
-}
-
-export interface GanttStage {
-    name: string;
-    startDate: Date;
-    endDate: Date;
-    status: 'pending' | 'in_progress' | 'completed';
-    progress: number;
-}
-
-export interface GanttProject {
-    contractId: number;
-    clientName: string;
-    projectName: string;
-    schedule: ProjectSchedule;
-    stages: GanttStage[];
-    daysRemaining?: number;
-}
-
 export interface AppData {
     clients: Client[];
     contracts: Contract[];
@@ -323,3 +316,4 @@ export interface AppData {
     meetings: Meeting[];
     projectUpdates: ProjectUpdate[];
 }
+

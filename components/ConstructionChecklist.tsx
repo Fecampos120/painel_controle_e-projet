@@ -1,326 +1,235 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Contract, ProjectChecklist, ChecklistItemTemplate, SystemSettings } from '../types';
+import { Contract, ProjectChecklist, ProjectChecklistItem } from '../types';
 import { CHECKLIST_TEMPLATE } from '../constants';
-import { CheckCircleIcon, PrinterIcon, ArchitectIcon, XIcon } from './Icons';
+import { CheckCircleIcon, ArchitectIcon, PlusIcon, TrashIcon, PencilIcon, TrendingUpIcon } from './Icons';
 
 interface ConstructionChecklistProps {
     contracts: Contract[];
     checklists: ProjectChecklist[];
-    systemSettings?: SystemSettings;
     onUpdateChecklist: (checklist: ProjectChecklist) => void;
 }
 
-interface ChecklistPrintModalProps {
-    contract: Contract;
-    completedItemIds: number[];
-    groupedItems: { [key: string]: ChecklistItemTemplate[] };
-    systemSettings?: SystemSettings;
-    onClose: () => void;
-}
-
-const ChecklistPrintModal: React.FC<ChecklistPrintModalProps> = ({ contract, completedItemIds, groupedItems, systemSettings, onClose }) => {
-    const handlePrint = () => {
-        window.print();
-    };
-
-    const calculateProgress = () => {
-        const total = CHECKLIST_TEMPLATE.length;
-        if(total === 0) return 0;
-        return Math.round((completedItemIds.length / total) * 100);
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 print:p-0 print:bg-white">
-            <style>{`
-                @media print {
-                    body > * { display: none !important; }
-                    .checklist-report-modal, .checklist-report-modal * { display: block !important; }
-                    .checklist-report-modal { 
-                        position: absolute; 
-                        left: 0; 
-                        top: 0; 
-                        width: 100%; 
-                        height: auto; 
-                        background: white;
-                        box-shadow: none;
-                        overflow: visible !important;
-                    }
-                    .no-print { display: none !important; }
-                    @page { margin: 1.5cm; }
-                }
-            `}</style>
-            
-            <div className="checklist-report-modal bg-white w-full max-w-4xl rounded-lg shadow-xl max-h-[90vh] overflow-y-auto font-serif">
-                <div className="p-4 border-b flex justify-between items-center no-print sticky top-0 bg-white z-10">
-                    <h3 className="font-bold text-lg font-sans text-slate-800">Relatório de Checklist</h3>
-                    <div className="flex space-x-2">
-                        <button onClick={handlePrint} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-sans text-sm font-medium">
-                            <PrinterIcon className="w-4 h-4 mr-2"/> Imprimir
-                        </button>
-                        <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded">
-                            <XIcon className="w-5 h-5"/>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="p-10 text-slate-900">
-                    {/* Header Padrão */}
-                    <header className="flex justify-between items-end border-b-2 border-slate-800 pb-6 mb-8">
-                        <div>
-                            <h1 className="text-2xl font-bold uppercase tracking-widest">Relatório de Acompanhamento</h1>
-                            <p className="text-slate-600 text-sm mt-1">Checklist de Obra e Etapas</p>
-                        </div>
-                        <div className="text-right">
-                            <div className="flex items-center justify-end space-x-2 font-bold text-xl">
-                                {systemSettings?.logoUrl ? (
-                                    <img src={systemSettings.logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
-                                ) : (
-                                    <ArchitectIcon className="w-8 h-8" />
-                                )}
-                                <span>{systemSettings?.companyName || "STUDIO BATTELLI"}</span>
-                            </div>
-                            <p className="text-xs text-slate-500 mt-1">Arquitetura & Interiores</p>
-                            <p className="text-xs text-slate-500">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
-                        </div>
-                    </header>
-
-                    <main className="space-y-8">
-                        {/* Project Info */}
-                        <section className="bg-slate-50 p-6 rounded border border-slate-200 print:border-slate-300">
-                            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 uppercase">Cliente</p>
-                                    <p className="font-bold text-lg">{contract.clientName}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 uppercase">Projeto</p>
-                                    <p className="font-bold text-lg">{contract.projectName}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 uppercase">Local</p>
-                                    <p className="text-sm">{contract.projectAddress.street}, {contract.projectAddress.number} - {contract.projectAddress.city}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 uppercase">Progresso Geral</p>
-                                    <div className="flex items-center space-x-2 mt-1">
-                                        <div className="w-full bg-slate-300 rounded-full h-2 max-w-[100px] print:border print:border-slate-400">
-                                            <div className="bg-slate-800 h-2 rounded-full print:bg-slate-800" style={{width: `${calculateProgress()}%`}}></div>
-                                        </div>
-                                        <span className="text-sm font-bold">{calculateProgress()}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* Checklist Items */}
-                        <section className="space-y-6">
-                            {(Object.entries(groupedItems) as [string, ChecklistItemTemplate[]][]).map(([stageName, items]) => {
-                                // Check if stage is fully complete for header styling
-                                const isStageComplete = items.every(i => completedItemIds.includes(i.id));
-                                
-                                return (
-                                    <div key={stageName} className="break-inside-avoid">
-                                        <h3 className="text-sm font-bold text-slate-800 uppercase border-b-2 border-slate-800 pb-1 mb-3 flex justify-between items-center">
-                                            <span>{stageName}</span>
-                                            {isStageComplete && <span className="text-xs bg-slate-800 text-white px-2 py-0.5 rounded">CONCLUÍDO</span>}
-                                        </h3>
-                                        <ul className="space-y-1">
-                                            {items.map(item => {
-                                                const isChecked = completedItemIds.includes(item.id);
-                                                return (
-                                                    <li key={item.id} className="flex items-start space-x-3 text-sm py-1">
-                                                        <span className={`flex items-center justify-center w-5 h-5 border rounded-sm flex-shrink-0 ${isChecked ? 'bg-slate-800 border-slate-800 text-white' : 'border-slate-400 bg-white'}`}>
-                                                            {isChecked && <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>}
-                                                        </span>
-                                                        <span className={isChecked ? 'text-slate-500 line-through' : 'text-slate-800'}>
-                                                            {item.text}
-                                                        </span>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    </div>
-                                );
-                            })}
-                        </section>
-                    </main>
-
-                    <footer className="mt-16 pt-8 border-t border-slate-200 text-center text-xs text-slate-400">
-                        <p>Documento para controle interno e acompanhamento de etapas.</p>
-                    </footer>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts, checklists = [], systemSettings, onUpdateChecklist }) => {
+const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts, checklists = [], onUpdateChecklist }) => {
     const [selectedContractId, setSelectedContractId] = useState<string>('');
-    const [localCompletedIds, setLocalCompletedIds] = useState<number[]>([]);
+    const [localItems, setLocalItems] = useState<ProjectChecklistItem[]>([]);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<ProjectChecklistItem | null>(null);
 
     const activeContracts = contracts.filter(c => c.status === 'Ativo');
-    const selectedContract = contracts.find(c => c.id.toString() === selectedContractId);
 
-    // Carregar dados salvos quando o contrato muda
     useEffect(() => {
         if (selectedContractId) {
             const savedChecklist = (checklists || []).find(c => c.contractId === parseInt(selectedContractId));
-            setLocalCompletedIds(savedChecklist ? savedChecklist.completedItemIds : []);
+            if (savedChecklist) {
+                setLocalItems(savedChecklist.items);
+            } else {
+                setLocalItems(CHECKLIST_TEMPLATE.map(t => ({
+                    id: Math.random() + t.id,
+                    text: t.text,
+                    stage: t.stage,
+                    completed: false
+                })));
+            }
             setHasUnsavedChanges(false);
         } else {
-            setLocalCompletedIds([]);
+            setLocalItems([]);
             setHasUnsavedChanges(false);
         }
     }, [selectedContractId, checklists]);
 
-    const handleToggleItem = (itemId: number) => {
-        if (!selectedContractId) return;
-
-        setLocalCompletedIds(prev => {
-            const isCompleted = prev.includes(itemId);
-            if (isCompleted) {
-                return prev.filter(id => id !== itemId);
-            } else {
-                return [...prev, itemId];
-            }
-        });
+    const handleToggleCheck = (itemId: number) => {
+        setLocalItems(prev => prev.map(item => {
+            if (item.id !== itemId) return item;
+            const isNowCompleted = !item.completed;
+            return { 
+                ...item, 
+                completed: isNowCompleted,
+                completionDate: isNowCompleted ? new Date().toLocaleDateString('pt-BR') : undefined
+            };
+        }));
         setHasUnsavedChanges(true);
+    };
+
+    const handleAddItem = (stageName: string) => {
+        const newItem: ProjectChecklistItem = {
+            id: Date.now(),
+            text: 'Novo item técnico...',
+            stage: stageName,
+            completed: false
+        };
+        setLocalItems(prev => [...prev, newItem]);
+        setHasUnsavedChanges(true);
+        setEditingItem(newItem);
+    };
+
+    const handleUpdateItemText = (id: number, newText: string) => {
+        setLocalItems(prev => prev.map(i => i.id === id ? { ...i, text: newText } : i));
+        setHasUnsavedChanges(true);
+    };
+
+    const handleDeleteItem = (id: number) => {
+        if (window.confirm('Remover este item do checklist?')) {
+            setLocalItems(prev => prev.filter(i => i.id !== id));
+            setHasUnsavedChanges(true);
+        }
     };
 
     const handleSave = () => {
         if (!selectedContractId) return;
-
         onUpdateChecklist({
             contractId: parseInt(selectedContractId),
-            completedItemIds: localCompletedIds
+            items: localItems
         });
-        
         setHasUnsavedChanges(false);
-        alert('Checklist salvo com sucesso!');
+        alert('Fluxo salvo com sucesso!');
     };
 
-    // Group items by stage
     const groupedItems = useMemo(() => {
-        const groups: { [key: string]: ChecklistItemTemplate[] } = {};
-        CHECKLIST_TEMPLATE.forEach(item => {
-            if (!groups[item.stage]) {
-                groups[item.stage] = [];
-            }
+        const groups: { [key: string]: ProjectChecklistItem[] } = {};
+        if (localItems.length === 0) return groups;
+        localItems.forEach(item => {
+            if (!groups[item.stage]) groups[item.stage] = [];
             groups[item.stage].push(item);
         });
         return groups;
-    }, []);
-    
+    }, [localItems]);
+
     const calculateProgress = () => {
-        if(CHECKLIST_TEMPLATE.length === 0) return 0;
-        return Math.round((localCompletedIds.length / CHECKLIST_TEMPLATE.length) * 100);
-    }
+        if (localItems.length === 0) return 0;
+        const done = localItems.filter(s => s.completed).length;
+        return Math.round((done / localItems.length) * 100);
+    };
 
     return (
-        <div className="space-y-8 relative pb-20">
-            <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-                <h1 className="text-3xl font-bold">Checklist de Obra</h1>
-                <p className="mt-1 text-blue-100">
-                    Acompanhe as etapas e tarefas essenciais de cada projeto.
-                </p>
+        <div className="space-y-8 relative pb-24 animate-fadeIn">
+            <header className="bg-slate-900 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-8 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
+                <h1 className="text-3xl font-black uppercase tracking-tight">Andamento Técnico de Obra</h1>
+                <p className="mt-1 text-slate-400 italic text-sm">Controle direto Arquiteta x Cliente. Marque os itens concluídos para registrar a data.</p>
             </header>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg flex flex-col md:flex-row justify-between items-end gap-4">
-                <div className="w-full md:w-auto flex-1">
-                    <label htmlFor="contract-select" className="block text-sm font-medium text-slate-700 mb-2">Selecione o Projeto/Cliente</label>
-                    <select
-                        id="contract-select"
-                        value={selectedContractId}
-                        onChange={(e) => setSelectedContractId(e.target.value)}
-                        className="block w-full max-w-md rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
-                    >
-                        <option value="">Selecione...</option>
-                        {activeContracts.map(contract => (
-                            <option key={contract.id} value={contract.id}>
-                                {contract.clientName} - {contract.projectName}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                    <button 
-                        onClick={() => setIsPrintModalOpen(true)} 
-                        disabled={!selectedContractId}
-                        className="flex items-center justify-center px-4 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-md shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <PrinterIcon className="w-5 h-5 mr-2" />
-                        Imprimir Relatório
-                    </button>
-                </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Selecione o Projeto Ativo</label>
+                <select
+                    value={selectedContractId}
+                    onChange={(e) => setSelectedContractId(e.target.value)}
+                    className="block w-full max-w-xl h-12 px-4 rounded-xl border-slate-200 bg-slate-50 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                    <option value="">Escolha um projeto para conferir...</option>
+                    {activeContracts.map(contract => (
+                        <option key={contract.id} value={contract.id}>{contract.clientName} - {contract.projectName}</option>
+                    ))}
+                </select>
             </div>
 
-            {selectedContractId && (
-                <div className="space-y-6">
-                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-                        <span className="font-semibold text-slate-700">Progresso Total</span>
-                        <div className="flex items-center space-x-3 flex-1 max-w-xs ml-4">
-                             <div className="w-full bg-slate-200 rounded-full h-2.5">
-                                <div className="bg-green-600 h-2.5 rounded-full transition-all duration-500" style={{width: `${calculateProgress()}%`}}></div>
+            {selectedContractId ? (
+                <div className="space-y-8">
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                                <TrendingUpIcon className="w-7 h-7" />
                             </div>
-                            <span className="text-sm font-bold text-slate-700">{calculateProgress()}%</span>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase">Status do Cronograma Técnico</p>
+                                <p className="text-xl font-black text-slate-800">{calculateProgress()}% Finalizado</p>
+                            </div>
+                        </div>
+                        <div className="flex-1 max-w-md ml-10">
+                            <div className="w-full bg-slate-100 rounded-full h-3">
+                                <div className="bg-blue-600 h-full rounded-full transition-all duration-700" style={{ width: `${calculateProgress()}%` }}></div>
+                            </div>
                         </div>
                     </div>
 
-                    {Object.entries(groupedItems).map(([stageName, items]) => (
-                        <div key={stageName} className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-                            <h3 className="text-lg font-bold text-blue-600 border-b border-blue-100 pb-3 mb-4 sticky top-0 bg-white z-10">
-                                {stageName}
-                            </h3>
-                            <div className="space-y-3">
-                                {(items as ChecklistItemTemplate[]).map(item => {
-                                    const isChecked = localCompletedIds.includes(item.id);
-                                    return (
-                                        <label key={item.id} className="flex items-start space-x-3 cursor-pointer hover:bg-slate-50 p-2 rounded-md transition-colors group">
-                                            <input
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={() => handleToggleItem(item.id)}
-                                                className="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0 cursor-pointer"
-                                            />
-                                            <span className={`text-sm transition-all duration-200 ${isChecked ? 'line-through text-slate-400' : 'text-slate-700 group-hover:text-blue-700'}`}>
-                                                {item.text}
-                                            </span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
+                    <div className="grid grid-cols-1 gap-8">
+                        {(Object.entries(groupedItems) as [string, ProjectChecklistItem[]][]).sort().map(([stageName, items]) => (
+                            <div key={stageName} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 group">
+                                <div className="flex justify-between items-center mb-6 border-b border-slate-50 pb-4">
+                                    <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em]">{stageName}</h3>
+                                    <button 
+                                        onClick={() => handleAddItem(stageName)}
+                                        className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all"
+                                    >
+                                        + Add Item Técnico
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {items.map(item => (
+                                        <div 
+                                            key={item.id} 
+                                            className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
+                                                item.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-100 hover:border-blue-200'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-4 flex-1">
+                                                <button 
+                                                    onClick={() => handleToggleCheck(item.id)} 
+                                                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                                                        item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200 hover:border-blue-400'
+                                                    }`}
+                                                >
+                                                    {item.completed && <CheckCircleIcon className="w-4 h-4" />}
+                                                </button>
+                                                
+                                                <div className="flex-1">
+                                                    {editingItem?.id === item.id ? (
+                                                        <input 
+                                                            autoFocus
+                                                            className="w-full text-sm font-bold bg-white border border-blue-300 rounded px-2 py-1 outline-none"
+                                                            value={item.text}
+                                                            onBlur={() => setEditingItem(null)}
+                                                            onChange={(e) => handleUpdateItemText(item.id, e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && setEditingItem(null)}
+                                                        />
+                                                    ) : (
+                                                        <div>
+                                                            <span 
+                                                                onClick={() => handleToggleCheck(item.id)}
+                                                                className={`text-sm font-bold cursor-pointer select-none transition-all ${item.completed ? 'text-slate-400 line-through italic' : 'text-slate-700'}`}
+                                                            >
+                                                                {item.text}
+                                                            </span>
+                                                            {item.completed && item.completionDate && (
+                                                                <p className="text-[9px] font-black text-green-600 uppercase mt-0.5 tracking-widest">
+                                                                    Concluído em: {item.completionDate}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
 
-                    {/* Floating Save Button Bar */}
-                    <div className="fixed bottom-6 right-6 z-30 print:hidden">
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => setEditingItem(item)} className="p-1.5 text-slate-300 hover:text-blue-600 transition-colors"><PencilIcon className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-300 hover:text-red-600 transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-6">
                          <button 
                             onClick={handleSave}
-                            className={`flex items-center justify-center px-8 py-4 rounded-full shadow-xl text-white font-bold text-lg transition-all duration-300 transform hover:scale-105 ${hasUnsavedChanges ? 'bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-300' : 'bg-green-600 hover:bg-green-700'}`}
+                            disabled={!hasUnsavedChanges}
+                            className={`w-full py-4 rounded-3xl shadow-2xl font-black uppercase text-xs tracking-widest transition-all ${
+                                hasUnsavedChanges 
+                                ? 'bg-blue-600 text-white hover:bg-blue-700 animate-bounce' 
+                                : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'
+                            }`}
                         >
-                            <CheckCircleIcon className="w-6 h-6 mr-2" />
-                            {hasUnsavedChanges ? 'Salvar Alterações' : 'Salvo'}
+                            Salvar Alterações de Obra
                         </button>
                     </div>
                 </div>
-            )}
-            
-            {!selectedContractId && (
-                <div className="text-center py-12 text-slate-500 bg-white rounded-xl shadow-lg border border-dashed border-slate-300">
-                    <p>Selecione um cliente acima para visualizar e gerenciar o checklist de obra.</p>
+            ) : (
+                <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 opacity-50">
+                    <ArchitectIcon className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                    <h2 className="text-xl font-black text-slate-400 uppercase tracking-widest">Nenhum projeto em foco</h2>
+                    <p className="text-sm font-bold text-slate-400">Selecione uma obra acima para marcar o andamento técnico.</p>
                 </div>
-            )}
-
-            {isPrintModalOpen && selectedContract && (
-                <ChecklistPrintModal 
-                    contract={selectedContract}
-                    completedItemIds={localCompletedIds}
-                    groupedItems={groupedItems}
-                    systemSettings={systemSettings}
-                    onClose={() => setIsPrintModalOpen(false)}
-                />
             )}
         </div>
     );

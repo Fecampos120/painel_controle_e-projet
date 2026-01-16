@@ -15,6 +15,7 @@ import Pricing from './components/Pricing';
 import Budgets from './components/Budgets';
 import Auth from './components/Auth';
 import TechnicalVisits from './components/TechnicalVisits';
+import ConstructionChecklist from './components/ConstructionChecklist';
 import { useUserData } from './hooks/useUserData';
 
 import { 
@@ -30,10 +31,11 @@ import {
     BrandLogo,
     UsersIcon,
     HistoryIcon,
-    ArchitectIcon
+    ArchitectIcon,
+    CheckCircleIcon
 } from './components/Icons';
 
-import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectStage, Meeting, ProjectUpdate, VisitLog, ProjectChecklist, Expense, FixedExpenseTemplate } from './types';
+import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectStage, Meeting, ProjectUpdate, VisitLog, ProjectChecklist, Expense, FixedExpenseTemplate, Note } from './types';
 import { 
   MOCK_FIXED_EXPENSE_TEMPLATES, 
   DEFAULT_SYSTEM_SETTINGS,
@@ -41,10 +43,11 @@ import {
   INITIAL_SERVICE_PRICES,
   INITIAL_HOURLY_RATES,
   INITIAL_MEASUREMENT_TIERS,
-  INITIAL_PROJECT_STAGES_TEMPLATE
+  INITIAL_PROJECT_STAGES_TEMPLATE,
+  CHECKLIST_TEMPLATE
 } from './constants';
 
-type View = 'dashboard' | 'budgets' | 'contracts' | 'new-contract' | 'client-area' | 'pricing' | 'progress' | 'projections' | 'expenses' | 'notes' | 'settings' | 'project-portal' | 'receipts' | 'tech-visits';
+type View = 'dashboard' | 'budgets' | 'contracts' | 'new-contract' | 'client-area' | 'pricing' | 'progress' | 'projections' | 'expenses' | 'notes' | 'settings' | 'project-portal' | 'receipts' | 'tech-visits' | 'construction-checklist';
 
 const INITIAL_DATA: AppData = {
     clients: [],
@@ -130,6 +133,17 @@ const App: React.FC = () => {
                             onAddContract={(c) => {
                                 const contractId = Date.now();
                                 const schedule: ProjectSchedule = { id: Date.now() + 500, contractId, clientName: c.clientName, projectName: c.projectName, startDate: new Date(c.date).toISOString().split('T')[0], stages: appData.projectStagesTemplate.map(t => ({ id: Date.now() + t.id + Math.random(), name: t.name, durationWorkDays: t.durationWorkDays })) };
+                                
+                                const initialChecklist: ProjectChecklist = {
+                                    contractId,
+                                    items: CHECKLIST_TEMPLATE.map(t => ({
+                                        id: Math.random() + t.id,
+                                        text: t.text,
+                                        stage: t.stage,
+                                        completed: false
+                                    }))
+                                };
+
                                 const newInstallments: PaymentInstallment[] = [];
                                 if (c.downPayment > 0) {
                                     newInstallments.push({ id: Date.now() + 1000, contractId, clientName: c.clientName, projectName: c.projectName, installment: 'Entrada', dueDate: new Date(c.downPaymentDate), value: c.downPayment, status: 'Pendente' });
@@ -148,6 +162,7 @@ const App: React.FC = () => {
                                     contracts: [...prev.contracts, { ...c, id: contractId }] as Contract[], 
                                     schedules: [...prev.schedules, schedule],
                                     installments: [...prev.installments, ...newInstallments],
+                                    checklists: [...(prev.checklists || []), initialChecklist],
                                     budgets: budgetToConvert ? prev.budgets.filter(b => b.id !== budgetToConvert.id) : prev.budgets
                                 }));
                                 setView('contracts');
@@ -186,12 +201,13 @@ const App: React.FC = () => {
                     <ProjectPortal 
                         contract={portalContract}
                         schedule={appData.schedules.find(s => s.contractId === selectedProjectId)}
-                        checklist={appData.checklists.find(c => c.contractId === selectedProjectId) || { contractId: selectedProjectId!, completedItemIds: [] }}
+                        checklist={appData.checklists.find(c => c.contractId === selectedProjectId) || { contractId: selectedProjectId!, items: [] }}
                         installments={appData.installments.filter(i => i.contractId === selectedProjectId)}
-                        meetings={appData.meetings.filter(m => m.contractId === selectedProjectId)}
+                        notes={appData.notes.filter(n => n.contractId === selectedProjectId)}
                         updates={appData.projectUpdates.filter(u => u.contractId === selectedProjectId)}
                         visitLogs={appData.visitLogs.filter(v => v.contractId === selectedProjectId)}
                         onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now() }]}))}
+                        onAddProjectUpdate={(u) => setAppData(prev => ({...prev, projectUpdates: [...prev.projectUpdates, { ...u, id: Date.now() }]}))}
                         onUpdateChecklist={handleUpdateChecklist}
                         onBack={() => setView('client-area')}
                     />
@@ -216,6 +232,8 @@ const App: React.FC = () => {
                 return <Notes notes={appData.notes} onUpdateNote={(n) => setAppData(prev => ({...prev, notes: prev.notes.map(note => note.id === n.id ? n : note)}))} onDeleteNote={(id) => setAppData(prev => ({...prev, notes: prev.notes.filter(n => n.id !== id)}))} onAddNote={(n) => setAppData(prev => ({...prev, notes: [...prev.notes, {...n, id: Date.now(), createdAt: new Date()}]}))} contracts={appData.contracts} />;
             case 'settings':
                 return <Settings appData={appData} setAppData={setAppData} />;
+            case 'construction-checklist':
+                return <ConstructionChecklist contracts={appData.contracts} checklists={appData.checklists} onUpdateChecklist={handleUpdateChecklist} />;
             default:
                 return <Dashboard installments={appData.installments} contracts={appData.contracts} schedules={appData.schedules} projectProgress={appData.projectProgress || []} otherPayments={appData.otherPayments} expenses={appData.expenses || []} />;
         }
@@ -234,6 +252,7 @@ const App: React.FC = () => {
                     <NavItem icon={<DashboardIcon />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />
                     <NavItem icon={<WalletIcon />} label="Orçamentos" isActive={view === 'budgets'} onClick={() => setView('budgets')} />
                     <NavItem icon={<FileTextIcon />} label="Projetos" isActive={view === 'contracts'} onClick={() => setView('contracts')} />
+                    <NavItem icon={<CheckCircleIcon />} label="Checklist Obra" isActive={view === 'construction-checklist'} onClick={() => setView('construction-checklist')} />
                     <NavItem icon={<UsersIcon />} label="Área Cliente" isActive={view === 'client-area' || view === 'project-portal'} onClick={() => setView('client-area')} />
                     <NavItem icon={<MoneyBagIcon />} label="Precificação" isActive={view === 'pricing'} onClick={() => setView('pricing')} />
                     <NavItem icon={<TrendingUpIcon />} label="Andamento" isActive={view === 'progress'} onClick={() => setView('progress')} />

@@ -1,8 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-// Fix: Added ChecklistItemTemplate to imports
-import { Contract, ProjectSchedule, ProjectChecklist, PaymentInstallment, VisitLog, Meeting, ProjectUpdate, ChecklistItemTemplate } from '../types';
-import { CHECKLIST_TEMPLATE } from '../constants';
+import React, { useState, useMemo, useRef } from 'react';
+import { Contract, ProjectSchedule, ProjectChecklist, ProjectChecklistItem, PaymentInstallment, VisitLog, Meeting, ProjectUpdate, Note } from '../types';
 import { 
     ChevronLeftIcon, 
     CheckCircleIcon, 
@@ -16,7 +14,11 @@ import {
     PlusIcon,
     XIcon,
     UsersIcon,
-    NotepadIcon
+    NotepadIcon,
+    CameraIcon,
+    UploadIcon,
+    EyeIcon,
+    PencilIcon
 } from './Icons';
 
 interface ProjectPortalProps {
@@ -24,10 +26,11 @@ interface ProjectPortalProps {
     schedule?: ProjectSchedule;
     checklist: ProjectChecklist;
     installments: PaymentInstallment[];
-    meetings: Meeting[];
+    notes: Note[];
     updates: ProjectUpdate[];
     visitLogs: VisitLog[];
     onAddVisitLog: (log: Omit<VisitLog, 'id' | 'createdAt'>) => void;
+    onAddProjectUpdate: (update: Omit<ProjectUpdate, 'id'>) => void;
     onUpdateChecklist: (checklist: ProjectChecklist) => void;
     onBack: () => void;
 }
@@ -37,14 +40,27 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
     schedule, 
     checklist,
     installments, 
+    notes,
+    updates,
     visitLogs,
     onAddVisitLog,
+    onAddProjectUpdate,
     onUpdateChecklist,
     onBack 
 }) => {
-    const [activeTab, setActiveTab] = useState<'geral' | 'visitas' | 'financeiro' | 'checklist'>('geral');
+    const [activeTab, setActiveTab] = useState<'geral' | 'visitas' | 'financeiro' | 'checklist' | 'mural'>('geral');
     const [isAddVisitOpen, setIsAddVisitOpen] = useState(false);
+    const [isAddUpdateOpen, setIsAddUpdateOpen] = useState(false);
+    
     const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], notes: '' });
+    const [updateForm, setUpdateForm] = useState({ 
+        date: new Date().toISOString().split('T')[0], 
+        description: '', 
+        nextSteps: '', 
+        photos: [] as string[] 
+    });
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     const formatDate = (date: any) => date ? new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(date)) : '-';
@@ -59,6 +75,22 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
         return Math.round((completed / schedule.stages.length) * 100);
     }, [schedule]);
 
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        (Array.from(files) as File[]).forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setUpdateForm(prev => ({
+                    ...prev,
+                    photos: [...prev.photos, reader.result as string]
+                }));
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
     const submitVisit = (e: React.FormEvent) => {
         e.preventDefault();
         onAddVisitLog({ ...visitForm, contractId: contract.id });
@@ -66,26 +98,23 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
         setVisitForm({ date: new Date().toISOString().split('T')[0], notes: '' });
     };
 
-    const handleToggleChecklistItem = (itemId: number) => {
-        const isCompleted = checklist.completedItemIds.includes(itemId);
-        const newCompletedIds = isCompleted 
-            ? checklist.completedItemIds.filter(id => id !== itemId)
-            : [...checklist.completedItemIds, itemId];
-        
-        onUpdateChecklist({
-            contractId: contract.id,
-            completedItemIds: newCompletedIds
-        });
+    const submitUpdate = (e: React.FormEvent) => {
+        e.preventDefault();
+        onAddProjectUpdate({ ...updateForm, contractId: contract.id });
+        setIsAddUpdateOpen(false);
+        setUpdateForm({ date: new Date().toISOString().split('T')[0], description: '', nextSteps: '', photos: [] });
     };
 
     const groupedChecklist = useMemo(() => {
-        const groups: { [key: string]: typeof CHECKLIST_TEMPLATE } = {};
-        CHECKLIST_TEMPLATE.forEach(item => {
-            if (!groups[item.stage]) groups[item.stage] = [];
-            groups[item.stage].push(item);
-        });
+        const groups: { [key: string]: ProjectChecklistItem[] } = {};
+        if (checklist.items) {
+            checklist.items.forEach(item => {
+                if (!groups[item.stage]) groups[item.stage] = [];
+                groups[item.stage].push(item);
+            });
+        }
         return groups;
-    }, []);
+    }, [checklist.items]);
 
     return (
         <div className="space-y-8 animate-fadeIn pb-20">
@@ -131,7 +160,8 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
             <div className="flex border-b border-slate-200 space-x-2 md:space-x-4 no-print overflow-x-auto">
                 {[
                     { id: 'geral', label: 'Cronograma', icon: <TrendingUpIcon className="w-4 h-4" /> },
-                    { id: 'checklist', label: 'Checklist Obra', icon: <CheckCircleIcon className="w-4 h-4" /> },
+                    { id: 'mural', label: 'Mural & Fotos', icon: <CameraIcon className="w-4 h-4" /> },
+                    { id: 'checklist', label: 'Andamento Técnico', icon: <CheckCircleIcon className="w-4 h-4" /> },
                     { id: 'visitas', label: 'Visitas', icon: <MapPinIcon className="w-4 h-4" /> },
                     { id: 'financeiro', label: 'Financeiro', icon: <DollarIcon className="w-4 h-4" /> }
                 ].map((tab) => (
@@ -169,36 +199,144 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                 </div>
             )}
 
+            {activeTab === 'mural' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1 space-y-6">
+                        <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
+                            <h3 className="text-lg font-black text-slate-800 uppercase mb-6 flex items-center">
+                                <NotepadIcon className="w-5 h-5 mr-3 text-blue-500" /> Mural de Recados
+                            </h3>
+                            <div className="space-y-4">
+                                {notes.length === 0 && <p className="text-xs text-slate-400 italic">Nenhum recado fixado.</p>}
+                                {notes.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(note => (
+                                    <div key={note.id} className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl relative group">
+                                        <p className="text-[10px] font-black text-blue-400 uppercase mb-1">{formatDate(note.createdAt)}</p>
+                                        <h4 className="font-bold text-slate-800 text-sm mb-1">{note.title}</h4>
+                                        <p className="text-xs text-slate-600 leading-relaxed">{note.content}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="flex justify-between items-center">
+                             <h3 className="text-lg font-black text-slate-800 uppercase flex items-center">
+                                <CameraIcon className="w-5 h-5 mr-3 text-purple-500" /> Fotos & Acompanhamento
+                            </h3>
+                            <button onClick={() => setIsAddUpdateOpen(true)} className="px-4 py-2 bg-slate-900 text-white font-black text-[10px] uppercase rounded-xl hover:bg-purple-600 transition-all">
+                                + Novo Registro
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            {updates.length === 0 && (
+                                <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-slate-100 text-center opacity-40">
+                                    <CameraIcon className="w-12 h-12 mx-auto mb-4" />
+                                    <p className="font-bold uppercase text-xs">Ainda não há fotos desta obra.</p>
+                                </div>
+                            )}
+                            {updates.sort((a,b) => b.date.localeCompare(a.date)).map(update => (
+                                <div key={update.id} className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100 space-y-4">
+                                    <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{formatDate(update.date)}</span>
+                                        <span className="text-[9px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full uppercase">Update Obra</span>
+                                    </div>
+                                    <p className="text-sm text-slate-700 font-medium leading-relaxed">{update.description}</p>
+                                    
+                                    {update.photos && update.photos.length > 0 && (
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            {update.photos.map((photo, pIdx) => (
+                                                <div key={pIdx} className="aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 group cursor-pointer">
+                                                    <img src={photo} alt="Obra" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {update.nextSteps && (
+                                        <div className="mt-4 p-3 bg-slate-50 rounded-xl">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Próximos Passos:</p>
+                                            <p className="text-xs text-slate-600">{update.nextSteps}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'checklist' && (
                 <div className="space-y-6">
                     <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-100">
-                        <h3 className="text-xl font-black text-slate-800 uppercase mb-8 flex items-center">
-                            <CheckCircleIcon className="w-6 h-6 mr-3 text-green-500" /> Acompanhamento Técnico de Obra
-                        </h3>
-                        <div className="space-y-10">
-                            {/* Fix: Added explicit cast to fix "Property 'map' does not exist on type 'unknown'" error */}
-                            {(Object.entries(groupedChecklist) as [string, ChecklistItemTemplate[]][]).map(([stage, items]) => (
-                                <div key={stage} className="space-y-4">
-                                    <h4 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] border-b border-blue-50 pb-2">{stage}</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {items.map(item => {
-                                            const isDone = checklist.completedItemIds.includes(item.id);
-                                            return (
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                            <h3 className="text-2xl font-black text-slate-800 uppercase flex items-center">
+                                <CheckCircleIcon className="w-8 h-8 mr-3 text-green-500" /> Andamento Técnico & Montagem
+                            </h3>
+                        </div>
+
+                        <div className="space-y-12">
+                            {Object.entries(groupedChecklist).length === 0 && (
+                                <p className="text-center text-slate-400 italic">Nenhum item técnico configurado.</p>
+                            )}
+                            {(Object.entries(groupedChecklist) as [string, ProjectChecklistItem[]][]).sort().map(([stage, items]) => {
+                                const stageTotal = items.length;
+                                const stageDone = items.filter(it => it.completed).length;
+                                const stageProgress = Math.round((stageDone / stageTotal) * 100);
+
+                                return (
+                                    <div key={stage} className="space-y-4">
+                                        <div className="flex justify-between items-end border-b-2 border-slate-100 pb-2">
+                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">{stage}</h4>
+                                            <span className="text-[10px] font-black text-slate-400">{stageProgress}%</span>
+                                        </div>
+                                        <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${stageProgress}%` }}></div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                                            {items.map(item => (
                                                 <div 
                                                     key={item.id} 
-                                                    onClick={() => handleToggleChecklistItem(item.id)}
-                                                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center gap-3 ${isDone ? 'bg-green-50 border-green-100' : 'bg-white border-slate-100 hover:border-blue-200'}`}
+                                                    className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${item.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-100 shadow-sm'}`}
                                                 >
-                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center border-2 ${isDone ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200 text-transparent'}`}>
-                                                        <CheckCircleIcon className="w-4 h-4" />
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-6 h-6 flex items-center justify-center rounded-md border-2 ${item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200 text-transparent'}`}>
+                                                            <CheckCircleIcon className="w-4 h-4" />
+                                                        </div>
+                                                        <div>
+                                                            <span className={`text-sm font-bold transition-all ${item.completed ? 'text-slate-400 line-through italic' : 'text-slate-700'}`}>{item.text}</span>
+                                                            {item.completed && item.completionDate && (
+                                                                <p className="text-[9px] font-black text-green-600 uppercase tracking-widest mt-0.5">Finalizado em: {item.completionDate}</p>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <span className={`text-sm font-bold ${isDone ? 'text-green-800 line-through' : 'text-slate-600'}`}>{item.text}</span>
                                                 </div>
-                                            );
-                                        })}
+                                            ))}
+                                        </div>
+
+                                        {/* Botões de Ação Contextuais */}
+                                        <div className="flex flex-wrap gap-3 mt-4">
+                                            {stage.includes('Medição') && (
+                                                <button className="flex items-center px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm">
+                                                    <UploadIcon className="w-4 h-4 mr-2" /> Relatório de Medição
+                                                </button>
+                                            )}
+                                            {stage.includes('Projeto') && (
+                                                <>
+                                                    <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg">
+                                                        <EyeIcon className="w-4 h-4 mr-2" /> Abrir 3D
+                                                    </button>
+                                                    <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-green-700 shadow-sm">
+                                                        <CheckCircleIcon className="w-4 h-4 mr-2" /> Aprovar Móveis
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -219,12 +357,6 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                             <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Saldo</p>
                             <p className="text-4xl font-black text-blue-600">{Math.max(0, visitsTotal - visitsDone)}</p>
                         </div>
-                    </div>
-
-                    <div className="flex justify-end no-print">
-                        <button onClick={() => setIsAddVisitOpen(true)} className="flex items-center px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl">
-                            <MapPinIcon className="w-5 h-5 mr-3" /> Registrar Nova Visita
-                        </button>
                     </div>
 
                     <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-100">
@@ -261,28 +393,6 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </div>
-            )}
-
-            {isAddVisitOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-slideUp">
-                        <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
-                            <h3 className="text-2xl font-black uppercase tracking-tight">Dar Baixa em Visita</h3>
-                            <button onClick={() => setIsAddVisitOpen(false)}><XIcon className="w-8 h-8 text-slate-400" /></button>
-                        </div>
-                        <form onSubmit={submitVisit} className="p-8 space-y-6">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data</label>
-                                <input type="date" required value={visitForm.date} onChange={e => setVisitForm({...visitForm, date: e.target.value})} className="w-full px-4 py-3 rounded-xl border-slate-200" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Notas da Obra</label>
-                                <textarea rows={4} required value={visitForm.notes} onChange={e => setVisitForm({...visitForm, notes: e.target.value})} className="w-full px-4 py-3 rounded-xl border-slate-200" placeholder="Relate o andamento verificado..." />
-                            </div>
-                            <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase shadow-xl hover:bg-blue-700 transition-all">Registrar Visita</button>
-                        </form>
                     </div>
                 </div>
             )}
