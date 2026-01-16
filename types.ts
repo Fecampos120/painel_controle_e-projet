@@ -75,7 +75,26 @@ export interface Contract {
         workFiles: Attachment[];
         sitePhotos: Attachment[];
     };
-    budgetId?: number; // Referência ao orçamento original
+    budgetId?: number;
+}
+
+export interface ProjectUpdate {
+    id: number;
+    contractId: number;
+    date: string;
+    description: string;
+    nextSteps: string;
+    photos?: string[]; // base64 strings
+}
+
+export interface Meeting {
+    id: number;
+    contractId: number;
+    date: string;
+    title: string;
+    participants: string;
+    summary: string; // Ata da reunião
+    decisions: string;
 }
 
 export interface Reminder {
@@ -282,7 +301,7 @@ export interface GanttProject {
 export interface AppData {
     clients: Client[];
     contracts: Contract[];
-    budgets: Budget[]; // Novo campo
+    budgets: Budget[];
     reminders: Reminder[];
     installments: PaymentInstallment[];
     schedules: ProjectSchedule[];
@@ -301,4 +320,6 @@ export interface AppData {
     notes: Note[];
     systemSettings: SystemSettings;
     pricing?: PricingModel;
+    meetings: Meeting[];
+    projectUpdates: ProjectUpdate[];
 }

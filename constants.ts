@@ -67,8 +67,14 @@ export const INITIAL_MEASUREMENT_TIERS: PriceTier[] = [
 ];
 
 export const INITIAL_PROJECT_STAGES_TEMPLATE: ProjectStageTemplateItem[] = [
-    { id: 1, sequence: 1, name: 'Levantamento', durationWorkDays: 5 },
-    { id: 2, sequence: 2, name: 'Estudo Preliminar', durationWorkDays: 10 },
+    { id: 1, sequence: 1, name: 'Briefing', durationWorkDays: 3 },
+    { id: 2, sequence: 2, name: 'Medição', durationWorkDays: 2 },
+    { id: 3, sequence: 3, name: 'Layout', durationWorkDays: 7 },
+    { id: 4, sequence: 4, name: 'Planta Baixa', durationWorkDays: 5 },
+    { id: 5, sequence: 5, name: '3D', durationWorkDays: 10 },
+    { id: 6, sequence: 6, name: 'Renderização', durationWorkDays: 5 },
+    { id: 7, sequence: 7, name: 'Projeto Executivo', durationWorkDays: 12 },
+    { id: 8, sequence: 8, name: 'Entrega', durationWorkDays: 1 },
 ];
 
 export const INITIAL_PRICING_MODEL: PricingModel = {
@@ -96,39 +102,6 @@ export const INITIAL_PRICING_MODEL: PricingModel = {
                 { id: 203, description: 'Digitalização do Levantamento', hours: 4, participantId: 1 },
                 { id: 204, description: 'Pesquisa de Referências', hours: 6, participantId: 1 },
                 { id: 205, description: 'Briefing', hours: 2, participantId: 1 },
-            ]
-        },
-        {
-            id: 3, number: 3, name: 'ESTUDO PRELIMINAR', isOpen: true,
-            tasks: [
-                { id: 301, description: 'Estudo das Informações', hours: 4, participantId: 1 },
-                { id: 302, description: 'Criação de Layouts', hours: 8, participantId: 1 },
-                { id: 303, description: 'Criação de Moodboards', hours: 4, participantId: 1 },
-                { id: 304, description: 'Montar Apresentação', hours: 4, participantId: 1 },
-            ]
-        },
-        {
-            id: 4, number: 4, name: 'ANTEPROJETO', isOpen: true,
-            tasks: [],
-            environments: [
-                {
-                    id: 401, name: 'Cozinha',
-                    tasks: [
-                        { id: 4011, description: 'Referência - Conceito', hours: 2, participantId: 1 },
-                        { id: 4012, description: 'Layout', hours: 4, participantId: 1 },
-                        { id: 4013, description: 'Modelagem 3D', hours: 6, participantId: 1 },
-                        { id: 4014, description: 'Renderização', hours: 4, participantId: 1 },
-                    ]
-                }
-            ]
-        },
-        {
-            id: 5, number: 5, name: 'PROJETO EXECUTIVO', isOpen: true,
-            tasks: [
-                { id: 501, description: 'Planta Baixa (Móveis Fixo/Soltos)', hours: 8, participantId: 1 },
-                { id: 502, description: 'Elétrica / Hidrossanitária', hours: 8, participantId: 1 },
-                { id: 503, description: 'Iluminação / Gesso', hours: 6, participantId: 1 },
-                { id: 504, description: 'Detalhamento Marcenaria', hours: 12, participantId: 1 },
             ]
         }
     ]

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Contract, ProjectSchedule, Client, ProjectStage, SystemSettings } from '../types';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, ArchitectIcon, PrinterIcon, XIcon } from './Icons';
+import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, ChevronLeftIcon, ChevronRightIcon, ArchitectIcon, PrinterIcon, XIcon, SparklesIcon } from './Icons';
 
 // This is the new main component for this file, implementing the "Projetos" view.
 interface DisplayProject {
@@ -25,6 +25,7 @@ interface ProjectsProps {
     onEditContract: (contract: Contract) => void;
     onDeleteContract: (id: number) => void;
     onCreateProject: () => void;
+    onViewPortal: (id: number) => void;
 }
 
 const StatusChip: React.FC<{ status: DisplayProject['status'] }> = ({ status }) => {
@@ -208,7 +209,7 @@ const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, sched
 };
 
 
-const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, systemSettings, onEditContract, onDeleteContract, onCreateProject }) => {
+const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, systemSettings, onEditContract, onDeleteContract, onCreateProject, onViewPortal }) => {
     const [activeTab, setActiveTab] = useState<'ativos' | 'arquivados'>('ativos');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -295,7 +296,7 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, syst
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-center">
-                <h1 className="text-3xl font-bold text-slate-800">Projetos</h1>
+                <h1 className="text-3xl font-bold text-slate-800">Projetos Ativos</h1>
                 <button 
                     onClick={onCreateProject}
                     className="flex items-center justify-center px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -358,17 +359,22 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, syst
                                 <th className="p-3 text-sm font-semibold text-slate-500">PROJETO</th>
                                 <th className="p-3 text-sm font-semibold text-slate-500">CLIENTE</th>
                                 <th className="p-3 text-sm font-semibold text-slate-500">PROGRESSO</th>
-                                <th className="p-3 text-sm font-semibold text-slate-500">ASSINATURA</th>
-                                <th className="p-3 text-sm font-semibold text-slate-500">VENC. ENTRADA</th>
-                                <th className="p-3 text-sm font-semibold text-slate-500">DATA DE ENTREGA</th>
+                                <th className="p-3 text-sm font-semibold text-slate-500">ENTREGA FINAL</th>
                                 <th className="p-3 text-sm font-semibold text-slate-500">STATUS</th>
-                                <th className="p-3 text-sm font-semibold text-slate-500 text-right"></th>
+                                <th className="p-3 text-sm font-semibold text-slate-500 text-right">AÇÕES</th>
                             </tr>
                         </thead>
                         <tbody>
                             {paginatedProjects.map(project => (
-                                <tr key={project.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50">
-                                    <td className="p-3 font-semibold text-slate-800">{project.projectName}</td>
+                                <tr key={project.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 group">
+                                    <td className="p-3">
+                                        <div 
+                                            className="font-black text-slate-800 uppercase tracking-tight cursor-pointer hover:text-blue-600"
+                                            onClick={() => onViewPortal(project.id)}
+                                        >
+                                            {project.projectName}
+                                        </div>
+                                    </td>
                                     <td className="p-3">
                                         <div className="flex items-center space-x-3">
                                             {project.clientLogoUrl ? 
@@ -386,15 +392,19 @@ const Projects: React.FC<ProjectsProps> = ({ contracts, schedules, clients, syst
                                             <span className="text-sm font-medium text-slate-600 w-10 text-right">{project.progress}%</span>
                                         </div>
                                     </td>
-                                    <td className="p-3 text-sm text-slate-600">{project.originalContract.date ? new Date(project.originalContract.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '-'}</td>
-                                    <td className="p-3 text-sm text-slate-600">{project.originalContract.downPaymentDate ? new Date(project.originalContract.downPaymentDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : '-'}</td>
-                                    <td className="p-3 text-sm text-slate-600">{project.endDate.toLocaleDateString('pt-BR')}</td>
+                                    <td className="p-3 text-sm text-slate-600 font-bold">{project.endDate.toLocaleDateString('pt-BR')}</td>
                                     <td className="p-3"><StatusChip status={project.status} /></td>
                                     <td className="p-3 text-right">
                                         <div className="flex items-center justify-end space-x-1">
-                                            <button onClick={() => handleOpenReport(project.originalContract)} className="p-2 text-slate-500 hover:text-purple-600" aria-label="Imprimir Relatório" title="Imprimir Relatório"><PrinterIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => onEditContract(project.originalContract)} className="p-2 text-slate-500 hover:text-blue-600" aria-label="Editar" title="Editar"><PencilIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => onDeleteContract(project.id)} className="p-2 text-slate-500 hover:text-red-600" aria-label="Excluir" title="Excluir"><TrashIcon className="w-5 h-5" /></button>
+                                            <button 
+                                                onClick={() => onViewPortal(project.id)} 
+                                                className="flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white font-bold text-xs transition-all"
+                                                title="Ver Portal do Projeto"
+                                            >
+                                                <SparklesIcon className="w-4 h-4 mr-1.5" /> PORTAL
+                                            </button>
+                                            <button onClick={() => onEditContract(project.originalContract)} className="p-2 text-slate-400 hover:text-blue-600" aria-label="Editar" title="Editar"><PencilIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => onDeleteContract(project.id)} className="p-2 text-slate-400 hover:text-red-600" aria-label="Excluir" title="Excluir"><TrashIcon className="w-5 h-5" /></button>
                                         </div>
                                     </td>
                                 </tr>
