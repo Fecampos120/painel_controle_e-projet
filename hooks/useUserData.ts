@@ -27,7 +27,7 @@ export const useUserData = (user: any, initialData: AppData) => {
     }
   }, []);
 
-  // UseCallback para evitar recriação de função em cada render
+  // UseCallback para persistência imediata
   const saveData = useCallback((newDataOrUpdater: AppData | ((prev: AppData) => AppData)) => {
     setData((prev) => {
       const resolvedData = typeof newDataOrUpdater === 'function' 

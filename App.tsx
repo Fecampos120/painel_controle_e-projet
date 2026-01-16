@@ -97,13 +97,15 @@ const App: React.FC = () => {
         if (!appData.systemSettings.theme) return;
         const root = document.documentElement;
         const theme = appData.systemSettings.theme;
+        
+        // Aplica as variáveis CSS baseadas nas escolhas em Ajustes
         root.style.setProperty('--primary-color', theme.primaryColor);
         root.style.setProperty('--sidebar-color', theme.sidebarColor);
         root.style.setProperty('--bg-color', theme.backgroundColor);
         root.style.setProperty('--font-main', theme.fontFamily);
         root.style.setProperty('--border-radius', theme.borderRadius);
         
-        // Atualiza a fonte global no body
+        // Atualiza a fonte global e cores de fundo no body
         document.body.style.fontFamily = theme.fontFamily;
         document.body.style.backgroundColor = theme.backgroundColor;
     }, [appData.systemSettings.theme]);
@@ -113,7 +115,7 @@ const App: React.FC = () => {
     }
 
     if (loadingData) {
-        return <div className="flex items-center justify-center h-screen bg-[#0f172a] text-white font-bold">Carregando Estúdio...</div>;
+        return <div className="flex items-center justify-center h-screen bg-[#0f172a] text-white font-bold">Iniciando Estúdio Profissional...</div>;
     }
 
     const handleUpdateChecklist = (newChecklist: ProjectChecklist) => {
@@ -139,11 +141,12 @@ const App: React.FC = () => {
                             appData={appData}
                             editingContract={editingContract}
                             budgetToConvert={budgetToConvert}
-                            onCancel={() => setView(budgetToConvert ? 'budgets' : 'contracts')}
+                            onCancel={() => {setBudgetToConvert(null); setEditingContract(null); setView(budgetToConvert ? 'budgets' : 'contracts');}}
                             onAddBudgetOnly={(b) => {setAppData(prev => ({...prev, budgets: [...(prev.budgets || []), { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); setView('budgets');}}
                             onAddContract={(c) => {
                                 const contractId = Date.now();
-                                // USA OS MODELOS CUSTOMIZADOS DE FASES
+                                
+                                // USA OS MODELOS CUSTOMIZADOS DE AJUSTES
                                 const schedule: ProjectSchedule = { 
                                     id: Date.now() + 500, 
                                     contractId, 
@@ -151,17 +154,16 @@ const App: React.FC = () => {
                                     projectName: c.projectName, 
                                     startDate: new Date(c.date).toISOString().split('T')[0], 
                                     stages: appData.systemSettings.projectStagesTemplate.map(t => ({ 
-                                        id: Math.random() * 100000, 
+                                        id: Math.random() * 1000000, 
                                         name: t.name, 
                                         durationWorkDays: t.durationWorkDays 
                                     })) 
                                 };
                                 
-                                // USA OS MODELOS CUSTOMIZADOS DE CHECKLIST
                                 const initialChecklist: ProjectChecklist = {
                                     contractId,
                                     items: appData.systemSettings.checklistTemplate.map(t => ({
-                                        id: Math.random() * 100000,
+                                        id: Math.random() * 1000000,
                                         text: t.text,
                                         stage: t.stage,
                                         completed: false
@@ -181,6 +183,7 @@ const App: React.FC = () => {
                                         newInstallments.push({ id: Date.now() + 2000 + i, contractId, clientName: c.clientName, projectName: c.projectName, installment: `${i}/${c.installments}`, dueDate: dueDate, value: c.installmentValue, status: 'Pendente' });
                                     }
                                 }
+                                
                                 setAppData(prev => ({
                                     ...prev, 
                                     contracts: [...prev.contracts, { ...c, id: contractId }] as Contract[], 
@@ -189,20 +192,25 @@ const App: React.FC = () => {
                                     checklists: [...(prev.checklists || []), initialChecklist],
                                     budgets: budgetToConvert ? prev.budgets.filter(b => b.id !== budgetToConvert.id) : prev.budgets
                                 }));
-                                setView('contracts');
+                                
+                                // Limpa estados de conversão e volta silenciosamente para a lista de projetos
+                                setBudgetToConvert(null);
+                                setEditingContract(null);
+                                setView('contracts'); 
                             }}
                             onUpdateContract={(c) => {
                                 setAppData(prev => ({...prev, contracts: prev.contracts.map(contract => contract.id === c.id ? c : contract)}));
+                                setEditingContract(null);
                                 setView('contracts');
                             }}
                         />;
             case 'client-area':
                 const activeProjects = appData.contracts.filter(c => c.status === 'Ativo');
                 return (
-                    <div className="space-y-8">
+                    <div className="space-y-8 animate-fadeIn">
                         <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-8 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
                             <h1 className="text-3xl font-bold uppercase tracking-tight">Área do Cliente</h1>
-                            <p className="text-blue-100 opacity-90">Portais individuais de acompanhamento por projeto.</p>
+                            <p className="text-blue-100 opacity-90">Portais individuais para seus clientes acompanharem a obra.</p>
                         </header>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {activeProjects.map(project => (
@@ -216,6 +224,11 @@ const App: React.FC = () => {
                                     <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">{project.clientName}</p>
                                 </div>
                             ))}
+                            {activeProjects.length === 0 && (
+                                <div className="col-span-full py-20 text-center text-slate-400 font-bold uppercase tracking-widest bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                                    Nenhum projeto ativo para exibir portais.
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -265,9 +278,9 @@ const App: React.FC = () => {
 
     return (
         <div className="flex min-h-screen bg-[var(--bg-color)]">
-            <aside className="w-64 bg-[var(--sidebar-color)] flex-shrink-0 flex flex-col no-print shadow-2xl z-40">
+            <aside className="w-64 bg-[var(--sidebar-color)] flex-shrink-0 flex flex-col no-print shadow-2xl z-40 transition-colors duration-500">
                 <div className="p-8 border-b border-white/5 flex flex-col items-center">
-                    <div className="w-12 h-12 bg-[var(--primary-color)] rounded-xl flex items-center justify-center shadow-lg mb-4">
+                    <div className="w-12 h-12 bg-[var(--primary-color)] rounded-xl flex items-center justify-center shadow-lg mb-4 transition-colors duration-500">
                         <BrandLogo className="w-7 h-7 text-white" />
                     </div>
                     <h1 className="text-xl font-black text-white uppercase tracking-[0.2em]">{appData.systemSettings.appName}</h1>
@@ -286,10 +299,10 @@ const App: React.FC = () => {
                     <NavItem icon={<CogIcon />} label="Ajustes" isActive={view === 'settings'} onClick={() => setView('settings')} />
                 </nav>
                 <div className="p-4 border-t border-white/5">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Software de Gestão v3.0</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">E-Projet v3.1</p>
                 </div>
             </aside>
-            <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-[var(--bg-color)]">
+            <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-[var(--bg-color)] transition-colors duration-500">
                 {renderView()}
             </main>
         </div>

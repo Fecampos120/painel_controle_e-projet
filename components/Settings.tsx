@@ -1,27 +1,45 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, SparklesIcon, ArchitectIcon } from './Icons';
 import { ServicePrice, AppData, ProjectStageTemplateItem, SystemSettings, ChecklistItemTemplate } from '../types';
 import { FONT_OPTIONS } from '../constants';
 
-const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.SetStateAction<AppData>> }> = ({ appData, setAppData }) => {
+const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev: AppData) => AppData)) => void }> = ({ appData, setAppData }) => {
   const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'modelos'>('empresa');
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(appData.systemSettings);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Sincroniza estado local se o global mudar (ex: carregamento inicial)
+  useEffect(() => {
+    setSystemSettings(appData.systemSettings);
+  }, [appData.systemSettings]);
+
   const handleSave = () => {
-    setAppData(prev => ({ ...prev, systemSettings }));
-    alert('Configurações salvas com sucesso!');
+    setAppData(prev => ({ 
+        ...prev, 
+        systemSettings: {
+            ...systemSettings,
+            theme: { ...systemSettings.theme } // Garante nova referência para disparar o useEffect do App
+        }
+    }));
+    alert('Todas as configurações, cores e modelos foram salvos com sucesso!');
   };
 
   const handleSystemSettingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
-      if (name.includes('address.')) {
+      
+      if (name.startsWith('address.')) {
           const field = name.split('.')[1];
-          setSystemSettings(prev => ({ ...prev, address: { ...prev.address, [field]: value } }));
-      } else if (name.includes('theme.')) {
+          setSystemSettings(prev => ({ 
+              ...prev, 
+              address: { ...prev.address, [field]: value } 
+          }));
+      } else if (name.startsWith('theme.')) {
           const field = name.split('.')[1];
-          setSystemSettings(prev => ({ ...prev, theme: { ...prev.theme, [field]: value } }));
+          setSystemSettings(prev => ({ 
+              ...prev, 
+              theme: { ...prev.theme, [field]: value } 
+          }));
       } else {
           setSystemSettings(prev => ({ ...prev, [name]: value }));
       }
@@ -63,25 +81,24 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
 
   return (
     <div className="space-y-8 pb-32 animate-fadeIn">
-      <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 flex justify-between items-center">
+      <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 flex justify-between items-center transition-colors duration-500">
         <div>
-            <h1 className="text-3xl font-black uppercase tracking-tight">Personalização do Sistema</h1>
-            <p className="mt-1 text-white/80 italic text-sm">Defina a identidade visual e os padrões técnicos do seu escritório.</p>
+            <h1 className="text-3xl font-black uppercase tracking-tight">Configurações Gerais</h1>
+            <p className="mt-1 text-white/80 italic text-sm">Controle as fases dos projetos, checklists, cores e fontes do seu estúdio.</p>
         </div>
         <button onClick={handleSave} className="px-8 py-3 bg-white text-[var(--primary-color)] font-black rounded-xl shadow-xl hover:scale-105 transition-all uppercase text-xs tracking-widest">
-            Salvar Tudo
+            Salvar Alterações
         </button>
       </header>
 
-      {/* Menu de Abas Interno */}
       <div className="flex border-b border-slate-200 mb-8 space-x-8">
-          <button onClick={() => setActiveTab('empresa')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'empresa' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Dados da Empresa</button>
-          <button onClick={() => setActiveTab('visual')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'visual' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Visual & Cores</button>
-          <button onClick={() => setActiveTab('modelos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'modelos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Modelos Técnicos</button>
+          <button onClick={() => setActiveTab('empresa')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'empresa' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Empresa</button>
+          <button onClick={() => setActiveTab('visual')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'visual' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Identidade Visual</button>
+          <button onClick={() => setActiveTab('modelos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'modelos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Modelos & Fases</button>
       </div>
 
       {activeTab === 'empresa' && (
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fadeIn">
              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                 <div className="lg:col-span-4 flex flex-col items-center">
                     <div className="w-full aspect-square max-w-[200px] bg-slate-50 rounded-3xl border-4 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group shadow-inner">
@@ -101,19 +118,19 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
                 <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Sistema</label>
-                        <input name="appName" value={systemSettings.appName} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                        <input name="appName" value={systemSettings.appName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold" />
                     </div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Empresa</label>
-                        <input name="companyName" value={systemSettings.companyName} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                        <input name="companyName" value={systemSettings.companyName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Arquiteta Responsável</label>
-                        <input name="professionalName" value={systemSettings.professionalName} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável Técnico</label>
+                        <input name="professionalName" value={systemSettings.professionalName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp de Contato</label>
-                        <input name="phone" value={systemSettings.phone} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp Corporativo</label>
+                        <input name="phone" value={systemSettings.phone} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold" />
                     </div>
                 </div>
              </div>
@@ -124,11 +141,11 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
           <div className="space-y-8 animate-fadeIn">
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-8 flex items-center">
-                    <SparklesIcon className="w-5 h-5 mr-2 text-yellow-500" /> Cores e Identidade
+                    <SparklesIcon className="w-5 h-5 mr-2 text-yellow-500" /> Paleta de Cores & Layout
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                       <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Cor Principal</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase">Cor de Destaque</label>
                           <div className="flex gap-3 items-center">
                             <input type="color" name="theme.primaryColor" value={systemSettings.theme.primaryColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
                             <input value={systemSettings.theme.primaryColor} onChange={handleSystemSettingChange} name="theme.primaryColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono" />
@@ -142,7 +159,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
                           </div>
                       </div>
                       <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Fundo do App</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase">Fundo de Tela</label>
                           <div className="flex gap-3 items-center">
                             <input type="color" name="theme.backgroundColor" value={systemSettings.theme.backgroundColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
                             <input value={systemSettings.theme.backgroundColor} onChange={handleSystemSettingChange} name="theme.backgroundColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono" />
@@ -162,7 +179,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
               </div>
 
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Tipografia (Fonte)</h3>
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Fonte do Sistema</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {FONT_OPTIONS.map(font => (
                           <div 
@@ -173,7 +190,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
                           >
                               <p className="text-lg mb-1">{font.name.split(' (')[0]}</p>
                               <p className="text-xs text-slate-500">The quick brown fox jumps over the lazy dog.</p>
-                              {systemSettings.theme.fontFamily === font.value && <div className="mt-3 flex items-center text-[var(--primary-color)] text-[10px] font-black uppercase tracking-widest"><CheckCircleIcon className="w-4 h-4 mr-1" /> Ativa</div>}
+                              {systemSettings.theme.fontFamily === font.value && <div className="mt-3 flex items-center text-[var(--primary-color)] text-[10px] font-black uppercase tracking-widest"><CheckCircleIcon className="w-4 h-4 mr-1" /> Selecionada</div>}
                           </div>
                       ))}
                   </div>
@@ -183,14 +200,13 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
 
       {activeTab === 'modelos' && (
           <div className="space-y-12 animate-fadeIn">
-              {/* MODELO DE FASES */}
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                   <div className="flex justify-between items-center mb-8 pb-4 border-b">
                       <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Modelos de Fases de Projeto</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Estas fases serão criadas automaticamente em todo novo contrato.</p>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Fases Padrão de Projeto</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Defina a sequência que será carregada em cada novo contrato.</p>
                       </div>
-                      <button onClick={addStageTemplate} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl">+ Add Etapa</button>
+                      <button onClick={addStageTemplate} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl shadow-md">+ Add Etapa</button>
                   </div>
                   <div className="space-y-3">
                       {systemSettings.projectStagesTemplate.map((stage, idx) => (
@@ -218,21 +234,20 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
                   </div>
               </div>
 
-              {/* MODELO DE CHECKLIST */}
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                   <div className="flex justify-between items-center mb-8 pb-4 border-b">
                       <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Modelos de Checklist de Obra</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Itens mestre para controle técnico arquiteta x cliente.</p>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Checklist Mestre de Obra</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Sua lista técnica que garante a qualidade de cada entrega.</p>
                       </div>
-                      <button onClick={addChecklistItem} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl">+ Add Item Mestre</button>
+                      <button onClick={addChecklistItem} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl shadow-md">+ Add Item Técnico</button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {systemSettings.checklistTemplate.map((item) => (
                           <div key={item.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
                               <div className="flex justify-between items-center">
                                   <input 
-                                    placeholder="Agrupamento (Ex: Medição)" 
+                                    placeholder="Fase da Obra" 
                                     value={item.stage}
                                     onChange={e => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.map(i => i.id === item.id ? { ...i, stage: e.target.value } : i) }))}
                                     className="text-[9px] font-black uppercase text-[var(--primary-color)] bg-transparent border-none outline-none tracking-widest"
@@ -243,7 +258,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
                               </div>
                               <input 
                                 value={item.text} 
-                                placeholder="Ação técnica..."
+                                placeholder="Descreva a ação..."
                                 onChange={e => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.map(i => i.id === item.id ? { ...i, text: e.target.value } : i) }))}
                                 className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-bold text-slate-600 outline-none focus:border-[var(--primary-color)]"
                               />
@@ -259,11 +274,11 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
           <div className="max-w-4xl w-full flex justify-between items-center px-10">
               <div className="flex items-center text-slate-400 gap-2">
                   <CheckCircleIcon className="w-5 h-5 text-green-500" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Alterações não salvas serão perdidas</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Clique em salvar para aplicar os novos estilos em todo o app</span>
               </div>
               <div className="flex gap-4">
-                  <button onClick={() => window.location.reload()} className="px-6 py-3 font-black uppercase text-[10px] text-slate-400 hover:text-slate-600 transition-all">Descartar</button>
-                  <button onClick={handleSave} className="px-12 py-3 bg-[var(--primary-color)] text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-xl shadow-blue-200 hover:scale-105 transition-all">Salvar Configurações</button>
+                  <button onClick={() => setSystemSettings(appData.systemSettings)} className="px-6 py-3 font-black uppercase text-[10px] text-slate-400 hover:text-slate-600 transition-all">Descartar</button>
+                  <button onClick={handleSave} className="px-12 py-3 bg-[var(--primary-color)] text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-xl shadow-blue-500/20 hover:scale-105 transition-all">Salvar Configurações</button>
               </div>
           </div>
       </div>

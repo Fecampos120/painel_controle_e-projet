@@ -32,54 +32,37 @@ export const INITIAL_PROJECT_STAGES_TEMPLATE: ProjectStageTemplateItem[] = [
 ];
 
 export const INITIAL_CHECKLIST_TEMPLATE: ChecklistItemTemplate[] = [
-    // 1. Gestão Inicial
     { id: 1, stage: '1. Gestão Inicial', text: 'Criar grupo no WhatsApp com o cliente' },
     { id: 2, stage: '1. Gestão Inicial', text: 'Confirmar dados para o contrato' },
     { id: 3, stage: '1. Gestão Inicial', text: 'Enviar contrato para assinatura digital' },
     { id: 4, stage: '1. Gestão Inicial', text: 'Validar comprovante de entrada/sinal' },
     { id: 5, stage: '1. Gestão Inicial', text: 'Liberar acesso ao Portal do Cliente' },
-
-    // 2. Medição Técnica
     { id: 6, stage: '2. Medição Técnica', text: 'Agendar visita técnica no local' },
     { id: 7, stage: '2. Medição Técnica', text: 'Realizar medição completa de ambientes' },
     { id: 8, stage: '2. Medição Técnica', text: 'Conferir pontos de água e gás' },
     { id: 9, stage: '2. Medição Técnica', text: 'Conferir quadro elétrico e pontos de luz' },
     { id: 10, stage: '2. Medição Técnica', text: 'Anexar croqui de medição ao projeto' },
-
-    // 3. Projeto & Marcenaria
     { id: 11, stage: '3. Projeto dos Móveis', text: 'Definir distribuição interna (aramados/gavetas)' },
     { id: 12, stage: '3. Projeto dos Móveis', text: 'Finalizar modelagem 3D' },
     { id: 13, stage: '3. Projeto dos Móveis', text: 'Apresentar projeto preliminar ao cliente' },
     { id: 14, stage: '3. Projeto dos Móveis', text: 'Ajustar medidas conforme medição fina' },
     { id: 15, stage: '3. Projeto dos Móveis', text: 'Coletar aprovação final do 3D' },
-
-    // 4. Escolhas & Especificação
     { id: 16, stage: '4. Escolhas Técnicas', text: 'Definir padrões de MDF e acabamentos' },
     { id: 17, stage: '4. Escolhas Técnicas', text: 'Escolher modelos de puxadores' },
     { id: 18, stage: '4. Escolhas Técnicas', text: 'Definir ferragens (dobradiças/corrediças)' },
     { id: 19, stage: '4. Escolhas Técnicas', text: 'Especificar vidros e espelhos' },
-
-    // 5. Produção
     { id: 20, stage: '5. Produção em Fábrica', text: 'Enviar plano de corte para produção' },
     { id: 21, stage: '5. Produção em Fábrica', text: 'Início da fabricação dos módulos' },
     { id: 22, stage: '5. Produção em Fábrica', text: 'Conferência de qualidade pré-entrega' },
-
-    // 6. Logística
     { id: 23, stage: '6. Logística & Entrega', text: 'Agendar data de entrega com o cliente' },
     { id: 24, stage: '6. Logística & Entrega', text: 'Confirmar saída do caminhão' },
     { id: 25, stage: '6. Logística & Entrega', text: 'Check de volumes entregues no local' },
-
-    // 7. Montagem
     { id: 26, stage: '7. Montagem Técnica', text: 'Definir equipe de montagem' },
     { id: 27, stage: '7. Montagem Técnica', text: 'Início da montagem no local' },
     { id: 28, stage: '7. Montagem Técnica', text: 'Ajustes e regulagem de portas/gavetas' },
     { id: 29, stage: '7. Montagem Técnica', text: 'Limpeza pós-montagem' },
-
-    // 8. Vistoria Final
     { id: 30, stage: '8. Vistoria Final', text: 'Realizar vistoria de entrega com cliente' },
     { id: 31, stage: '8. Vistoria Final', text: 'Coletar assinatura do Termo de Aceite' },
-
-    // 9. Pós-venda
     { id: 32, stage: '9. Pós-venda', text: 'Entregar Manual de Uso e Garantia' },
     { id: 33, stage: '9. Pós-venda', text: 'Coletar avaliação do serviço (estrelas)' },
 ];
@@ -127,7 +110,7 @@ export const INITIAL_MEASUREMENT_TIERS: PriceTier[] = [
 ];
 
 export const INITIAL_PRICING_MODEL: PricingModel = {
-    projectName: '',
+    projectName: 'ORÇAMENTO PADRÃO',
     taxPercentage: 0,
     profitPercentage: 10,
     participants: [
@@ -135,10 +118,43 @@ export const INITIAL_PRICING_MODEL: PricingModel = {
     ],
     stages: [
         {
-            id: 1, number: 1, name: 'PROPOSTA / CONTRATO', isOpen: true,
+            id: 1, number: 1, name: 'COMERCIAL E BRIEFING', isOpen: true,
             tasks: [
-                { id: 101, description: 'Reunião Inicial', hours: 2, participantId: 1 },
-                { id: 102, description: 'Elaboração de Proposta', hours: 4, participantId: 1 },
+                { id: 101, description: 'Reunião de solicitação de proposta', hours: 2, participantId: 1 },
+                { id: 102, description: 'Reunião de apresentação de proposta', hours: 2, participantId: 1 },
+                { id: 103, description: 'Reunião de briefing', hours: 4, participantId: 1 },
+            ]
+        },
+        {
+            id: 2, number: 2, name: 'LEVANTAMENTO E CONCEITO', isOpen: true,
+            tasks: [
+                { id: 201, description: 'Levantamento dos ambientes', hours: 6, participantId: 1 },
+                { id: 202, description: 'Salvar dados do levantamento', hours: 2, participantId: 1 },
+                { id: 203, description: 'Pesquisa de referências', hours: 4, participantId: 1 },
+                { id: 204, description: 'Definição de conceito ou identidade', hours: 4, participantId: 1 },
+                { id: 205, description: 'Pesquisa de mobiliários equipamentos e normas', hours: 6, participantId: 1 },
+            ]
+        },
+        {
+            id: 3, number: 3, name: 'ESTUDO PRELIMINAR (EP)', isOpen: true,
+            tasks: [
+                { id: 301, description: 'Desenho de layout', hours: 8, participantId: 1 },
+                { id: 302, description: 'Prancha conceitual', hours: 4, participantId: 1 },
+                { id: 303, description: 'Preparação de apresentação', hours: 4, participantId: 1 },
+                { id: 304, description: 'Reunião de apresentação de estudo preliminar', hours: 3, participantId: 1 },
+                { id: 305, description: 'Alteração do estudo preliminar', hours: 6, participantId: 1 },
+            ]
+        },
+        {
+            id: 4, number: 4, name: 'ANTEPROJETO 3D (AP)', isOpen: true,
+            tasks: [
+                { id: 401, description: 'Anteprojeto 3D', hours: 20, participantId: 1 },
+                { id: 402, description: 'Pesquisa de revestimentos', hours: 8, participantId: 1 },
+                { id: 403, description: 'Pesquisa de blocos', hours: 6, participantId: 1 },
+                { id: 404, description: 'Projeto 360º', hours: 10, participantId: 1 },
+                { id: 405, description: 'Preparação de apresentação', hours: 6, participantId: 1 },
+                { id: 406, description: 'Reunião de apresentação de estudo preliminar', hours: 3, participantId: 1 },
+                { id: 407, description: 'Alteração do anteprojeto', hours: 10, participantId: 1 },
             ]
         }
     ]
