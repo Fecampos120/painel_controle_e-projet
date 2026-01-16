@@ -1,84 +1,27 @@
 
 import React, { useState, useRef } from 'react';
-import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon } from './Icons';
-import { ServicePrice, PriceTier, AppData, ProjectStageTemplateItem, SystemSettings } from '../types';
-
-type SettingItem = ServicePrice | PriceTier | ProjectStageTemplateItem;
-
-const SettingSection: React.FC<{
-  title: string;
-  description: string;
-  items: SettingItem[];
-  onAdd?: () => void;
-  onEdit: (item: SettingItem) => void;
-  onDelete?: (id: number) => void;
-  renderItem: (item: SettingItem) => React.ReactNode;
-}> = ({ title, description, items, onAdd, onEdit, onDelete, renderItem }) => (
-    <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">
-        <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
-        <div className="mt-6 border-t border-slate-100 pt-6">
-            <div className="space-y-3">
-                {items.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-                        {renderItem(item)}
-                        <div className="flex items-center space-x-1">
-                            <button onClick={() => onEdit(item)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><PencilIcon className="w-4 h-4" /></button>
-                            {onDelete && <button onClick={() => onDelete(item.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"><TrashIcon className="w-4 h-4" /></button>}
-                        </div>
-                    </div>
-                ))}
-                {onAdd && (
-                    <button onClick={onAdd} className="flex items-center text-xs font-bold text-blue-600 hover:text-blue-800 pt-2 uppercase tracking-widest">
-                       <PlusIcon className="w-4 h-4 mr-1.5" /> Adicionar Novo
-                    </button>
-                )}
-            </div>
-        </div>
-    </div>
-);
+import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, SparklesIcon, ArchitectIcon } from './Icons';
+import { ServicePrice, AppData, ProjectStageTemplateItem, SystemSettings, ChecklistItemTemplate } from '../types';
+import { FONT_OPTIONS } from '../constants';
 
 const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.SetStateAction<AppData>> }> = ({ appData, setAppData }) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentSection, setCurrentSection] = useState<{key: keyof AppData, title: string} | null>(null);
-  const [editingItem, setEditingItem] = useState<SettingItem | null>(null);
-  const [formData, setFormData] = useState<Partial<SettingItem>>({});
+  const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'modelos'>('empresa');
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(appData.systemSettings);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const sections: { [key in keyof AppData]?: any } = {
-    servicePrices: {
-      title: 'Tipo de Serviço',
-      description: 'Configure os serviços que você oferece e seus preços base.',
-      fields: ['name', 'price', 'unit'],
-      labels: { name: 'Nome do Serviço', price: 'Preço Base', unit: 'Unidade'},
-      render: (item: ServicePrice) => (
-          <div><p className="font-bold text-slate-700 text-sm">{item.name}</p><p className="text-xs text-slate-500">{item.price ? `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)} / ${item.unit}` : 'Preço por Projeto'}</p></div>
-      )
-    },
-    hourlyRates: {
-      title: 'Taxa por Hora',
-      description: 'Defina valores para serviços cobrados por hora.',
-      fields: ['name', 'price'],
-      labels: { name: 'Identificação', price: 'Valor Hora'},
-       render: (item: ServicePrice) => (
-          <div><p className="font-bold text-slate-700 text-sm">{item.name}</p><p className="text-xs text-slate-500">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price || 0)} / hora</p></div>
-      )
-    },
+  const handleSave = () => {
+    setAppData(prev => ({ ...prev, systemSettings }));
+    alert('Configurações salvas com sucesso!');
   };
 
-  const openModal = (sectionKey: keyof AppData, item: SettingItem | null = null) => {
-    setCurrentSection({ key: sectionKey, title: sections[sectionKey]!.title});
-    setEditingItem(item);
-    setFormData(item ? { ...item } : {});
-    setIsModalOpen(true);
-  };
-
-  const handleSystemSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSystemSettingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
       if (name.includes('address.')) {
           const field = name.split('.')[1];
           setSystemSettings(prev => ({ ...prev, address: { ...prev.address, [field]: value } }));
+      } else if (name.includes('theme.')) {
+          const field = name.split('.')[1];
+          setSystemSettings(prev => ({ ...prev, theme: { ...prev.theme, [field]: value } }));
       } else {
           setSystemSettings(prev => ({ ...prev, [name]: value }));
       }
@@ -93,118 +36,237 @@ const Settings: React.FC<{ appData: AppData; setAppData: React.Dispatch<React.Se
       }
   };
 
+  // Funções para gerenciar Modelos de Fases
+  const addStageTemplate = () => {
+    const newStage: ProjectStageTemplateItem = { 
+        id: Date.now(), 
+        sequence: systemSettings.projectStagesTemplate.length + 1, 
+        name: 'Nova Etapa', 
+        durationWorkDays: 5 
+    };
+    setSystemSettings(prev => ({ ...prev, projectStagesTemplate: [...prev.projectStagesTemplate, newStage] }));
+  };
+
+  const removeStageTemplate = (id: number) => {
+    setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.filter(s => s.id !== id) }));
+  };
+
+  // Funções para gerenciar Modelos de Checklist
+  const addChecklistItem = () => {
+    const newItem: ChecklistItemTemplate = {
+        id: Date.now(),
+        stage: 'Fase Geral',
+        text: 'Nova ação técnica'
+    };
+    setSystemSettings(prev => ({ ...prev, checklistTemplate: [...prev.checklistTemplate, newItem] }));
+  };
+
   return (
-    <div className="space-y-8 pb-10 animate-fadeIn">
-      {/* Header replicado da imagem: Azul sólido com subtítulo */}
-      <header className="bg-blue-600 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-        <h1 className="text-3xl font-bold">Configurações</h1>
-        <p className="mt-1 text-blue-50 opacity-90 text-sm">
-          Personalize os valores padrão, modelos e a identidade da sua empresa.
-        </p>
+    <div className="space-y-8 pb-32 animate-fadeIn">
+      <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 flex justify-between items-center">
+        <div>
+            <h1 className="text-3xl font-black uppercase tracking-tight">Personalização do Sistema</h1>
+            <p className="mt-1 text-white/80 italic text-sm">Defina a identidade visual e os padrões técnicos do seu escritório.</p>
+        </div>
+        <button onClick={handleSave} className="px-8 py-3 bg-white text-[var(--primary-color)] font-black rounded-xl shadow-xl hover:scale-105 transition-all uppercase text-xs tracking-widest">
+            Salvar Tudo
+        </button>
       </header>
 
-      {/* Identidade Visual Card - Replicado da imagem */}
-      <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-200">
-          <div className="flex justify-between items-start mb-8">
-              <div>
-                  <h2 className="text-xl font-bold text-slate-800">Identidade Visual e Dados da Empresa</h2>
-                  <p className="text-sm text-slate-500 mt-1">Personalize o nome, logo e endereço que aparecerão no menu e nos relatórios.</p>
-              </div>
-              <button onClick={() => setAppData(prev => ({ ...prev, systemSettings }))} className="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 transition-all flex items-center">
-                  Salvar Alterações
-              </button>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-4 flex flex-col items-center">
-                  <div className="w-full aspect-square max-w-[240px] bg-slate-50 rounded-xl border border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative group">
-                      {systemSettings.logoUrl ? (
-                          <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain p-4" />
-                      ) : (
-                          <BrandLogo className="w-16 h-16 text-slate-200" />
-                      )}
-                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-white rounded-full shadow-lg text-blue-600"><UploadIcon className="w-6 h-6" /></button>
-                      </div>
-                  </div>
-                  <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} className="mt-4 flex items-center text-xs font-black text-blue-600 uppercase tracking-[0.2em] hover:text-blue-800">
-                      <UploadIcon className="w-4 h-4 mr-2" /> Alterar Logotipo
-                  </button>
-              </div>
-
-              <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                  <div className="space-y-1">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do App (Menu)</label>
-                      <input type="text" name="appName" value={systemSettings.appName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg focus:bg-white transition-all text-sm font-medium" />
-                  </div>
-                  <div className="space-y-1">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Empresa (Relatórios)</label>
-                      <input type="text" name="companyName" value={systemSettings.companyName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg focus:bg-white transition-all text-sm font-medium" />
-                  </div>
-                  <div className="space-y-1">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Profissional</label>
-                      <input type="text" name="professionalName" value={systemSettings.professionalName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg focus:bg-white transition-all text-sm font-medium" />
-                  </div>
-                  <div className="space-y-1">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Telefone / Contato</label>
-                      <input type="text" name="phone" value={systemSettings.phone} onChange={handleSystemSettingChange} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg focus:bg-white transition-all text-sm font-medium" />
-                  </div>
-                  
-                  <div className="md:col-span-2 pt-4 border-t border-slate-100">
-                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Endereço Profissional</h3>
-                      <div className="grid grid-cols-6 gap-4">
-                          <div className="col-span-6"><label className="text-[10px] font-bold text-slate-400 uppercase">Logradouro</label><input type="text" name="address.street" value={systemSettings.address.street} onChange={handleSystemSettingChange} className="w-full h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
-                          <div className="col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase">Número</label><input type="text" name="address.number" value={systemSettings.address.number} onChange={handleSystemSettingChange} className="w-full h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
-                          <div className="col-span-4"><label className="text-[10px] font-bold text-slate-400 uppercase">Bairro</label><input type="text" name="address.district" value={systemSettings.address.district} onChange={handleSystemSettingChange} className="w-full h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
-                          <div className="col-span-4"><label className="text-[10px] font-bold text-slate-400 uppercase">Cidade</label><input type="text" name="address.city" value={systemSettings.address.city} onChange={handleSystemSettingChange} className="w-full h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
-                          <div className="col-span-2"><label className="text-[10px] font-bold text-slate-400 uppercase">Estado</label><input type="text" name="address.state" value={systemSettings.address.state} onChange={handleSystemSettingChange} className="w-full h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
-                      </div>
-                  </div>
-              </div>
-          </div>
+      {/* Menu de Abas Interno */}
+      <div className="flex border-b border-slate-200 mb-8 space-x-8">
+          <button onClick={() => setActiveTab('empresa')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'empresa' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Dados da Empresa</button>
+          <button onClick={() => setActiveTab('visual')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'visual' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Visual & Cores</button>
+          <button onClick={() => setActiveTab('modelos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'modelos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Modelos Técnicos</button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {(Object.keys(sections) as (keyof AppData)[]).map(key => (
-              <SettingSection
-                key={key}
-                title={sections[key].title}
-                description={sections[key].description}
-                items={appData[key] as SettingItem[]}
-                onAdd={() => openModal(key)}
-                onEdit={(item) => openModal(key, item)}
-                onDelete={(id) => setAppData(prev => ({...prev, [key]: (prev[key] as any[]).filter(i => i.id !== id)}))}
-                renderItem={sections[key].render}
-              />
-          ))}
-      </div>
+      {activeTab === 'empresa' && (
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                <div className="lg:col-span-4 flex flex-col items-center">
+                    <div className="w-full aspect-square max-w-[200px] bg-slate-50 rounded-3xl border-4 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group shadow-inner">
+                        {systemSettings.logoUrl ? (
+                            <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain p-4" />
+                        ) : (
+                            <BrandLogo className="w-16 h-16 text-slate-200" />
+                        )}
+                        <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <UploadIcon className="w-8 h-8 text-white" />
+                        </button>
+                    </div>
+                    <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+                    <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Logo Principal</p>
+                </div>
 
-      {isModalOpen && currentSection && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                    <h3 className="font-bold text-slate-800 uppercase tracking-tight">{editingItem ? 'Editar' : 'Adicionar'} Item</h3>
-                    <button onClick={() => setIsModalOpen(false)}><XIcon className="w-6 h-6 text-slate-400" /></button>
+                <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Sistema</label>
+                        <input name="appName" value={systemSettings.appName} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Empresa</label>
+                        <input name="companyName" value={systemSettings.companyName} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Arquiteta Responsável</label>
+                        <input name="professionalName" value={systemSettings.professionalName} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp de Contato</label>
+                        <input name="phone" value={systemSettings.phone} onChange={handleSystemSettingChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 font-bold" />
+                    </div>
                 </div>
-                <div className="p-8 space-y-4">
-                    {sections[currentSection.key].fields.map((f: string) => (
-                        <div key={f}>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">{sections[currentSection.key].labels[f]}</label>
-                            <input type={f === 'price' ? 'number' : 'text'} value={(formData as any)[f] || ''} onChange={e => setFormData(p => ({...p, [f]: f==='price' ? parseFloat(e.target.value) : e.target.value}))} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl" />
-                        </div>
-                    ))}
-                </div>
-                <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                    <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 font-bold text-slate-500 uppercase text-xs">Cancelar</button>
-                    <button onClick={() => {
-                        setAppData(p => ({...p, [currentSection.key]: editingItem ? (p[currentSection.key] as any[]).map(i => i.id === editingItem.id ? {...i, ...formData} : i) : [...(p[currentSection.key] as any[]), {...formData, id: Date.now()}]}));
-                        setIsModalOpen(false);
-                    }} className="px-8 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 uppercase text-xs tracking-widest">Salvar Item</button>
-                </div>
-            </div>
-        </div>
+             </div>
+          </div>
       )}
+
+      {activeTab === 'visual' && (
+          <div className="space-y-8 animate-fadeIn">
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-8 flex items-center">
+                    <SparklesIcon className="w-5 h-5 mr-2 text-yellow-500" /> Cores e Identidade
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase">Cor Principal</label>
+                          <div className="flex gap-3 items-center">
+                            <input type="color" name="theme.primaryColor" value={systemSettings.theme.primaryColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
+                            <input value={systemSettings.theme.primaryColor} onChange={handleSystemSettingChange} name="theme.primaryColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono" />
+                          </div>
+                      </div>
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase">Menu Lateral</label>
+                          <div className="flex gap-3 items-center">
+                            <input type="color" name="theme.sidebarColor" value={systemSettings.theme.sidebarColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
+                            <input value={systemSettings.theme.sidebarColor} onChange={handleSystemSettingChange} name="theme.sidebarColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono" />
+                          </div>
+                      </div>
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase">Fundo do App</label>
+                          <div className="flex gap-3 items-center">
+                            <input type="color" name="theme.backgroundColor" value={systemSettings.theme.backgroundColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
+                            <input value={systemSettings.theme.backgroundColor} onChange={handleSystemSettingChange} name="theme.backgroundColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono" />
+                          </div>
+                      </div>
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase">Arredondamento</label>
+                          <select name="theme.borderRadius" value={systemSettings.theme.borderRadius} onChange={handleSystemSettingChange} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl font-bold text-xs">
+                              <option value="0px">Quadrado (0px)</option>
+                              <option value="8px">Leve (8px)</option>
+                              <option value="12px">Padrão (12px)</option>
+                              <option value="24px">Extra Arredondado (24px)</option>
+                              <option value="50px">Cápsula (50px)</option>
+                          </select>
+                      </div>
+                  </div>
+              </div>
+
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Tipografia (Fonte)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {FONT_OPTIONS.map(font => (
+                          <div 
+                            key={font.name} 
+                            onClick={() => setSystemSettings(prev => ({ ...prev, theme: { ...prev.theme, fontFamily: font.value }}))}
+                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${systemSettings.theme.fontFamily === font.value ? 'border-[var(--primary-color)] bg-blue-50/30' : 'border-slate-100 hover:border-slate-200'}`}
+                            style={{ fontFamily: font.value }}
+                          >
+                              <p className="text-lg mb-1">{font.name.split(' (')[0]}</p>
+                              <p className="text-xs text-slate-500">The quick brown fox jumps over the lazy dog.</p>
+                              {systemSettings.theme.fontFamily === font.value && <div className="mt-3 flex items-center text-[var(--primary-color)] text-[10px] font-black uppercase tracking-widest"><CheckCircleIcon className="w-4 h-4 mr-1" /> Ativa</div>}
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'modelos' && (
+          <div className="space-y-12 animate-fadeIn">
+              {/* MODELO DE FASES */}
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="flex justify-between items-center mb-8 pb-4 border-b">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Modelos de Fases de Projeto</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Estas fases serão criadas automaticamente em todo novo contrato.</p>
+                      </div>
+                      <button onClick={addStageTemplate} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl">+ Add Etapa</button>
+                  </div>
+                  <div className="space-y-3">
+                      {systemSettings.projectStagesTemplate.map((stage, idx) => (
+                          <div key={stage.id} className="flex gap-4 items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group">
+                              <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[var(--primary-color)] font-black text-xs shadow-sm">{idx + 1}</span>
+                              <input 
+                                value={stage.name} 
+                                onChange={e => setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.map(s => s.id === stage.id ? { ...s, name: e.target.value } : s) }))}
+                                className="flex-1 bg-transparent border-none font-bold text-slate-700 outline-none" 
+                              />
+                              <div className="flex items-center gap-2">
+                                  <label className="text-[9px] font-black text-slate-400 uppercase">Dias Úteis:</label>
+                                  <input 
+                                    type="number" 
+                                    value={stage.durationWorkDays} 
+                                    onChange={e => setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.map(s => s.id === stage.id ? { ...s, durationWorkDays: parseInt(e.target.value) || 0 } : s) }))}
+                                    className="w-16 h-8 bg-white border border-slate-200 rounded-lg text-center font-bold text-xs" 
+                                  />
+                              </div>
+                              <button onClick={() => removeStageTemplate(stage.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                                  <TrashIcon className="w-4 h-4" />
+                              </button>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+
+              {/* MODELO DE CHECKLIST */}
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="flex justify-between items-center mb-8 pb-4 border-b">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Modelos de Checklist de Obra</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Itens mestre para controle técnico arquiteta x cliente.</p>
+                      </div>
+                      <button onClick={addChecklistItem} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl">+ Add Item Mestre</button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {systemSettings.checklistTemplate.map((item) => (
+                          <div key={item.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
+                              <div className="flex justify-between items-center">
+                                  <input 
+                                    placeholder="Agrupamento (Ex: Medição)" 
+                                    value={item.stage}
+                                    onChange={e => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.map(i => i.id === item.id ? { ...i, stage: e.target.value } : i) }))}
+                                    className="text-[9px] font-black uppercase text-[var(--primary-color)] bg-transparent border-none outline-none tracking-widest"
+                                  />
+                                  <button onClick={() => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.filter(i => i.id !== item.id) }))} className="text-slate-300 hover:text-red-500 transition-colors">
+                                      <TrashIcon className="w-4 h-4" />
+                                  </button>
+                              </div>
+                              <input 
+                                value={item.text} 
+                                placeholder="Ação técnica..."
+                                onChange={e => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.map(i => i.id === item.id ? { ...i, text: e.target.value } : i) }))}
+                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-bold text-slate-600 outline-none focus:border-[var(--primary-color)]"
+                              />
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* FOOTER PERSISTENTE DE AJUSTES */}
+      <div className="fixed bottom-0 left-64 right-0 p-6 bg-white/80 backdrop-blur-md border-t border-slate-200 z-40 flex justify-center">
+          <div className="max-w-4xl w-full flex justify-between items-center px-10">
+              <div className="flex items-center text-slate-400 gap-2">
+                  <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Alterações não salvas serão perdidas</span>
+              </div>
+              <div className="flex gap-4">
+                  <button onClick={() => window.location.reload()} className="px-6 py-3 font-black uppercase text-[10px] text-slate-400 hover:text-slate-600 transition-all">Descartar</button>
+                  <button onClick={handleSave} className="px-12 py-3 bg-[var(--primary-color)] text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-xl shadow-blue-200 hover:scale-105 transition-all">Salvar Configurações</button>
+              </div>
+          </div>
+      </div>
     </div>
   );
 };

@@ -1,5 +1,4 @@
 
-
 export interface Address {
     street: string;
     number: string;
@@ -119,7 +118,6 @@ export interface PaymentInstallment {
     paymentDate?: Date;
 }
 
-// Fixed missing AttentionPoint export
 export interface AttentionPoint {
     clientName: string;
     description: string;
@@ -245,6 +243,14 @@ export interface Note {
     contractId?: number;
 }
 
+export interface ThemeSettings {
+    primaryColor: string;      // Cor de botões, destaques
+    sidebarColor: string;      // Cor do menu lateral
+    backgroundColor: string;   // Cor do fundo do app
+    fontFamily: string;        // Tipo de letra
+    borderRadius: string;      // Arredondamento de cards
+}
+
 export interface SystemSettings {
     appName: string;
     companyName: string;
@@ -252,6 +258,9 @@ export interface SystemSettings {
     phone: string;
     logoUrl?: string;
     address: Address;
+    theme: ThemeSettings;
+    projectStagesTemplate: ProjectStageTemplateItem[];
+    checklistTemplate: ChecklistItemTemplate[];
 }
 
 export interface PricingParticipant {
@@ -303,7 +312,6 @@ export interface AppData {
     measurementTiers: PriceTier[];
     extraTiers: PriceTier[];
     projectProgress?: ProjectProgress[];
-    projectStagesTemplate: ProjectStageTemplateItem[];
     otherPayments: OtherPayment[];
     partners: Partner[];
     checklists: ProjectChecklist[];
@@ -316,4 +324,3 @@ export interface AppData {
     meetings: Meeting[];
     projectUpdates: ProjectUpdate[];
 }
-

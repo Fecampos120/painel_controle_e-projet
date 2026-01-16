@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Contracts from './components/Contracts';
 import NewContract from './components/NewContract';
@@ -30,12 +30,11 @@ import {
     WalletIcon,
     BrandLogo,
     UsersIcon,
-    HistoryIcon,
     ArchitectIcon,
     CheckCircleIcon
 } from './components/Icons';
 
-import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectStage, Meeting, ProjectUpdate, VisitLog, ProjectChecklist, Expense, FixedExpenseTemplate, Note } from './types';
+import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectChecklist, ThemeSettings } from './types';
 import { 
   MOCK_FIXED_EXPENSE_TEMPLATES, 
   DEFAULT_SYSTEM_SETTINGS,
@@ -43,8 +42,6 @@ import {
   INITIAL_SERVICE_PRICES,
   INITIAL_HOURLY_RATES,
   INITIAL_MEASUREMENT_TIERS,
-  INITIAL_PROJECT_STAGES_TEMPLATE,
-  CHECKLIST_TEMPLATE
 } from './constants';
 
 type View = 'dashboard' | 'budgets' | 'contracts' | 'new-contract' | 'client-area' | 'pricing' | 'progress' | 'projections' | 'expenses' | 'notes' | 'settings' | 'project-portal' | 'receipts' | 'tech-visits' | 'construction-checklist';
@@ -60,8 +57,6 @@ const INITIAL_DATA: AppData = {
     hourlyRates: INITIAL_HOURLY_RATES,
     measurementTiers: INITIAL_MEASUREMENT_TIERS,
     extraTiers: [],
-    projectProgress: [],
-    projectStagesTemplate: INITIAL_PROJECT_STAGES_TEMPLATE,
     otherPayments: [],
     partners: [],
     checklists: [],
@@ -77,7 +72,7 @@ const INITIAL_DATA: AppData = {
 
 const NavItem: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
     <li 
-      className={`flex items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 group ${isActive ? 'bg-blue-600 shadow-md text-white' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`} 
+      className={`flex items-center px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 group ${isActive ? 'bg-[var(--primary-color)] shadow-md text-white' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`} 
       onClick={onClick}
     >
         <div className={`mr-3 transition-transform ${isActive ? 'scale-100 opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>
@@ -96,6 +91,22 @@ const App: React.FC = () => {
     const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
     const [editingContract, setEditingContract] = useState<Contract | null>(null);
     const [budgetToConvert, setBudgetToConvert] = useState<Budget | null>(null);
+
+    // EFEITO DE TEMA: Aplica as cores e fontes customizadas no ROOT do sistema
+    useEffect(() => {
+        if (!appData.systemSettings.theme) return;
+        const root = document.documentElement;
+        const theme = appData.systemSettings.theme;
+        root.style.setProperty('--primary-color', theme.primaryColor);
+        root.style.setProperty('--sidebar-color', theme.sidebarColor);
+        root.style.setProperty('--bg-color', theme.backgroundColor);
+        root.style.setProperty('--font-main', theme.fontFamily);
+        root.style.setProperty('--border-radius', theme.borderRadius);
+        
+        // Atualiza a fonte global no body
+        document.body.style.fontFamily = theme.fontFamily;
+        document.body.style.backgroundColor = theme.backgroundColor;
+    }, [appData.systemSettings.theme]);
 
     if (!user) {
         return <Auth onLoginSuccess={setUser} />;
@@ -118,7 +129,7 @@ const App: React.FC = () => {
     const renderView = () => {
         switch (view) {
             case 'dashboard':
-                return <Dashboard installments={appData.installments} contracts={appData.contracts} schedules={appData.schedules} projectProgress={appData.projectProgress || []} otherPayments={appData.otherPayments} expenses={appData.expenses || []} />;
+                return <Dashboard installments={appData.installments} contracts={appData.contracts} schedules={appData.schedules} projectProgress={[]} otherPayments={appData.otherPayments} expenses={appData.expenses || []} />;
             case 'budgets':
                 return <Budgets budgets={appData.budgets} onAddBudget={() => {setBudgetToConvert(null); setEditingContract(null); setView('new-contract')}} onDeleteBudget={(id) => setAppData(prev => ({...prev, budgets: prev.budgets.filter(b => b.id !== id)}))} onApproveBudget={(b) => {setBudgetToConvert(b); setEditingContract(null); setView('new-contract')}} />;
             case 'contracts':
@@ -132,12 +143,25 @@ const App: React.FC = () => {
                             onAddBudgetOnly={(b) => {setAppData(prev => ({...prev, budgets: [...(prev.budgets || []), { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); setView('budgets');}}
                             onAddContract={(c) => {
                                 const contractId = Date.now();
-                                const schedule: ProjectSchedule = { id: Date.now() + 500, contractId, clientName: c.clientName, projectName: c.projectName, startDate: new Date(c.date).toISOString().split('T')[0], stages: appData.projectStagesTemplate.map(t => ({ id: Date.now() + t.id + Math.random(), name: t.name, durationWorkDays: t.durationWorkDays })) };
+                                // USA OS MODELOS CUSTOMIZADOS DE FASES
+                                const schedule: ProjectSchedule = { 
+                                    id: Date.now() + 500, 
+                                    contractId, 
+                                    clientName: c.clientName, 
+                                    projectName: c.projectName, 
+                                    startDate: new Date(c.date).toISOString().split('T')[0], 
+                                    stages: appData.systemSettings.projectStagesTemplate.map(t => ({ 
+                                        id: Math.random() * 100000, 
+                                        name: t.name, 
+                                        durationWorkDays: t.durationWorkDays 
+                                    })) 
+                                };
                                 
+                                // USA OS MODELOS CUSTOMIZADOS DE CHECKLIST
                                 const initialChecklist: ProjectChecklist = {
                                     contractId,
-                                    items: CHECKLIST_TEMPLATE.map(t => ({
-                                        id: Math.random() + t.id,
+                                    items: appData.systemSettings.checklistTemplate.map(t => ({
+                                        id: Math.random() * 100000,
                                         text: t.text,
                                         stage: t.stage,
                                         completed: false
@@ -176,19 +200,19 @@ const App: React.FC = () => {
                 const activeProjects = appData.contracts.filter(c => c.status === 'Ativo');
                 return (
                     <div className="space-y-8">
-                        <header className="bg-blue-600 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-8 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
+                        <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-8 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
                             <h1 className="text-3xl font-bold uppercase tracking-tight">Área do Cliente</h1>
                             <p className="text-blue-100 opacity-90">Portais individuais de acompanhamento por projeto.</p>
                         </header>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {activeProjects.map(project => (
-                                <div key={project.id} onClick={() => { setSelectedProjectId(project.id); setView('project-portal'); }} className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 hover:border-blue-500 cursor-pointer group transition-all">
+                                <div key={project.id} onClick={() => { setSelectedProjectId(project.id); setView('project-portal'); }} className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 hover:border-[var(--primary-color)] cursor-pointer group transition-all">
                                     <div className="flex justify-between items-start mb-4">
-                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-[var(--primary-color)] group-hover:bg-[var(--primary-color)] group-hover:text-white transition-all">
                                             <ArchitectIcon className="w-6 h-6" />
                                         </div>
                                     </div>
-                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{project.projectName}</h3>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight group-hover:text-[var(--primary-color)] transition-colors">{project.projectName}</h3>
                                     <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">{project.clientName}</p>
                                 </div>
                             ))}
@@ -235,15 +259,15 @@ const App: React.FC = () => {
             case 'construction-checklist':
                 return <ConstructionChecklist contracts={appData.contracts} checklists={appData.checklists} onUpdateChecklist={handleUpdateChecklist} />;
             default:
-                return <Dashboard installments={appData.installments} contracts={appData.contracts} schedules={appData.schedules} projectProgress={appData.projectProgress || []} otherPayments={appData.otherPayments} expenses={appData.expenses || []} />;
+                return <Dashboard installments={appData.installments} contracts={appData.contracts} schedules={appData.schedules} projectProgress={[]} otherPayments={appData.otherPayments} expenses={appData.expenses || []} />;
         }
     };
 
     return (
-        <div className="flex min-h-screen bg-[#f1f5f9]">
-            <aside className="w-64 bg-[#0f172a] flex-shrink-0 flex flex-col no-print shadow-2xl z-40">
-                <div className="p-8 border-b border-slate-800/50 flex flex-col items-center">
-                    <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg mb-4">
+        <div className="flex min-h-screen bg-[var(--bg-color)]">
+            <aside className="w-64 bg-[var(--sidebar-color)] flex-shrink-0 flex flex-col no-print shadow-2xl z-40">
+                <div className="p-8 border-b border-white/5 flex flex-col items-center">
+                    <div className="w-12 h-12 bg-[var(--primary-color)] rounded-xl flex items-center justify-center shadow-lg mb-4">
                         <BrandLogo className="w-7 h-7 text-white" />
                     </div>
                     <h1 className="text-xl font-black text-white uppercase tracking-[0.2em]">{appData.systemSettings.appName}</h1>
@@ -261,11 +285,11 @@ const App: React.FC = () => {
                     <NavItem icon={<NotepadIcon />} label="Notas" isActive={view === 'notes'} onClick={() => setView('notes')} />
                     <NavItem icon={<CogIcon />} label="Ajustes" isActive={view === 'settings'} onClick={() => setView('settings')} />
                 </nav>
-                <div className="p-4 border-t border-slate-800/50">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Studio Battelli v2.5</p>
+                <div className="p-4 border-t border-white/5">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Software de Gestão v3.0</p>
                 </div>
             </aside>
-            <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-[#f1f5f9]">
+            <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-[var(--bg-color)]">
                 {renderView()}
             </main>
         </div>

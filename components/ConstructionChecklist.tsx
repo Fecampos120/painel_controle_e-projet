@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Contract, ProjectChecklist, ProjectChecklistItem } from '../types';
-import { CHECKLIST_TEMPLATE } from '../constants';
+import { INITIAL_CHECKLIST_TEMPLATE } from '../constants';
 import { CheckCircleIcon, ArchitectIcon, PlusIcon, TrashIcon, PencilIcon, TrendingUpIcon } from './Icons';
 
 interface ConstructionChecklistProps {
@@ -24,7 +24,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
             if (savedChecklist) {
                 setLocalItems(savedChecklist.items);
             } else {
-                setLocalItems(CHECKLIST_TEMPLATE.map(t => ({
+                setLocalItems(INITIAL_CHECKLIST_TEMPLATE.map(t => ({
                     id: Math.random() + t.id,
                     text: t.text,
                     stage: t.stage,
@@ -54,7 +54,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
     const handleAddItem = (stageName: string) => {
         const newItem: ProjectChecklistItem = {
             id: Date.now(),
-            text: 'Novo item técnico...',
+            text: '',
             stage: stageName,
             completed: false
         };
@@ -113,7 +113,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
                 <select
                     value={selectedContractId}
                     onChange={(e) => setSelectedContractId(e.target.value)}
-                    className="block w-full max-w-xl h-12 px-4 rounded-xl border-slate-200 bg-slate-50 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="block w-full max-w-xl h-12 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold focus:border-[var(--primary-color)] focus:ring-4 focus:ring-[var(--primary-color)]/10 outline-none transition-all"
                 >
                     <option value="">Escolha um projeto para conferir...</option>
                     {activeContracts.map(contract => (
@@ -126,7 +126,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
                 <div className="space-y-8">
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-[var(--primary-color)]">
                                 <TrendingUpIcon className="w-7 h-7" />
                             </div>
                             <div>
@@ -136,7 +136,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
                         </div>
                         <div className="flex-1 max-w-md ml-10">
                             <div className="w-full bg-slate-100 rounded-full h-3">
-                                <div className="bg-blue-600 h-full rounded-full transition-all duration-700" style={{ width: `${calculateProgress()}%` }}></div>
+                                <div className="bg-[var(--primary-color)] h-full rounded-full transition-all duration-700" style={{ width: `${calculateProgress()}%` }}></div>
                             </div>
                         </div>
                     </div>
@@ -145,53 +145,59 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
                         {(Object.entries(groupedItems) as [string, ProjectChecklistItem[]][]).sort().map(([stageName, items]) => (
                             <div key={stageName} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 group">
                                 <div className="flex justify-between items-center mb-6 border-b border-slate-50 pb-4">
-                                    <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.2em]">{stageName}</h3>
+                                    <h3 className="text-xs font-black text-[var(--primary-color)] uppercase tracking-[0.2em]">{stageName}</h3>
                                     <button 
                                         onClick={() => handleAddItem(stageName)}
-                                        className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase hover:bg-blue-600 hover:text-white transition-all"
+                                        className="px-4 py-1.5 bg-[var(--primary-color)] text-white rounded-xl text-[10px] font-black uppercase hover:opacity-90 transition-all shadow-md"
                                     >
                                         + Add Item Técnico
                                     </button>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                     {items.map(item => (
                                         <div 
                                             key={item.id} 
-                                            className={`p-4 rounded-xl border transition-all flex items-center justify-between gap-4 ${
-                                                item.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-100 hover:border-blue-200'
+                                            className={`p-4 rounded-xl border-2 transition-all flex items-center justify-between gap-4 ${
+                                                item.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-100 hover:border-[var(--primary-color)]/30'
                                             }`}
                                         >
                                             <div className="flex items-center gap-4 flex-1">
                                                 <button 
                                                     onClick={() => handleToggleCheck(item.id)} 
-                                                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
-                                                        item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200 hover:border-blue-400'
+                                                    className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${
+                                                        item.completed ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-100' : 'border-slate-200 hover:border-[var(--primary-color)] bg-white'
                                                     }`}
                                                 >
-                                                    {item.completed && <CheckCircleIcon className="w-4 h-4" />}
+                                                    {item.completed && <CheckCircleIcon className="w-5 h-5" />}
                                                 </button>
                                                 
                                                 <div className="flex-1">
                                                     {editingItem?.id === item.id ? (
-                                                        <input 
-                                                            autoFocus
-                                                            className="w-full text-sm font-bold bg-white border border-blue-300 rounded px-2 py-1 outline-none"
-                                                            value={item.text}
-                                                            onBlur={() => setEditingItem(null)}
-                                                            onChange={(e) => handleUpdateItemText(item.id, e.target.value)}
-                                                            onKeyDown={(e) => e.key === 'Enter' && setEditingItem(null)}
-                                                        />
+                                                        <div className="relative">
+                                                            <input 
+                                                                autoFocus
+                                                                className="w-full text-sm font-bold bg-white border-2 border-[var(--primary-color)] ring-4 ring-[var(--primary-color)]/10 rounded-xl px-4 py-2 outline-none shadow-inner"
+                                                                value={item.text}
+                                                                placeholder="Digite a ação técnica aqui..."
+                                                                onBlur={() => setEditingItem(null)}
+                                                                onChange={(e) => handleUpdateItemText(item.id, e.target.value)}
+                                                                onKeyDown={(e) => e.key === 'Enter' && setEditingItem(null)}
+                                                            />
+                                                            <div className="absolute right-3 top-2 text-[8px] font-black text-[var(--primary-color)] uppercase pointer-events-none opacity-50">Escrevendo...</div>
+                                                        </div>
                                                     ) : (
-                                                        <div>
+                                                        <div 
+                                                            className="cursor-pointer group/text p-1.5 -m-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                                                            onClick={() => !item.completed && setEditingItem(item)}
+                                                        >
                                                             <span 
-                                                                onClick={() => handleToggleCheck(item.id)}
-                                                                className={`text-sm font-bold cursor-pointer select-none transition-all ${item.completed ? 'text-slate-400 line-through italic' : 'text-slate-700'}`}
+                                                                className={`text-sm font-bold transition-all ${item.completed ? 'text-slate-400 line-through italic' : 'text-slate-700 group-hover/text:text-[var(--primary-color)]'}`}
                                                             >
-                                                                {item.text}
+                                                                {item.text || <em className="text-slate-300 font-normal">Clique aqui para escrever a tarefa...</em>}
                                                             </span>
                                                             {item.completed && item.completionDate && (
-                                                                <p className="text-[9px] font-black text-green-600 uppercase mt-0.5 tracking-widest">
-                                                                    Concluído em: {item.completionDate}
+                                                                <p className="text-[9px] font-black text-green-600 uppercase mt-1 tracking-widest flex items-center">
+                                                                    <CheckCircleIcon className="w-3 h-3 mr-1" /> Concluído em: {item.completionDate}
                                                                 </p>
                                                             )}
                                                         </div>
@@ -200,8 +206,20 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
                                             </div>
 
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => setEditingItem(item)} className="p-1.5 text-slate-300 hover:text-blue-600 transition-colors"><PencilIcon className="w-3.5 h-3.5" /></button>
-                                                <button onClick={() => handleDeleteItem(item.id)} className="p-1.5 text-slate-300 hover:text-red-600 transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button>
+                                                <button 
+                                                    onClick={() => setEditingItem(item)} 
+                                                    className="p-2 bg-slate-50 text-slate-400 hover:text-[var(--primary-color)] hover:bg-blue-50 rounded-lg transition-all border border-transparent hover:border-[var(--primary-color)]/20"
+                                                    title="Editar Texto"
+                                                >
+                                                    <PencilIcon className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteItem(item.id)} 
+                                                    className="p-2 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-200"
+                                                    title="Excluir Item"
+                                                >
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -216,7 +234,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
                             disabled={!hasUnsavedChanges}
                             className={`w-full py-4 rounded-3xl shadow-2xl font-black uppercase text-xs tracking-widest transition-all ${
                                 hasUnsavedChanges 
-                                ? 'bg-blue-600 text-white hover:bg-blue-700 animate-bounce' 
+                                ? 'bg-[var(--primary-color)] text-white hover:scale-105 active:scale-95 shadow-blue-500/20' 
                                 : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'
                             }`}
                         >

@@ -5,10 +5,28 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>E-Projet | Gestão de Arquitetura</title>
+    <title>E-Projet | Software Arquiteto</title>
+    
+    <!-- Google Fonts dinâmicas para as opções do sistema -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Playfair+Display:wght@400;700;900&family=Poppins:wght@400;700;900&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      /* Additional styles to fine-tune recharts legend alignment */
+      :root {
+        --primary-color: #2563eb;
+        --sidebar-color: #0f172a;
+        --bg-color: #f1f5f9;
+        --font-main: 'Inter', sans-serif;
+        --border-radius: 12px;
+      }
+
+      body {
+        font-family: var(--font-main);
+        background-color: var(--bg-color);
+        transition: background-color 0.3s ease;
+      }
+
+      /* Estilos para Recharts para manter alinhamento */
       .recharts-legend-wrapper {
         width: 100% !important;
         bottom: 0px !important;
@@ -19,7 +37,8 @@
         justify-content: center;
         gap: 16px;
       }
-      /* Style for all text boxes */
+
+      /* Inputs Customizados baseados no tema */
       input[type="text"],
       input[type="email"],
       input[type="password"],
@@ -28,19 +47,39 @@
       select,
       textarea {
         background-color: white;
-        border-color: #d1d5db; /* slate-300 */
-        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        border-width: 2px;
+        border-color: #e2e8f0;
+        border-radius: var(--border-radius);
+        transition: all 0.2s ease-in-out;
       }
-      input[type="text"]:focus,
-      input[type="email"]:focus,
-      input[type="password"]:focus,
-      input[type="date"]:focus,
-      input[type="number"]:focus,
-      select:focus,
-      textarea:focus {
-        --tw-ring-color: #2563eb; /* blue-600 */
-        border-color: #2563eb; /* blue-600 */
-        box-shadow: 0 0 0 1px #2563eb;
+
+      input:focus, select:focus, textarea:focus {
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        outline: none;
+      }
+
+      /* Scrollbar Customizada */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      .animate-fadeIn {
+        animation: fadeIn 0.4s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     </style>
   <script type="importmap">
@@ -55,7 +94,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-100">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
