@@ -49,7 +49,7 @@ const StarRating: React.FC<{ rating: number; onChange?: (rating: number) => void
     );
 };
 
-const Partners: React.FC<PartnersProps> = ({ partners, clients, onAddPartner, onUpdatePartner, onDeletePartner }) => {
+const Partners: React.FC<PartnersProps> = ({ partners = [], clients = [], onAddPartner, onUpdatePartner, onDeletePartner }) => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingPartner, setEditingPartner] = useState<Partner | null>(null);
     const [formData, setFormData] = useState<Omit<Partner, 'id'> | Partner>(emptyPartner);
@@ -57,10 +57,11 @@ const Partners: React.FC<PartnersProps> = ({ partners, clients, onAddPartner, on
     const [filterType, setFilterType] = useState('TODOS');
 
     const filteredPartners = useMemo(() => {
-        return partners.filter(p => {
-            const matchesSearch = p.name.toUpperCase().includes(searchTerm.toUpperCase()) || 
+        const list = Array.isArray(partners) ? partners : [];
+        return list.filter(p => {
+            const matchesSearch = (p.name || '').toUpperCase().includes(searchTerm.toUpperCase()) || 
                                 (p.contactPerson || '').toUpperCase().includes(searchTerm.toUpperCase());
-            const matchesType = filterType === 'TODOS' || p.type.toUpperCase() === filterType.toUpperCase();
+            const matchesType = filterType === 'TODOS' || (p.type || '').toUpperCase() === filterType.toUpperCase();
             return matchesSearch && matchesType;
         }).sort((a, b) => (b.rating || 0) - (a.rating || 0));
     }, [partners, searchTerm, filterType]);

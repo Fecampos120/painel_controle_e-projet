@@ -8,14 +8,26 @@ export const useUserData = (user: any, initialData: AppData) => {
   const [data, setData] = useState<AppData>(initialData);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Carrega os dados do LocalStorage ao iniciar
   useEffect(() => {
     try {
         const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (localData && localData !== "undefined" && localData !== "null") {
             const parsedData = JSON.parse(localData);
-            // Mescla dados iniciais com os salvos para garantir novos campos (migração de schema)
-            setData({ ...initialData, ...parsedData });
+            
+            // GARANTIA DE INTEGRIDADE: 
+            // Mescla o initialData (que tem todos os campos novos vazios) 
+            // com o parsedData (que tem os dados antigos salvos).
+            const merged = { ...initialData };
+            
+            Object.keys(initialData).forEach((key) => {
+                const k = key as keyof AppData;
+                // Se o dado salvo existe, usa ele. Se for nulo/indefinido, mantém o do initialData.
+                if (parsedData[k] !== undefined && parsedData[k] !== null) {
+                    (merged as any)[k] = parsedData[k];
+                }
+            });
+
+            setData(merged);
         } else {
             setData(initialData);
         }
@@ -27,7 +39,6 @@ export const useUserData = (user: any, initialData: AppData) => {
     }
   }, []);
 
-  // UseCallback para persistência imediata
   const saveData = useCallback((newDataOrUpdater: AppData | ((prev: AppData) => AppData)) => {
     setData((prev) => {
       const resolvedData = typeof newDataOrUpdater === 'function' 
@@ -39,9 +50,8 @@ export const useUserData = (user: any, initialData: AppData) => {
       try {
           const dataToSave = JSON.stringify(resolvedData);
           localStorage.setItem(LOCAL_STORAGE_KEY, dataToSave);
-          console.debug("💾 E-Projet: Dados salvos localmente com sucesso.");
       } catch (error) {
-          console.error("❌ E-Projet: Erro ao salvar no LocalStorage:", error);
+          console.error("Erro ao salvar no LocalStorage:", error);
       }
       return resolvedData;
     });
