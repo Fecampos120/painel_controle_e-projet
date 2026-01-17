@@ -1,8 +1,7 @@
 
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Contract, VisitLog } from '../types';
-import { MapPinIcon, PlusIcon, CheckCircleIcon } from './Icons';
+import { MapPinIcon, PlusIcon, CheckCircleIcon, XIcon, HistoryIcon, ChevronRightIcon, ArchitectIcon } from './Icons';
 
 interface TechnicalVisitsProps {
     contracts: Contract[];
@@ -11,24 +10,22 @@ interface TechnicalVisitsProps {
 }
 
 const TechnicalVisits: React.FC<TechnicalVisitsProps> = ({ contracts, visitLogs, onAddVisitLog }) => {
-    // Filter only contracts that have tech visits enabled
-    const eligibleContracts = contracts.filter(c => c.status === 'Ativo' && c.techVisits?.enabled);
+    // Apenas contratos ativos com visitas habilitadas
+    const eligibleContracts = useMemo(() => 
+        contracts.filter(c => c.status === 'Ativo' && c.techVisits?.enabled)
+    , [contracts]);
     
-    const [selectedContractId, setSelectedContractId] = useState<string>('');
-    const [newVisitDate, setNewVisitDate] = useState(new Date().toISOString().split('T')[0]);
-    const [newVisitNotes, setNewVisitNotes] = useState('');
+    const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+    const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], notes: '' });
 
-    const selectedContract = eligibleContracts.find(c => c.id.toString() === selectedContractId);
-    
-    // Calculate stats for selected contract
-    const contractLogs = selectedContract 
-        ? visitLogs.filter(l => l.contractId === selectedContract.id).sort((a,b) => b.date.localeCompare(a.date))
-        : [];
-    
-    const totalVisits = selectedContract?.techVisits?.quantity || 0;
-    const visitsDone = contractLogs.length;
-    const visitsRemaining = Math.max(0, totalVisits - visitsDone);
-    const progress = totalVisits > 0 ? (visitsDone / totalVisits) * 100 : 0;
+    const getStats = (contract: Contract) => {
+        const logs = visitLogs.filter(l => l.contractId === contract.id);
+        const total = contract.techVisits?.quantity || 0;
+        const done = logs.length;
+        const remaining = Math.max(0, total - done);
+        const progress = total > 0 ? (done / total) * 100 : 0;
+        return { total, done, remaining, progress, logs };
+    };
 
     const handleAddVisit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,105 +33,145 @@ const TechnicalVisits: React.FC<TechnicalVisitsProps> = ({ contracts, visitLogs,
 
         onAddVisitLog({
             contractId: selectedContract.id,
-            date: newVisitDate,
-            notes: newVisitNotes
+            date: visitForm.date,
+            notes: visitForm.notes
         });
 
-        setNewVisitNotes('');
-        alert('Visita registrada com sucesso!');
+        setVisitForm({ date: new Date().toISOString().split('T')[0], notes: '' });
+        setSelectedContract(null);
+        alert('Baixa de visita registrada com sucesso!');
     };
 
     return (
-        <div className="space-y-8">
-            <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-                <h1 className="text-3xl font-bold">Visitas Técnicas in loco</h1>
-                <p className="mt-1 text-blue-100">
-                    Controle o saldo de visitas contratuais e registre as atas de cada ida à obra.
-                </p>
+        <div className="space-y-8 animate-fadeIn pb-32">
+            <header className="bg-blue-600 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-black uppercase tracking-tight">Baixa em Visitas Técnicas</h1>
+                    <p className="mt-1 text-blue-100 italic text-sm">Controle o saldo de visitas contratadas e registre as atas de obra.</p>
+                </div>
+                <MapPinIcon className="w-12 h-12 text-white/20" />
             </header>
 
-            <div className="bg-white p-6 rounded-xl shadow-lg">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Selecione o Projeto/Contrato</label>
-                <select 
-                    value={selectedContractId} 
-                    onChange={e => setSelectedContractId(e.target.value)} 
-                    className="block w-full max-w-md rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3"
-                >
-                    <option value="">Selecione...</option>
-                    {eligibleContracts.map(c => (
-                        <option key={c.id} value={c.id}>{c.projectName} - {c.clientName}</option>
-                    ))}
-                    {eligibleContracts.length === 0 && <option disabled>Nenhum contrato com visitas habilitadas.</option>}
-                </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {eligibleContracts.map(contract => {
+                    const stats = getStats(contract);
+                    return (
+                        <div key={contract.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-blue-300 transition-all group flex flex-col justify-between">
+                            <div>
+                                <div className="flex justify-between items-start mb-4">
+                                    <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-widest">Saldo: {stats.remaining}</span>
+                                    <HistoryIcon className="w-5 h-5 text-slate-200 group-hover:text-blue-500 transition-colors" />
+                                </div>
+                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight line-clamp-1">{contract.projectName}</h3>
+                                <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest mb-6">{contract.clientName}</p>
+                                
+                                <div className="space-y-2 mb-8">
+                                    <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
+                                        <span>Consumo de Visitas</span>
+                                        <span>{stats.done} / {stats.total}</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                        <div 
+                                            className={`h-full transition-all duration-1000 ${stats.remaining <= 1 ? 'bg-orange-500' : 'bg-blue-600'}`} 
+                                            style={{ width: `${stats.progress}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={() => setSelectedContract(contract)}
+                                className="w-full py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center justify-center"
+                            >
+                                <PlusIcon className="w-4 h-4 mr-2" /> Dar Baixa em Visita
+                            </button>
+                        </div>
+                    );
+                })}
+
+                {eligibleContracts.length === 0 && (
+                    <div className="col-span-full py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200 text-center opacity-50">
+                        <ArchitectIcon className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                        <h2 className="text-xl font-black text-slate-400 uppercase tracking-widest">Nenhum contrato com pacote de visitas</h2>
+                        <p className="text-sm font-bold text-slate-400">Ative o controle de visitas na criação do contrato.</p>
+                    </div>
+                )}
             </div>
 
-            {selectedContract && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Resumo e Progresso */}
-                    <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-white p-6 rounded-xl shadow-lg text-center">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                                <MapPinIcon className="w-8 h-8 text-blue-600" />
-                            </div>
-                            <h2 className="text-xl font-bold text-slate-800">{visitsDone} / {totalVisits}</h2>
-                            <p className="text-sm text-slate-500 uppercase tracking-wide font-semibold mt-1">Visitas Realizadas</p>
-                            
-                            <div className="mt-6 w-full bg-slate-200 rounded-full h-4 overflow-hidden">
-                                <div className="bg-blue-600 h-4 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                            </div>
-                            <p className="mt-2 text-xs text-slate-400">
-                                {visitsRemaining} visitas restantes no contrato.
-                            </p>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-xl shadow-lg">
-                            <h3 className="font-bold text-slate-800 mb-4 border-b pb-2">Registrar Nova Visita</h3>
-                            <form onSubmit={handleAddVisit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700">Data da Visita</label>
-                                    <input type="date" required value={newVisitDate} onChange={e => setNewVisitDate(e.target.value)} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-10 px-3" />
+            <div className="mt-12 bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-[0.2em] mb-8 flex items-center">
+                    <HistoryIcon className="w-5 h-5 mr-3 text-blue-500" /> Últimos Registros de Obra
+                </h3>
+                <div className="space-y-4">
+                    {visitLogs.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10).map(log => {
+                        const project = contracts.find(c => c.id === log.contractId);
+                        return (
+                            <div key={log.id} className="flex items-center gap-6 p-4 hover:bg-slate-50 rounded-2xl transition-colors border-b border-slate-50 last:border-0">
+                                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
+                                    <MapPinIcon className="w-6 h-6" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700">Ata / Observações</label>
-                                    <textarea required rows={4} value={newVisitNotes} onChange={e => setNewVisitNotes(e.target.value)} placeholder="Descreva o que foi verificado..." className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3" />
-                                </div>
-                                <button type="submit" className="w-full py-2 bg-green-600 text-white rounded-md font-semibold hover:bg-green-700 shadow-sm transition-colors flex justify-center items-center">
-                                    <CheckCircleIcon className="w-5 h-5 mr-2" /> Confirmar Visita
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-
-                    {/* Histórico */}
-                    <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
-                        <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center">
-                            <span className="w-2 h-6 bg-blue-600 mr-3 rounded-full"></span>
-                            Histórico de Visitas
-                        </h3>
-                        
-                        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
-                            {contractLogs.length === 0 && (
-                                <p className="text-center text-slate-500 py-10 italic bg-white relative z-10">Nenhuma visita registrada ainda.</p>
-                            )}
-                            
-                            {contractLogs.map((log) => (
-                                <div key={log.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                    <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-300 group-[.is-active]:bg-blue-500 text-slate-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 relative z-10">
-                                        <MapPinIcon className="w-5 h-5" />
-                                    </div>
-                                    <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <time className="font-bold text-slate-800 text-sm">
-                                                {new Date(log.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
-                                            </time>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-black text-slate-800 text-sm uppercase">{project?.projectName || 'Projeto Removido'}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{project?.clientName}</p>
                                         </div>
-                                        <p className="text-slate-600 text-sm whitespace-pre-wrap leading-relaxed">
-                                            {log.notes}
-                                        </p>
+                                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded">{new Date(log.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
                                     </div>
+                                    <p className="text-sm text-slate-600 mt-2 line-clamp-1 italic">"{log.notes}"</p>
                                 </div>
-                            ))}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* MODAL DE BAIXA */}
+            {selectedContract && (
+                <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-slideUp">
+                        <div className="p-8 bg-blue-600 text-white flex justify-between items-center">
+                            <div>
+                                <span className="text-[9px] font-black uppercase tracking-widest bg-white/20 px-2 py-1 rounded">Registro de Visita</span>
+                                <h3 className="text-2xl font-black uppercase tracking-tight mt-1">{selectedContract.projectName}</h3>
+                            </div>
+                            <button onClick={() => setSelectedContract(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                                <XIcon className="w-8 h-8 text-white" />
+                            </button>
                         </div>
+                        
+                        <form onSubmit={handleAddVisit} className="p-8 space-y-6">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Visita</label>
+                                <input 
+                                    type="date" 
+                                    required 
+                                    value={visitForm.date} 
+                                    onChange={e => setVisitForm({...visitForm, date: e.target.value})} 
+                                    className="w-full h-12 px-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-blue-500 transition-all" 
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ata de Obra / Resumo da Visita</label>
+                                <textarea 
+                                    required 
+                                    rows={4} 
+                                    value={visitForm.notes} 
+                                    onChange={e => setVisitForm({...visitForm, notes: e.target.value})} 
+                                    placeholder="O que foi verificado no local? Exemplos: conferência de pontos elétricos, nivelamento de piso..."
+                                    className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-medium outline-none focus:border-blue-500 transition-all"
+                                />
+                            </div>
+                            
+                            <div className="pt-4">
+                                <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-xl shadow-blue-500/20 hover:bg-blue-700 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center">
+                                    <CheckCircleIcon className="w-5 h-5 mr-2" /> Confirmar e Dar Baixa no Saldo
+                                </button>
+                                <p className="text-center text-[9px] font-bold text-slate-400 uppercase mt-4">
+                                    Esta ação é permanente e descontará 1 visita do pacote contratado.
+                                </p>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

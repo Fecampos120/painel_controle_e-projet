@@ -39,8 +39,9 @@ export const useUserData = (user: any, initialData: AppData) => {
       try {
           const dataToSave = JSON.stringify(resolvedData);
           localStorage.setItem(LOCAL_STORAGE_KEY, dataToSave);
+          console.debug("💾 E-Projet: Dados salvos localmente com sucesso.");
       } catch (error) {
-          console.error("Erro ao salvar no LocalStorage:", error);
+          console.error("❌ E-Projet: Erro ao salvar no LocalStorage:", error);
       }
       return resolvedData;
     });

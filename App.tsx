@@ -14,6 +14,7 @@ import Notes from './components/Notes';
 import Pricing from './components/Pricing';
 import Budgets from './components/Budgets';
 import Auth from './components/Auth';
+import Partners from './components/Partners';
 import TechnicalVisits from './components/TechnicalVisits';
 import ConstructionChecklist from './components/ConstructionChecklist';
 import { useUserData } from './hooks/useUserData';
@@ -31,10 +32,11 @@ import {
     BrandLogo,
     UsersIcon,
     ArchitectIcon,
-    CheckCircleIcon
+    CheckCircleIcon,
+    MapPinIcon
 } from './components/Icons';
 
-import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectChecklist, ThemeSettings } from './types';
+import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectChecklist, ThemeSettings, VisitLog, Partner } from './types';
 import { 
   MOCK_FIXED_EXPENSE_TEMPLATES, 
   DEFAULT_SYSTEM_SETTINGS,
@@ -44,7 +46,7 @@ import {
   INITIAL_MEASUREMENT_TIERS,
 } from './constants';
 
-type View = 'dashboard' | 'budgets' | 'contracts' | 'new-contract' | 'client-area' | 'pricing' | 'progress' | 'projections' | 'expenses' | 'notes' | 'settings' | 'project-portal' | 'receipts' | 'tech-visits' | 'construction-checklist';
+type View = 'dashboard' | 'budgets' | 'contracts' | 'new-contract' | 'client-area' | 'pricing' | 'progress' | 'projections' | 'expenses' | 'notes' | 'settings' | 'project-portal' | 'receipts' | 'construction-checklist' | 'partners';
 
 const INITIAL_DATA: AppData = {
     clients: [],
@@ -98,14 +100,12 @@ const App: React.FC = () => {
         const root = document.documentElement;
         const theme = appData.systemSettings.theme;
         
-        // Aplica as variáveis CSS baseadas nas escolhas em Ajustes
         root.style.setProperty('--primary-color', theme.primaryColor);
         root.style.setProperty('--sidebar-color', theme.sidebarColor);
         root.style.setProperty('--bg-color', theme.backgroundColor);
         root.style.setProperty('--font-main', theme.fontFamily);
         root.style.setProperty('--border-radius', theme.borderRadius);
         
-        // Atualiza a fonte global e cores de fundo no body
         document.body.style.fontFamily = theme.fontFamily;
         document.body.style.backgroundColor = theme.backgroundColor;
     }, [appData.systemSettings.theme]);
@@ -145,8 +145,6 @@ const App: React.FC = () => {
                             onAddBudgetOnly={(b) => {setAppData(prev => ({...prev, budgets: [...(prev.budgets || []), { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); setView('budgets');}}
                             onAddContract={(c) => {
                                 const contractId = Date.now();
-                                
-                                // USA OS MODELOS CUSTOMIZADOS DE AJUSTES
                                 const schedule: ProjectSchedule = { 
                                     id: Date.now() + 500, 
                                     contractId, 
@@ -159,7 +157,6 @@ const App: React.FC = () => {
                                         durationWorkDays: t.durationWorkDays 
                                     })) 
                                 };
-                                
                                 const initialChecklist: ProjectChecklist = {
                                     contractId,
                                     items: appData.systemSettings.checklistTemplate.map(t => ({
@@ -169,7 +166,6 @@ const App: React.FC = () => {
                                         completed: false
                                     }))
                                 };
-
                                 const newInstallments: PaymentInstallment[] = [];
                                 if (c.downPayment > 0) {
                                     newInstallments.push({ id: Date.now() + 1000, contractId, clientName: c.clientName, projectName: c.projectName, installment: 'Entrada', dueDate: new Date(c.downPaymentDate), value: c.downPayment, status: 'Pendente' });
@@ -183,7 +179,6 @@ const App: React.FC = () => {
                                         newInstallments.push({ id: Date.now() + 2000 + i, contractId, clientName: c.clientName, projectName: c.projectName, installment: `${i}/${c.installments}`, dueDate: dueDate, value: c.installmentValue, status: 'Pendente' });
                                     }
                                 }
-                                
                                 setAppData(prev => ({
                                     ...prev, 
                                     contracts: [...prev.contracts, { ...c, id: contractId }] as Contract[], 
@@ -192,8 +187,6 @@ const App: React.FC = () => {
                                     checklists: [...(prev.checklists || []), initialChecklist],
                                     budgets: budgetToConvert ? prev.budgets.filter(b => b.id !== budgetToConvert.id) : prev.budgets
                                 }));
-                                
-                                // Limpa estados de conversão e volta silenciosamente para a lista de projetos
                                 setBudgetToConvert(null);
                                 setEditingContract(null);
                                 setView('contracts'); 
@@ -243,7 +236,7 @@ const App: React.FC = () => {
                         notes={appData.notes.filter(n => n.contractId === selectedProjectId)}
                         updates={appData.projectUpdates.filter(u => u.contractId === selectedProjectId)}
                         visitLogs={appData.visitLogs.filter(v => v.contractId === selectedProjectId)}
-                        onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now() }]}))}
+                        onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now(), createdAt: new Date() }]}))}
                         onAddProjectUpdate={(u) => setAppData(prev => ({...prev, projectUpdates: [...prev.projectUpdates, { ...u, id: Date.now() }]}))}
                         onUpdateChecklist={handleUpdateChecklist}
                         onBack={() => setView('client-area')}
@@ -266,7 +259,23 @@ const App: React.FC = () => {
                     onDeleteFixedExpenseTemplate={(id) => setAppData(prev => ({...prev, fixedExpenseTemplates: prev.fixedExpenseTemplates.filter(t => t.id !== id)}))} 
                 />;
             case 'notes':
-                return <Notes notes={appData.notes} onUpdateNote={(n) => setAppData(prev => ({...prev, notes: prev.notes.map(note => note.id === n.id ? n : note)}))} onDeleteNote={(id) => setAppData(prev => ({...prev, notes: prev.notes.filter(n => n.id !== id)}))} onAddNote={(n) => setAppData(prev => ({...prev, notes: [...prev.notes, {...n, id: Date.now(), createdAt: new Date()}]}))} contracts={appData.contracts} />;
+                return <Notes 
+                    notes={appData.notes} 
+                    visitLogs={appData.visitLogs}
+                    contracts={appData.contracts} 
+                    onUpdateNote={(n) => setAppData(prev => ({...prev, notes: prev.notes.map(note => note.id === n.id ? n : note)}))} 
+                    onDeleteNote={(id) => setAppData(prev => ({...prev, notes: prev.notes.filter(n => n.id !== id)}))} 
+                    onAddNote={(n) => setAppData(prev => ({...prev, notes: [...prev.notes, {...n, id: Date.now(), createdAt: new Date()}]}))} 
+                    onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now(), createdAt: new Date() }]}))}
+                />;
+            case 'partners':
+                return <Partners 
+                    partners={appData.partners} 
+                    clients={appData.clients} 
+                    onAddPartner={(p) => setAppData(prev => ({...prev, partners: [...prev.partners, { ...p, id: Date.now() }]}))} 
+                    onUpdatePartner={(p) => setAppData(prev => ({...prev, partners: prev.partners.map(part => part.id === p.id ? p : part)}))} 
+                    onDeletePartner={(id) => setAppData(prev => ({...prev, partners: prev.partners.filter(p => p.id !== id)}))} 
+                />;
             case 'settings':
                 return <Settings appData={appData} setAppData={setAppData} />;
             case 'construction-checklist':
@@ -280,26 +289,31 @@ const App: React.FC = () => {
         <div className="flex min-h-screen bg-[var(--bg-color)]">
             <aside className="w-64 bg-[var(--sidebar-color)] flex-shrink-0 flex flex-col no-print shadow-2xl z-40 transition-colors duration-500">
                 <div className="p-8 border-b border-white/5 flex flex-col items-center">
-                    <div className="w-12 h-12 bg-[var(--primary-color)] rounded-xl flex items-center justify-center shadow-lg mb-4 transition-colors duration-500">
-                        <BrandLogo className="w-7 h-7 text-white" />
+                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mb-4 transition-all duration-500 overflow-hidden ${!appData.systemSettings.logoUrl ? 'bg-[var(--primary-color)]' : 'bg-transparent'}`}>
+                        {appData.systemSettings.logoUrl ? (
+                            <img src={appData.systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                        ) : (
+                            <BrandLogo className="w-8 h-8 text-white" />
+                        )}
                     </div>
-                    <h1 className="text-xl font-black text-white uppercase tracking-[0.2em]">{appData.systemSettings.appName}</h1>
+                    <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] text-center">{appData.systemSettings.appName}</h1>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                     <NavItem icon={<DashboardIcon />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />
                     <NavItem icon={<WalletIcon />} label="Orçamentos" isActive={view === 'budgets'} onClick={() => setView('budgets')} />
                     <NavItem icon={<FileTextIcon />} label="Projetos" isActive={view === 'contracts'} onClick={() => setView('contracts')} />
                     <NavItem icon={<CheckCircleIcon />} label="Checklist Obra" isActive={view === 'construction-checklist'} onClick={() => setView('construction-checklist')} />
+                    <NavItem icon={<NotepadIcon />} label="Notas & Visitas" isActive={view === 'notes'} onClick={() => setView('notes')} />
+                    <NavItem icon={<UsersIcon />} label="Parceiros" isActive={view === 'partners'} onClick={() => setView('partners')} />
                     <NavItem icon={<UsersIcon />} label="Área Cliente" isActive={view === 'client-area' || view === 'project-portal'} onClick={() => setView('client-area')} />
                     <NavItem icon={<MoneyBagIcon />} label="Precificação" isActive={view === 'pricing'} onClick={() => setView('pricing')} />
                     <NavItem icon={<TrendingUpIcon />} label="Andamento" isActive={view === 'progress'} onClick={() => setView('progress')} />
                     <NavItem icon={<ReceiptIcon />} label="Financeiro" isActive={view === 'projections'} onClick={() => setView('projections')} />
                     <NavItem icon={<CreditCardIcon />} label="Despesas" isActive={view === 'expenses'} onClick={() => setView('expenses')} />
-                    <NavItem icon={<NotepadIcon />} label="Notas" isActive={view === 'notes'} onClick={() => setView('notes')} />
                     <NavItem icon={<CogIcon />} label="Ajustes" isActive={view === 'settings'} onClick={() => setView('settings')} />
                 </nav>
                 <div className="p-4 border-t border-white/5">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">E-Projet v3.1</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">E-Projet v3.2</p>
                 </div>
             </aside>
             <main className="flex-1 overflow-y-auto p-6 md:p-10 bg-[var(--bg-color)] transition-colors duration-500">

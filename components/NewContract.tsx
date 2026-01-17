@@ -17,6 +17,15 @@ const formatDate = (date: string | Date) => {
   return new Intl.DateTimeFormat('pt-BR').format(d);
 };
 
+// MÁSCARA DE TELEFONE (00) 00000-0000
+const maskPhone = (value: string) => {
+    return value
+        .replace(/\D/g, "")
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{5})(\d)/, "$1-$2")
+        .replace(/(-\d{4})(\d+?)$/, "$1");
+};
+
 interface FormSectionProps {
   title: string;
   children: React.ReactNode;
@@ -46,7 +55,14 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
     const isConverting = !!budgetToConvert;
     const formRef = useRef<HTMLFormElement>(null);
     
-    // Estados principais do formulário
+    // Estados para controle de inputs específicos (Telefone e Texto)
+    const [clientPhone, setClientPhone] = useState(() => {
+        if (isEditing) return editingContract.clientPhone || '';
+        if (isConverting) return budgetToConvert.clientPhone || '';
+        return '';
+    });
+    
+    // Estados principais do formulário (Preenchimento Automático na Conversão)
     const [contractTypes, setContractTypes] = useState<ContractService[]>(() => {
         if (isEditing) return editingContract.services;
         if (isConverting) return budgetToConvert.services;
@@ -89,7 +105,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         const instCount = parseInt(numInstallments) || 1;
         const installmentValue = instCount > 0 ? remaining / instCount : 0;
 
-        // Geração do fluxo de parcelas para o preview
         const previewFlow = [];
         if (hasDownPayment && downPaymentValue > 0) {
             previewFlow.push({ label: 'ENTRADA', value: downPaymentValue, date: downPaymentDate });
@@ -110,17 +125,14 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
     const handleServiceChange = (id: number, field: string, value: string) => {
         setContractTypes(prev => prev.map(ct => {
             if (ct.id !== id) return ct;
-            const updated = { ...ct, [field]: value };
+            const updated = { ...ct, [field]: field === 'serviceName' ? value.toUpperCase() : value };
             
-            // Busca o serviço nos modelos de preço para sugestão inicial
             const s = [...appData.servicePrices, ...appData.hourlyRates].find(srv => srv.name === updated.serviceName);
             
-            // Se mudou o serviço, sugere o método de cálculo do banco
             if (field === 'serviceName' && s) {
                 updated.calculationMethod = s.unit === 'm²' ? 'metragem' : s.unit === 'hora' ? 'hora' : 'manual';
             }
 
-            // Recalcula valor se for metragem ou hora e não estiver em modo manual
             if (updated.calculationMethod === 'metragem') {
                 updated.value = (parseFloat(updated.area || '0') * (s?.price || 0)).toFixed(2);
             } else if (updated.calculationMethod === 'hora') {
@@ -137,11 +149,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         const p = Object.fromEntries(formData.entries());
 
         const baseData = {
-            clientName: p.clientName as string,
-            projectName: p.projectName as string, 
+            clientName: (p.clientName as string).toUpperCase(),
+            projectName: (p.projectName as string).toUpperCase(), 
             totalValue: financial.totalFinal,
             services: contractTypes,
-            clientPhone: p.phone as string,
+            clientPhone: clientPhone,
             clientEmail: p.email as string
         };
 
@@ -150,10 +162,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         } else {
             const contractData = {
                 ...baseData,
+                budgetId: budgetToConvert?.id,
                 date: new Date(contractDate + 'T12:00:00'),
-                status: 'Ativo',
-                clientAddress: { street: p.c_street, number: p.c_number, city: p.c_city, state: p.c_state, cep: p.c_cep, district: p.c_district } as any,
-                projectAddress: isSameAddress ? { street: p.c_street, number: p.c_number, city: p.c_city, state: p.c_state, cep: p.c_cep, district: p.c_district } : { street: p.p_street, number: p.p_number, city: p.p_city, state: p.p_state, cep: p.p_cep, district: p.p_district } as any,
+                status: 'Ativo' as const,
+                clientAddress: { street: (p.c_street as string || '').toUpperCase(), number: p.c_number, city: (p.c_city as string || '').toUpperCase(), state: (p.c_state as string || '').toUpperCase(), cep: p.c_cep, district: (p.c_district as string || '').toUpperCase() } as any,
+                projectAddress: isSameAddress ? { street: (p.c_street as string || '').toUpperCase(), number: p.c_number, city: (p.c_city as string || '').toUpperCase(), state: (p.c_state as string || '').toUpperCase(), cep: p.c_cep, district: (p.c_district as string || '').toUpperCase() } : { street: (p.p_street as string || '').toUpperCase(), number: p.p_number, city: (p.p_city as string || '').toUpperCase(), state: (p.p_state as string || '').toUpperCase(), cep: p.p_cep, district: (p.p_district as string || '').toUpperCase() } as any,
                 durationMonths: 6,
                 installments: parseInt(numInstallments),
                 installmentValue: financial.installmentValue,
@@ -174,10 +187,13 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
     return (
         <div className="max-w-6xl mx-auto pb-24 space-y-8 animate-fadeIn">
-            {/* Header conforme imagem */}
             <header className="bg-blue-600 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-                <h1 className="text-3xl font-black uppercase tracking-tight">Nova Proposta</h1>
-                <p className="mt-1 text-blue-100 italic text-sm">Configure o escopo e as condições financeiras.</p>
+                <h1 className="text-3xl font-black uppercase tracking-tight">
+                    {isConverting ? 'Finalizar Contrato' : isEditing ? 'Editar Projeto' : 'Nova Proposta'}
+                </h1>
+                <p className="mt-1 text-blue-100 italic text-sm">
+                    {isConverting ? `Convertendo orçamento de ${budgetToConvert.clientName} em projeto ativo.` : 'Configure o escopo e as condições financeiras.'}
+                </p>
             </header>
 
             <form ref={formRef} className="space-y-8" onSubmit={(e) => e.preventDefault()}>
@@ -187,15 +203,33 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo *</label>
-                            <input name="clientName" required defaultValue={isEditing ? editingContract.clientName : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm" placeholder="Nome do cliente" />
+                            <input 
+                                name="clientName" 
+                                required 
+                                defaultValue={isEditing ? editingContract.clientName : isConverting ? budgetToConvert.clientName : ''} 
+                                className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" 
+                                placeholder="Nome do cliente" 
+                            />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telefone</label>
-                            <input name="phone" defaultValue={isEditing ? editingContract.clientPhone : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm" placeholder="(00) 00000-0000" />
+                            <input 
+                                name="phone" 
+                                value={clientPhone}
+                                onChange={e => setClientPhone(maskPhone(e.target.value))}
+                                className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" 
+                                placeholder="(00) 00000-0000" 
+                            />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail</label>
-                            <input name="email" type="email" defaultValue={isEditing ? editingContract.clientEmail : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm" placeholder="email@exemplo.com" />
+                            <input 
+                                name="email" 
+                                type="email" 
+                                defaultValue={isEditing ? editingContract.clientEmail : isConverting ? budgetToConvert.clientEmail : ''} 
+                                className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" 
+                                placeholder="email@exemplo.com" 
+                            />
                         </div>
                     </div>
                 </FormSection>
@@ -206,10 +240,14 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         {contractTypes.map(ct => (
                             <div key={ct.id} className="p-5 border border-slate-100 rounded-xl bg-slate-50/50 flex flex-col md:flex-row gap-6 items-end group">
                                 <div className="flex-1 w-full space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço</label>
-                                    <select value={ct.serviceName} onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} className="w-full h-11 px-4 bg-white border-slate-200 rounded-lg text-sm font-medium">
-                                        <option value="">Selecione um serviço...</option>
-                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço Selecionado</label>
+                                    <select 
+                                        value={ct.serviceName} 
+                                        onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} 
+                                        className="w-full h-12 px-4 bg-white border-2 border-blue-100 rounded-xl text-sm font-black uppercase text-blue-700 focus:border-blue-500 shadow-sm transition-all"
+                                    >
+                                        <option value="" className="text-slate-400">SELECIONE UM SERVIÇO...</option>
+                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
 
@@ -218,11 +256,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                     <select 
                                         value={ct.calculationMethod} 
                                         onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} 
-                                        className="w-full h-11 px-3 bg-white border-slate-200 rounded-lg text-[11px] font-bold"
+                                        className="w-full h-12 px-3 bg-white border-2 border-slate-100 rounded-xl text-[11px] font-bold uppercase tracking-tight"
                                     >
                                         <option value="metragem">Por m²</option>
                                         <option value="hora">Por Hora</option>
-                                        <option value="manual">Manual / Fixo</option>
+                                        <option value="manual">Manual</option>
                                     </select>
                                 </div>
 
@@ -234,7 +272,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                         type="number" 
                                         value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} 
                                         onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} 
-                                        className="w-full h-11 text-center bg-white border-slate-200 rounded-lg font-bold" 
+                                        className="w-full h-12 text-center bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700" 
                                     />
                                 </div>
 
@@ -244,24 +282,30 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                         type="number" 
                                         value={ct.value} 
                                         onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} 
-                                        className="w-full h-11 px-4 bg-white border-slate-200 rounded-lg font-black text-slate-800" 
+                                        className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-blue-700 text-lg" 
                                     />
                                 </div>
 
-                                <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-11 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-lg transition-colors">REMOVER</button>
+                                <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-12 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100">REMOVER</button>
                             </div>
                         ))}
-                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-blue-100 bg-blue-50/20 text-blue-600 font-black text-[11px] uppercase tracking-widest rounded-xl hover:bg-blue-50 transition-all">
+                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-blue-200 bg-blue-50/20 text-blue-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-blue-50 hover:border-blue-400 transition-all">
                             + Adicionar novo item ao escopo
                         </button>
                     </div>
                     <div className="pt-4 space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição do Projeto</label>
-                        <textarea name="projectName" rows={3} defaultValue={isEditing ? editingContract.projectName : ''} className="w-full p-4 bg-slate-50 border-slate-200 rounded-xl text-sm" placeholder="Ex: Reforma total de apartamento..." />
+                        <textarea 
+                            name="projectName" 
+                            rows={3} 
+                            defaultValue={isEditing ? editingContract.projectName : isConverting ? budgetToConvert.projectName : ''} 
+                            className="w-full p-4 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold uppercase" 
+                            placeholder="Ex: Reforma total de apartamento..." 
+                        />
                     </div>
                 </FormSection>
 
-                {/* 3. VISITAS E DESLOCAMENTO (Mantido conforme solicitado) */}
+                {/* 3. VISITAS E DESLOCAMENTO */}
                 <FormSection title="3. VISITAS E DESLOCAMENTO">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
@@ -287,8 +331,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                 {/* 4. LOCALIZAÇÃO */}
                 <FormSection title="4. LOCALIZAÇÃO">
                     <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
-                        <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP Cliente</label><input name="c_cep" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
-                        <div className="md:col-span-5 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro / Endereço</label><input name="c_street" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
+                        <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP Cliente</label><input name="c_cep" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" /></div>
+                        <div className="md:col-span-5 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro / Endereço</label><input name="c_street" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
                     </div>
 
                     <div className="flex items-center p-4 bg-blue-50 rounded-xl border border-blue-100">
@@ -298,8 +342,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                     {!isSameAddress && (
                         <div className="grid grid-cols-1 md:grid-cols-6 gap-6 animate-fadeIn">
-                            <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP Obra</label><input name="p_cep" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
-                            <div className="md:col-span-5 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro Obra</label><input name="p_street" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm" /></div>
+                            <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP Obra</label><input name="p_cep" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" /></div>
+                            <div className="md:col-span-5 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro Obra</label><input name="p_street" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
                         </div>
                     )}
                 </FormSection>
@@ -360,7 +404,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             </div>
                         </div>
 
-                        {/* VISUALIZAÇÃO DO FLUXO (Cards brancos da imagem) */}
+                        {/* VISUALIZAÇÃO DO FLUXO */}
                         <div className="mt-10">
                             <div className="flex items-center space-x-2 mb-4">
                                 <WalletIcon className="w-4 h-4 text-slate-400" />
@@ -381,28 +425,32 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                 {/* BOTÕES FINAIS */}
                 <div className="flex flex-col md:flex-row items-center justify-center gap-8 py-8 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                    <button 
-                        type="button" 
-                        onClick={() => handleSubmit('budget')} 
-                        className="group flex flex-col items-center gap-3"
-                    >
-                        <div className="px-10 py-5 bg-[#1e293b] text-white font-black rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center">
-                            <WalletIcon className="w-6 h-6 mr-3" /> SALVAR SOMENTE ORÇAMENTO
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-slate-600">Ficará na lista de negociação</span>
-                    </button>
+                    {!isConverting && !isEditing && (
+                        <button 
+                            type="button" 
+                            onClick={() => handleSubmit('budget')} 
+                            className="group flex flex-col items-center gap-3"
+                        >
+                            <div className="px-10 py-5 bg-[#1e293b] text-white font-black rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center">
+                                <WalletIcon className="w-6 h-6 mr-3" /> SALVAR SOMENTE ORÇAMENTO
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-slate-600">Ficará na lista de negociação</span>
+                        </button>
+                    )}
 
-                    <span className="text-slate-300 font-bold italic">ou</span>
+                    {!isEditing && <span className="text-slate-300 font-bold italic">ou</span>}
 
                     <button 
                         type="button" 
                         onClick={() => handleSubmit('contract')} 
                         className="group flex flex-col items-center gap-3"
                     >
-                        <div className="px-12 py-5 bg-[#10b981] text-white font-black rounded-2xl shadow-xl hover:bg-[#059669] transition-all flex items-center">
-                            <CheckCircleIcon className="w-6 h-6 mr-3" /> ATIVAR PROJETO (CONTRATO)
+                        <div className={`px-12 py-5 ${isEditing ? 'bg-blue-600' : 'bg-[#10b981]'} text-white font-black rounded-2xl shadow-xl hover:brightness-110 transition-all flex items-center`}>
+                            <CheckCircleIcon className="w-6 h-6 mr-3" /> {isEditing ? 'SALVAR ALTERAÇÕES' : 'ATIVAR PROJETO (CONTRATO)'}
                         </div>
-                        <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest group-hover:text-green-700">Gera financeiro e cronograma de obra</span>
+                        <span className={`text-[10px] font-bold ${isEditing ? 'text-blue-500' : 'text-green-600'} uppercase tracking-widest group-hover:brightness-110`}>
+                            {isEditing ? 'Atualiza os dados contratuais' : 'Gera financeiro e cronograma de obra'}
+                        </span>
                     </button>
                 </div>
 

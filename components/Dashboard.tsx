@@ -200,12 +200,16 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
             cashFlow.push({ name: label, Entradas: entry, Saídas: exit });
         }
 
-        // Expense Pie Chart
+        // Expense Pie Chart - FILTRO POR MÊS CORRENTE
         let fixedExp = 0;
         let varExp = 0;
         expenses.forEach(exp => {
-            if (exp.category === 'Fixa') fixedExp += exp.amount;
-            else varExp += exp.amount;
+            const expDate = new Date(exp.dueDate + 'T12:00:00');
+            // Só considera se for do mês e ano atual
+            if (expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear) {
+                if (exp.category === 'Fixa') fixedExp += exp.amount;
+                else varExp += exp.amount;
+            }
         });
         const pieData = [
             { name: 'Fixas', value: fixedExp, color: '#f59e0b' }, // amber-500
@@ -396,8 +400,9 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="text-center">
-                          <p className="text-xs text-slate-500">Total Despesas</p>
-                          <p className="text-lg font-bold text-slate-800">{formatCurrency(expenseData.reduce((a, b) => a + b.value, 0))}</p>
+                          <p className="text-[10px] text-slate-500 uppercase font-black">Total Despesas</p>
+                          <p className="text-lg font-black text-slate-800">{formatCurrency(expenseData.reduce((a, b) => a + b.value, 0))}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Mês Corrente</p>
                       </div>
                   </div>
               </div>

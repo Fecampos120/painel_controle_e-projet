@@ -185,6 +185,7 @@ export interface Partner {
     email?: string;
     address?: Address;
     clientIds?: number[];
+    rating?: number; // Avaliação de 1 a 5 estrelas
 }
 
 export interface ChecklistItemTemplate {
