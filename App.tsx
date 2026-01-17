@@ -181,10 +181,8 @@ const App: React.FC = () => {
                             }))
                         };
 
-                        // 3. Financeiro (Geração Automática de Parcelas)
+                        // 3. Financeiro
                         const newInstallments: PaymentInstallment[] = [];
-                        
-                        // Entrada / Sinal
                         if (c.downPayment > 0) {
                             newInstallments.push({
                                 id: Date.now() + 1000,
@@ -197,12 +195,9 @@ const App: React.FC = () => {
                                 status: 'Pendente'
                             });
                         }
-
-                        // Parcelas Mensais
                         if (c.installments > 0) {
                             const baseDate = c.firstInstallmentDate ? new Date(c.firstInstallmentDate) : new Date(c.downPaymentDate);
                             if (!c.firstInstallmentDate) baseDate.setMonth(baseDate.getMonth() + 1);
-                            
                             for (let i = 1; i <= c.installments; i++) {
                                 const dueDate = new Date(baseDate);
                                 dueDate.setMonth(dueDate.getMonth() + (i - 1));
@@ -219,17 +214,14 @@ const App: React.FC = () => {
                             }
                         }
 
-                        // Atualiza Estado Global
                         setAppData(p => ({ 
                             ...p, 
                             contracts: [...p.contracts, { ...c, id: contractId }] as Contract[], 
                             schedules: [...p.schedules, schedule],
                             checklists: [...p.checklists, initialChecklist],
                             installments: [...p.installments, ...newInstallments],
-                            // Remove o orçamento se ele estava sendo convertido
                             budgets: budgetToConvert ? p.budgets.filter(b => b.id !== budgetToConvert.id) : p.budgets
                         }));
-
                         setBudgetToConvert(null);
                         setEditingContract(null);
                         setView('contracts');
@@ -275,7 +267,13 @@ const App: React.FC = () => {
             case 'notes':
                 return <Notes notes={notes} visitLogs={visitLogs} contracts={contracts} onUpdateNote={(n) => setAppData(prev => ({...prev, notes: prev.notes.map(note => note.id === n.id ? n : note)}))} onDeleteNote={(id) => setAppData(prev => ({...prev, notes: prev.notes.filter(n => n.id !== id)}))} onAddNote={(n) => setAppData(prev => ({...prev, notes: [...prev.notes, {...n, id: Date.now(), createdAt: new Date()}]}))} onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now(), createdAt: new Date() }]}))} />;
             case 'partners':
-                return <Partners partners={partners} clients={appData.clients || []} onAddPartner={(p) => setAppData(p => ({...p, partners: [...p.partners, { ...p, id: Date.now() }]}))} onUpdatePartner={(p) => setAppData(p => ({...p, partners: p.partners.map(x => x.id === p.id ? p : x)}))} onDeletePartner={(id) => setAppData(p => ({...p, partners: p.partners.filter(x => x.id !== id)}))} />;
+                return <Partners 
+                    partners={partners} 
+                    clients={appData.clients || []} 
+                    onAddPartner={(newPartner) => setAppData(prev => ({...prev, partners: [...prev.partners, { ...newPartner, id: Date.now() }]}))} 
+                    onUpdatePartner={(updatedPartner) => setAppData(prev => ({...prev, partners: prev.partners.map(x => x.id === updatedPartner.id ? updatedPartner : x)}))} 
+                    onDeletePartner={(id) => setAppData(prev => ({...prev, partners: prev.partners.filter(x => x.id !== id)}))} 
+                />;
             case 'settings':
                 return <Settings appData={appData} setAppData={setAppData} />;
             case 'construction-checklist':
