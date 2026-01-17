@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ProjectStage, ProjectSchedule, Contract } from '../types';
-import { PencilIcon, CalendarIcon, CheckCircleIcon, TrendingUpIcon, ChevronRightIcon } from './Icons';
+import { PencilIcon, CalendarIcon, CheckCircleIcon, TrendingUpIcon, ChevronRightIcon, ExclamationTriangleIcon, HistoryIcon } from './Icons';
 
 // Helper function to add working days to a date, skipping weekends.
 const addWorkDays = (startDate: Date, days: number): Date => {
@@ -19,7 +19,7 @@ const addWorkDays = (startDate: Date, days: number): Date => {
 
 const formatDateForDisplay = (dateString: string | undefined | Date): string => {
     if (!dateString) return '--/--/----';
-    const date = typeof dateString === 'string' ? new Date(`${dateString}T00:00:00`) : dateString;
+    const date = typeof dateString === 'string' ? new Date(`${dateString}T12:00:00`) : dateString;
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -33,10 +33,16 @@ const getEditorStatus = (stage: ProjectStage) => {
     if (stage.deadline) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const deadline = new Date(stage.deadline);
-        deadline.setMinutes(deadline.getMinutes() + deadline.getTimezoneOffset());
+        const deadline = new Date(stage.deadline + 'T23:59:59');
         if (deadline < today) {
             return <span className="px-2 py-1 text-[10px] font-bold text-red-700 bg-red-100 rounded-full border border-red-200">ATRASADO</span>;
+        }
+        
+        // Alerta de proximidade (3 dias)
+        const diff = deadline.getTime() - today.getTime();
+        const daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        if (daysRemaining <= 3) {
+            return <span className="px-2 py-1 text-[10px] font-bold text-amber-700 bg-amber-100 rounded-full border border-amber-200">VENCE EM {daysRemaining}D</span>;
         }
     }
     return <span className="px-2 py-1 text-[10px] font-bold text-slate-600 bg-slate-100 rounded-full border border-slate-200">PENDENTE</span>;
@@ -52,15 +58,13 @@ const ScheduleEditor: React.FC<{
     const runRecalculation = useCallback((stages: ProjectStage[], projectStartDate: string): ProjectStage[] => {
         if (!projectStartDate) return stages;
         const calculatedStages: ProjectStage[] = [];
-        let lastDate = new Date(projectStartDate);
-        lastDate.setMinutes(lastDate.getMinutes() + lastDate.getTimezoneOffset());
+        let lastDate = new Date(projectStartDate + 'T12:00:00');
 
         stages.forEach((stage, index) => {
             let currentStageStartDate: Date;
             if (index > 0) {
                 const prevStage = calculatedStages[index - 1];
-                const prevStageEndDate = prevStage.completionDate ? new Date(prevStage.completionDate) : new Date(prevStage.deadline!);
-                prevStageEndDate.setMinutes(prevStageEndDate.getMinutes() + prevStageEndDate.getTimezoneOffset());
+                const prevStageEndDate = prevStage.completionDate ? new Date(prevStage.completionDate + 'T12:00:00') : new Date(prevStage.deadline! + 'T12:00:00');
                 currentStageStartDate = addWorkDays(prevStageEndDate, 1);
             } else {
                 currentStageStartDate = new Date(lastDate);
@@ -76,7 +80,6 @@ const ScheduleEditor: React.FC<{
         return calculatedStages;
     }, []);
     
-    // Garantir recalculo inicial caso falte data
     useEffect(() => {
         if (schedule.startDate && schedule.stages.some(s => !s.startDate)) {
             setSchedule(prev => ({
@@ -181,10 +184,6 @@ const ScheduleEditor: React.FC<{
                 </tbody>
               </table>
             </div>
-            
-            <p className="mt-6 text-xs text-slate-400 italic">
-                * As datas são calculadas automaticamente considerando apenas dias úteis (seg-sex). Ao concluir uma etapa, a próxima se inicia no dia útil seguinte.
-            </p>
         </div>
     )
 }
@@ -198,27 +197,54 @@ interface ProgressProps {
 const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts }) => {
     const [mode, setMode] = useState<'list' | 'edit'>('list');
     const [currentSchedule, setCurrentSchedule] = useState<ProjectSchedule | null>(null);
+    const [filterStatus, setFilterStatus] = useState<'todos' | 'atrasados' | 'vencendo'>('todos');
 
-    const activeProjects = useMemo(() => {
+    const processedProjects = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const activeContracts = contracts.filter(c => c.status === 'Ativo');
-        return schedules.filter(s => activeContracts.some(c => c.id === s.contractId)).map(schedule => {
+        const list = schedules.filter(s => activeContracts.some(c => c.id === s.contractId)).map(schedule => {
             const contract = contracts.find(c => c.id === schedule.contractId)!;
             const completedStages = schedule.stages.filter(st => st.completionDate).length;
             const progress = schedule.stages.length > 0 ? Math.round((completedStages / schedule.stages.length) * 100) : 0;
             
-            const start = schedule.startDate ? new Date(schedule.startDate) : new Date();
+            const start = schedule.startDate ? new Date(schedule.startDate + 'T12:00:00') : new Date();
             const lastStage = schedule.stages[schedule.stages.length - 1];
-            const end = lastStage?.deadline ? new Date(lastStage.deadline) : new Date();
+            const end = lastStage?.deadline ? new Date(lastStage.deadline + 'T12:00:00') : new Date();
+
+            // Lógica de atraso e proximidade para a fase atual (primeira pendente)
+            const currentStage = schedule.stages.find(s => !s.completionDate);
+            let isLate = false;
+            let isNear = false;
+            let daysUntilNext = 0;
+
+            if (currentStage?.deadline) {
+                const deadlineDate = new Date(currentStage.deadline + 'T23:59:59');
+                const diff = deadlineDate.getTime() - today.getTime();
+                daysUntilNext = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                
+                if (deadlineDate < today) isLate = true;
+                else if (daysUntilNext <= 3) isNear = true;
+            }
             
             return {
                 ...schedule,
                 contract,
                 progress,
                 startDateObj: start,
-                endDateObj: end
+                endDateObj: end,
+                isLate,
+                isNear,
+                daysUntilNext,
+                currentStageName: currentStage?.name || 'Projeto Finalizado'
             };
         }).sort((a, b) => a.startDateObj.getTime() - b.startDateObj.getTime());
-    }, [schedules, contracts]);
+
+        if (filterStatus === 'atrasados') return list.filter(p => p.isLate);
+        if (filterStatus === 'vencendo') return list.filter(p => p.isNear);
+        return list;
+    }, [schedules, contracts, filterStatus]);
 
     const handleEdit = (schedule: ProjectSchedule) => {
         setCurrentSchedule(JSON.parse(JSON.stringify(schedule)));
@@ -237,89 +263,134 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
     }
 
     return (
-        <div className="space-y-8">
-            <header className="bg-gradient-to-r from-blue-700 to-indigo-600 text-white p-10 rounded-2xl shadow-xl -mx-6 -mt-6 mb-8 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
-                <div className="flex items-center space-x-4 mb-2">
-                    <TrendingUpIcon className="w-12 h-12 text-blue-200" />
-                    <h1 className="text-4xl font-black tracking-tight uppercase">Linha do Tempo de Projetos</h1>
+        <div className="space-y-8 animate-fadeIn">
+            <header className="bg-slate-900 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-8 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div>
+                        <div className="flex items-center space-x-4 mb-2">
+                            <TrendingUpIcon className="w-10 h-10 text-blue-400" />
+                            <h1 className="text-3xl font-black tracking-tight uppercase">Gestão de Cronogramas</h1>
+                        </div>
+                        <p className="text-slate-400 text-sm font-medium opacity-90 max-w-2xl">
+                            Controle total sobre prazos técnicos e entregas de projetos ativos.
+                        </p>
+                    </div>
+                    
+                    <div className="bg-white/5 p-1.5 rounded-2xl flex gap-2 backdrop-blur-md border border-white/5">
+                        <button 
+                            onClick={() => setFilterStatus('todos')}
+                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'todos' ? 'bg-white text-slate-900 shadow-lg' : 'text-white hover:bg-white/5'}`}
+                        >
+                            Todos
+                        </button>
+                        <button 
+                            onClick={() => setFilterStatus('atrasados')}
+                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'atrasados' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'text-white hover:bg-white/5'}`}
+                        >
+                            Atrasados
+                        </button>
+                        <button 
+                            onClick={() => setFilterStatus('vencendo')}
+                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'vencendo' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-white hover:bg-white/5'}`}
+                        >
+                            A vencer em breve
+                        </button>
+                    </div>
                 </div>
-                <p className="text-blue-100 text-lg font-medium opacity-90 max-w-2xl">
-                    Acompanhe o progresso de cada fase e garanta que os prazos de entrega sejam cumpridos.
-                </p>
             </header>
 
             <div className="grid grid-cols-1 gap-6">
-                {activeProjects.map(project => (
+                {processedProjects.map(project => (
                     <div 
                         key={project.id} 
-                        className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md hover:border-blue-300 transition-all group cursor-pointer"
+                        className={`bg-white rounded-3xl shadow-sm border-2 overflow-hidden hover:shadow-md transition-all group cursor-pointer ${project.isLate ? 'border-red-200 bg-red-50/5' : project.isNear ? 'border-amber-200 bg-amber-50/5' : 'border-slate-100'}`}
                         onClick={() => handleEdit(project)}
                     >
                         <div className="p-8">
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-                                <div>
-                                    <div className="flex items-center space-x-3 mb-1">
-                                        <span className="text-[10px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-widest">{project.contract.serviceType}</span>
-                                        <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-widest">ID: {project.contract.id}</span>
+                                <div className="flex-1">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${project.isLate ? 'bg-red-500 text-white' : project.isNear ? 'bg-amber-500 text-white' : 'bg-blue-100 text-blue-600'}`}>
+                                            {project.isLate ? '● CRÍTICO: ETAPA EM ATRASO' : project.isNear ? '● ATENÇÃO: VENCIMENTO PRÓXIMO' : '● NO PRAZO'}
+                                        </span>
+                                        <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full uppercase tracking-widest">ID {project.contract.id}</span>
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-800 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{project.projectName}</h3>
-                                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Cliente: {project.clientName}</p>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">CLIENTE: {project.clientName}</p>
                                 </div>
-                                <div className="mt-6 md:mt-0 flex items-center space-x-8">
-                                    <div className="text-center">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Início do Fluxo</p>
-                                        <p className="font-black text-slate-700 bg-slate-50 px-3 py-1 rounded-lg">{formatDateForDisplay(project.startDate)}</p>
+                                
+                                <div className="mt-6 md:mt-0 flex items-center space-x-10">
+                                    {project.isLate ? (
+                                        <div className="flex items-center gap-2 text-red-600 font-black animate-pulse">
+                                            <ExclamationTriangleIcon className="w-5 h-5" />
+                                            <span className="text-xs uppercase tracking-tighter">Atraso Crítico</span>
+                                        </div>
+                                    ) : project.isNear && (
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[10px] font-black text-amber-600 uppercase">Alertar Cliente</span>
+                                            <span className="text-sm font-black text-slate-700">{project.daysUntilNext === 0 ? 'Vence Hoje!' : `Faltam ${project.daysUntilNext} dias`}</span>
+                                        </div>
+                                    )}
+                                    <div className="text-right">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Fase Atual</p>
+                                        <p className="font-black text-slate-700 uppercase max-w-[150px] truncate">{project.currentStageName}</p>
                                     </div>
-                                    <div className="text-center">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Previsão Entrega</p>
-                                        <p className="font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">{formatDateForDisplay(project.stages[project.stages.length-1]?.deadline)}</p>
-                                    </div>
-                                    <div className="h-12 w-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner group-hover:shadow-blue-200">
+                                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-all shadow-inner ${project.isLate ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-600 group-hover:text-white'}`}>
                                         <PencilIcon className="w-6 h-6" />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Barra de Progresso Visual */}
                             <div className="space-y-6">
                                 <div className="flex justify-between items-end">
                                     <div className="flex items-center space-x-2">
-                                        <span className="text-2xl font-black text-slate-800 italic">{project.progress}%</span>
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Progresso Total</span>
+                                        <span className={`text-2xl font-black italic ${project.isLate ? 'text-red-600' : 'text-slate-800'}`}>{project.progress}%</span>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progresso Total</span>
                                     </div>
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                        {project.stages.filter(s => s.completionDate).length} de {project.stages.length} Fases Concluídas
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                        {project.stages.filter(s => s.completionDate).length} DE {project.stages.length} FASES CONCLUÍDAS
                                     </span>
                                 </div>
                                 
-                                <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden shadow-inner border border-slate-100">
+                                <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-100">
                                     <div 
-                                        className="bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 h-full rounded-full transition-all duration-1000 ease-out relative" 
+                                        className={`h-full rounded-full transition-all duration-1000 ease-out relative ${project.isLate ? 'bg-red-500' : 'bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600'}`} 
                                         style={{ width: `${project.progress}%` }}
                                     >
-                                        <div className="absolute top-0 left-0 w-full h-full opacity-20 bg-[linear-gradient(45deg,rgba(255,255,255,.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.2)_50%,rgba(255,255,255,.2)_75%,transparent_75%,transparent)] bg-[length:20px_20px] animate-[progress-bar-stripes_1s_linear_infinite]"></div>
+                                        <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                                     </div>
                                 </div>
 
-                                {/* Visual de Fases Sequenciais */}
-                                <div className="flex items-center gap-1 pt-4 overflow-x-auto pb-2 custom-scrollbar">
+                                <div className="flex items-center gap-1 pt-6 overflow-x-auto pb-4 custom-scrollbar no-uppercase">
                                     {project.stages.map((stage, idx) => {
-                                        const isCompleted = !!stage.completionDate;
-                                        const isLast = idx === project.stages.length - 1;
+                                        const isDone = !!stage.completionDate;
+                                        const stageToday = new Date();
+                                        stageToday.setHours(0,0,0,0);
+                                        const stageDeadline = stage.deadline ? new Date(stage.deadline + 'T23:59:59') : null;
+                                        const isOverdue = !isDone && stageDeadline && stageDeadline < stageToday;
+                                        
+                                        // Vencimento próximo nesta etapa específica
+                                        let isSpecificNear = false;
+                                        if (!isDone && stageDeadline) {
+                                            const diff = stageDeadline.getTime() - stageToday.getTime();
+                                            const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                                            if (days >= 0 && days <= 3) isSpecificNear = true;
+                                        }
+
                                         return (
                                             <React.Fragment key={idx}>
-                                                <div className="flex flex-col items-center min-w-[100px] flex-1">
+                                                <div className="flex flex-col items-center min-w-[110px] flex-1">
                                                     <div 
-                                                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border-2 ${isCompleted ? 'bg-green-100 border-green-500 text-green-600 shadow-md shadow-green-100' : 'bg-slate-50 border-slate-200 text-slate-300'}`}
+                                                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all border-2 ${isDone ? 'bg-green-100 border-green-500 text-green-600 shadow-sm' : isOverdue ? 'bg-red-50 border-red-500 text-red-500 animate-pulse' : isSpecificNear ? 'bg-amber-50 border-amber-500 text-amber-500' : 'bg-slate-50 border-slate-200 text-slate-300'}`}
                                                         title={`${stage.name}: ${formatDateForDisplay(stage.deadline)}`}
                                                     >
-                                                        {isCompleted ? <CheckCircleIcon className="w-6 h-6" /> : <span className="font-black text-xs">{idx + 1}</span>}
+                                                        {isDone ? <CheckCircleIcon className="w-5 h-5" /> : <span className="font-black text-xs">{idx + 1}</span>}
                                                     </div>
-                                                    <p className={`mt-2 text-[9px] font-black uppercase text-center w-full truncate px-1 ${isCompleted ? 'text-green-700' : 'text-slate-400'}`}>{stage.name}</p>
+                                                    <p className={`mt-2 text-[9px] font-black uppercase text-center w-full truncate px-1 ${isDone ? 'text-green-700' : isOverdue ? 'text-red-700' : isSpecificNear ? 'text-amber-700' : 'text-slate-400'}`}>{stage.name}</p>
                                                     <p className="text-[8px] font-bold text-slate-300 mt-0.5">{formatDateForDisplay(stage.deadline)}</p>
                                                 </div>
-                                                {!isLast && (
-                                                    <div className={`h-0.5 flex-1 min-w-[20px] mb-8 ${isCompleted ? 'bg-green-500' : 'bg-slate-100'}`}></div>
+                                                {idx !== project.stages.length - 1 && (
+                                                    <div className={`h-0.5 flex-1 min-w-[20px] mb-8 ${isDone ? 'bg-green-500' : 'bg-slate-100'}`}></div>
                                                 )}
                                             </React.Fragment>
                                         );
@@ -330,24 +401,16 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                     </div>
                 ))}
 
-                {activeProjects.length === 0 && (
-                    <div className="bg-white p-24 rounded-3xl border-4 border-dashed border-slate-100 text-center shadow-inner">
-                        <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                            <CalendarIcon className="w-12 h-12 text-slate-200" />
+                {processedProjects.length === 0 && (
+                    <div className="bg-white p-24 rounded-[3rem] border-4 border-dashed border-slate-100 text-center opacity-40">
+                        <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 text-slate-200">
+                            <TrendingUpIcon className="w-12 h-12" />
                         </div>
-                        <h2 className="text-2xl font-black text-slate-300 uppercase tracking-[0.2em]">Nenhum fluxo de projeto ativo</h2>
-                        <p className="mt-3 text-slate-400 font-medium">Ative orçamentos para gerar cronogramas automaticamente aqui.</p>
-                        <button className="mt-8 px-8 py-3 bg-blue-100 text-blue-600 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">Iniciar Nova Proposta</button>
+                        <h2 className="text-2xl font-black text-slate-300 uppercase tracking-widest">Nenhum projeto encontrado</h2>
+                        <p className="mt-3 text-slate-400 font-bold uppercase text-sm">Ajuste os filtros ou crie um novo contrato técnico.</p>
                     </div>
                 )}
             </div>
-            
-            <style>{`
-                @keyframes progress-bar-stripes {
-                    from { background-position: 20px 0; }
-                    to { background-position: 0 0; }
-                }
-            `}</style>
         </div>
     );
 };

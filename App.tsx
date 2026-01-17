@@ -36,7 +36,7 @@ import {
     MapPinIcon
 } from './components/Icons';
 
-import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectChecklist, ThemeSettings, VisitLog, Partner } from './types';
+import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectChecklist, ThemeSettings, VisitLog, Partner, Expense, FixedExpenseTemplate } from './types';
 import { 
   MOCK_FIXED_EXPENSE_TEMPLATES, 
   DEFAULT_SYSTEM_SETTINGS,
@@ -154,15 +154,14 @@ const App: React.FC = () => {
                     budgetToConvert={budgetToConvert} 
                     onCancel={() => setView('contracts')} 
                     onAddBudgetOnly={(b) => {
-                        setAppData(p => ({...p, budgets: [...p.budgets, { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); 
+                        setAppData(p => ({...p, budgets: [...p.budgets, { ...b, id: Date.now() + Math.random(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); 
                         setView('budgets');
                     }} 
                     onAddContract={(c) => {
-                        const contractId = Date.now();
+                        const contractId = Date.now() + Math.random();
                         
-                        // 1. Cronograma
                         const schedule: ProjectSchedule = { 
-                            id: Date.now() + 500, 
+                            id: Date.now() + Math.random(), 
                             contractId, 
                             clientName: c.clientName, 
                             projectName: c.projectName, 
@@ -170,7 +169,6 @@ const App: React.FC = () => {
                             stages: (settings.projectStagesTemplate || []).map(t => ({ id: Math.random(), name: t.name, durationWorkDays: t.durationWorkDays })) 
                         };
 
-                        // 2. Checklist Técnico
                         const initialChecklist: ProjectChecklist = {
                             contractId,
                             items: (settings.checklistTemplate || []).map(t => ({
@@ -181,11 +179,10 @@ const App: React.FC = () => {
                             }))
                         };
 
-                        // 3. Financeiro
                         const newInstallments: PaymentInstallment[] = [];
                         if (c.downPayment > 0) {
                             newInstallments.push({
-                                id: Date.now() + 1000,
+                                id: Date.now() + Math.random(),
                                 contractId,
                                 clientName: c.clientName,
                                 projectName: c.projectName,
@@ -202,7 +199,7 @@ const App: React.FC = () => {
                                 const dueDate = new Date(baseDate);
                                 dueDate.setMonth(dueDate.getMonth() + (i - 1));
                                 newInstallments.push({
-                                    id: Date.now() + 2000 + i,
+                                    id: Date.now() + Math.random(),
                                     contractId,
                                     clientName: c.clientName,
                                     projectName: c.projectName,
@@ -254,23 +251,38 @@ const App: React.FC = () => {
             case 'project-portal':
                 const portalContract = contracts.find(c => c.id === selectedProjectId);
                 return portalContract ? (
-                    <ProjectPortal contract={portalContract} schedule={schedules.find(s => s.contractId === selectedProjectId)} checklist={appData.checklists?.find(c => c.contractId === selectedProjectId) || { contractId: selectedProjectId!, items: [] }} installments={installments.filter(i => i.contractId === selectedProjectId)} notes={notes.filter(n => n.contractId === selectedProjectId)} updates={appData.projectUpdates?.filter(u => u.contractId === selectedProjectId) || []} visitLogs={visitLogs.filter(v => v.contractId === selectedProjectId)} onAddVisitLog={(v) => setAppData(p => ({...p, visitLogs: [...p.visitLogs, { ...v, id: Date.now(), createdAt: new Date() }]}))} onAddProjectUpdate={(u) => setAppData(p => ({...p, projectUpdates: [...p.projectUpdates, { ...u, id: Date.now() }]}))} onUpdateChecklist={handleUpdateChecklist} onBack={() => setView('client-area')} systemSettings={settings} />
+                    <ProjectPortal contract={portalContract} schedule={schedules.find(s => s.contractId === selectedProjectId)} checklist={appData.checklists?.find(c => c.contractId === selectedProjectId) || { contractId: selectedProjectId!, items: [] }} installments={installments.filter(i => i.contractId === selectedProjectId)} notes={notes.filter(n => n.contractId === selectedProjectId)} updates={appData.projectUpdates?.filter(u => u.contractId === selectedProjectId) || []} visitLogs={visitLogs.filter(v => v.contractId === selectedProjectId)} onAddVisitLog={(v) => setAppData(p => ({...p, visitLogs: [...p.visitLogs, { ...v, id: Date.now() + Math.random(), createdAt: new Date() }]}))} onAddProjectUpdate={(u) => setAppData(p => ({...p, projectUpdates: [...p.projectUpdates, { ...u, id: Date.now() + Math.random() }]}))} onUpdateChecklist={handleUpdateChecklist} onBack={() => setView('client-area')} systemSettings={settings} />
                 ) : null;
             case 'pricing':
                 return <Pricing expenses={expenses} pricingData={appData.pricing} onUpdatePricing={(p) => setAppData(prev => ({...prev, pricing: p}))} />;
             case 'progress':
                 return <Progress schedules={schedules} setSchedules={(s) => setAppData(prev => ({...prev, schedules: s}))} contracts={contracts} />;
             case 'projections':
-                return <Projections installments={installments} otherPayments={otherPayments} contracts={contracts} onRegisterInstallment={(id, date) => setAppData(prev => ({...prev, installments: prev.installments.map(i => i.id === id ? {...i, status: 'Pago em dia', paymentDate: date} : i)}))} onRegisterOther={(desc, date, val) => setAppData(prev => ({...prev, otherPayments: [...prev.otherPayments, {id: Date.now(), description: desc, paymentDate: date, value: val}]}))} />;
+                return <Projections installments={installments} otherPayments={otherPayments} contracts={contracts} onRegisterInstallment={(id, date) => setAppData(prev => ({...prev, installments: prev.installments.map(i => i.id === id ? {...i, status: 'Pago em dia', paymentDate: date} : i)}))} onRegisterOther={(desc, date, val) => setAppData(prev => ({...prev, otherPayments: [...prev.otherPayments, {id: Date.now() + Math.random(), description: desc, paymentDate: date, value: val}]}))} />;
             case 'expenses':
-                return <Expenses expenses={expenses} fixedExpenseTemplates={appData.fixedExpenseTemplates || []} onAddExpense={(e) => setAppData(prev => ({...prev, expenses: [...prev.expenses, {...e, id: Date.now()}]}))} onDeleteExpense={(id) => setAppData(prev => ({...prev, expenses: prev.expenses.filter(e => e.id !== id)}))} onUpdateExpense={(e) => setAppData(prev => ({...prev, expenses: prev.expenses.map(exp => exp.id === e.id ? e : exp)}))} onAddFixedExpenseTemplate={(t) => setAppData(prev => ({...prev, fixedExpenseTemplates: [...prev.fixedExpenseTemplates, {...t, id: Date.now()}]}))} onDeleteFixedExpenseTemplate={(id) => setAppData(prev => ({...prev, fixedExpenseTemplates: prev.fixedExpenseTemplates.filter(t => t.id !== id)}))} />;
+                return <Expenses 
+                    expenses={expenses} 
+                    fixedExpenseTemplates={appData.fixedExpenseTemplates || []} 
+                    onAddBulkExpenses={(newExps) => setAppData(prev => {
+                        const enhancedExps = newExps.map(e => ({ ...e, id: Date.now() + Math.random() }));
+                        return { ...prev, expenses: [...prev.expenses, ...enhancedExps] };
+                    })}
+                    onAddExpense={(e) => setAppData(prev => ({...prev, expenses: [...prev.expenses, {...e, id: Date.now() + Math.random()}]}))} 
+                    onDeleteExpense={(id) => setAppData(p => ({...p, expenses: p.expenses.filter(e => e.id !== id)}))} 
+                    onUpdateExpense={(e) => setAppData(prev => {
+                        const newExpenses = prev.expenses.map(exp => exp.id === e.id ? { ...exp, ...e } : exp);
+                        return { ...prev, expenses: newExpenses };
+                    })} 
+                    onAddFixedExpenseTemplate={(t) => setAppData(prev => ({...prev, fixedExpenseTemplates: [...prev.fixedExpenseTemplates, {...t, id: Date.now() + Math.random()}]}))} 
+                    onDeleteFixedExpenseTemplate={(id) => setAppData(p => ({...p, fixedExpenseTemplates: p.fixedExpenseTemplates.filter(t => t.id !== id)}))} 
+                />;
             case 'notes':
-                return <Notes notes={notes} visitLogs={visitLogs} contracts={contracts} onUpdateNote={(n) => setAppData(prev => ({...prev, notes: prev.notes.map(note => note.id === n.id ? n : note)}))} onDeleteNote={(id) => setAppData(prev => ({...prev, notes: prev.notes.filter(n => n.id !== id)}))} onAddNote={(n) => setAppData(prev => ({...prev, notes: [...prev.notes, {...n, id: Date.now(), createdAt: new Date()}]}))} onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now(), createdAt: new Date() }]}))} />;
+                return <Notes notes={notes} visitLogs={visitLogs} contracts={contracts} onUpdateNote={(n) => setAppData(prev => ({...prev, notes: prev.notes.map(note => note.id === n.id ? n : note)}))} onDeleteNote={(id) => setAppData(prev => ({...prev, notes: prev.notes.filter(n => n.id !== id)}))} onAddNote={(n) => setAppData(prev => ({...prev, notes: [...prev.notes, {...n, id: Date.now() + Math.random(), createdAt: new Date()}]}))} onAddVisitLog={(v) => setAppData(prev => ({...prev, visitLogs: [...prev.visitLogs, { ...v, id: Date.now() + Math.random(), createdAt: new Date() }]}))} />;
             case 'partners':
                 return <Partners 
                     partners={partners} 
                     clients={appData.clients || []} 
-                    onAddPartner={(newPartner) => setAppData(prev => ({...prev, partners: [...prev.partners, { ...newPartner, id: Date.now() }]}))} 
+                    onAddPartner={(newPartner) => setAppData(prev => ({...prev, partners: [...prev.partners, { ...newPartner, id: Date.now() + Math.random() }]}))} 
                     onUpdatePartner={(updatedPartner) => setAppData(prev => ({...prev, partners: prev.partners.map(x => x.id === updatedPartner.id ? updatedPartner : x)}))} 
                     onDeletePartner={(id) => setAppData(prev => ({...prev, partners: prev.partners.filter(x => x.id !== id)}))} 
                 />;
