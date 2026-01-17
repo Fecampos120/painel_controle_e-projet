@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, SparklesIcon, ArchitectIcon, MapPinIcon, GripVerticalIcon } from './Icons';
+import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, SparklesIcon, ArchitectIcon, MapPinIcon, GripVerticalIcon, MoneyBagIcon } from './Icons';
 import { ServicePrice, AppData, ProjectStageTemplateItem, SystemSettings, ChecklistItemTemplate } from '../types';
 import { FONT_OPTIONS } from '../constants';
 
@@ -13,8 +13,13 @@ const maskPhone = (value: string) => {
 };
 
 const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev: AppData) => AppData)) => void }> = ({ appData, setAppData }) => {
-  const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'modelos'>('empresa');
+  const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'modelos' | 'servicos'>('empresa');
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(appData.systemSettings);
+  
+  // Estados locais para serviços para permitir "Descartar"
+  const [localServicePrices, setLocalServicePrices] = useState<ServicePrice[]>(appData.servicePrices || []);
+  const [localHourlyRates, setLocalHourlyRates] = useState<ServicePrice[]>(appData.hourlyRates || []);
+  
   const [isSaving, setIsSaving] = useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,7 +33,9 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
 
     setAppData(prev => ({ 
         ...prev, 
-        systemSettings: finalSettings
+        systemSettings: finalSettings,
+        servicePrices: localServicePrices,
+        hourlyRates: localHourlyRates
     }));
 
     setTimeout(() => {
@@ -73,6 +80,26 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
       }
   };
 
+  // LÓGICA DE SERVIÇOS
+  const addService = () => {
+    const newService: ServicePrice = {
+        id: Date.now(),
+        name: 'NOVO SERVIÇO',
+        price: 0,
+        unit: 'm²'
+    };
+    setLocalServicePrices(prev => [...prev, newService]);
+  };
+
+  const updateService = (id: number, field: keyof ServicePrice, value: any) => {
+    setLocalServicePrices(prev => prev.map(s => s.id === id ? { ...s, [field]: field === 'name' ? value.toUpperCase() : value } : s));
+  };
+
+  const removeService = (id: number) => {
+    setLocalServicePrices(prev => prev.filter(s => s.id !== id));
+  };
+
+  // FASES E CHECKLISTS
   const addStageTemplate = () => {
     const newStage: ProjectStageTemplateItem = { 
         id: Date.now(), 
@@ -96,28 +123,15 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
     setSystemSettings(prev => ({ ...prev, checklistTemplate: [...prev.checklistTemplate, newItem] }));
   };
 
-  // Logica de Drag and Drop para as fases
-  const handleDragStart = (index: number) => {
-    setDraggedItemIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
+  // Drag and Drop Fases
+  const handleDragStart = (index: number) => setDraggedItemIndex(index);
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
   const handleDrop = (index: number) => {
     if (draggedItemIndex === null) return;
-    
     const newList = [...systemSettings.projectStagesTemplate];
     const draggedItem = newList.splice(draggedItemIndex, 1)[0];
     newList.splice(index, 0, draggedItem);
-    
-    // Atualiza a sequencia numérica de todos os itens
-    const reorderedList = newList.map((item, idx) => ({
-      ...item,
-      sequence: idx + 1
-    }));
-
+    const reorderedList = newList.map((item, idx) => ({ ...item, sequence: idx + 1 }));
     setSystemSettings(prev => ({ ...prev, projectStagesTemplate: reorderedList }));
     setDraggedItemIndex(null);
   };
@@ -127,7 +141,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
       <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 flex justify-between items-center transition-colors duration-500">
         <div>
             <h1 className="text-3xl font-black uppercase tracking-tight">Configurações Gerais</h1>
-            <p className="mt-1 text-white/80 italic text-sm">Controle as fases dos projetos, checklists, cores e fontes do seu estúdio.</p>
+            <p className="mt-1 text-white/80 italic text-sm">Personalize o comportamento, visual e catálogo de serviços do seu sistema.</p>
         </div>
         <button 
             onClick={handleSave} 
@@ -138,10 +152,11 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
         </button>
       </header>
 
-      <div className="flex border-b border-slate-200 mb-8 space-x-8">
-          <button onClick={() => setActiveTab('empresa')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'empresa' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Dados da Empresa</button>
-          <button onClick={() => setActiveTab('visual')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'visual' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Identidade Visual</button>
-          <button onClick={() => setActiveTab('modelos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'modelos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Modelos & Fases</button>
+      <div className="flex border-b border-slate-200 mb-8 space-x-8 overflow-x-auto custom-scrollbar">
+          <button onClick={() => setActiveTab('empresa')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'empresa' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Dados da Empresa</button>
+          <button onClick={() => setActiveTab('visual')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'visual' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Identidade Visual</button>
+          <button onClick={() => setActiveTab('servicos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'servicos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Serviços & Preços</button>
+          <button onClick={() => setActiveTab('modelos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'modelos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Fases & Cronogramas</button>
       </div>
 
       {activeTab === 'empresa' && (
@@ -279,6 +294,74 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
           </div>
       )}
 
+      {activeTab === 'servicos' && (
+          <div className="space-y-8 animate-fadeIn">
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                  <div className="flex justify-between items-center mb-8 pb-4 border-b">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center">
+                            <MoneyBagIcon className="w-5 h-5 mr-2 text-green-500" /> Catálogo de Serviços do Estúdio
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Defina seus serviços e valores base para agilizar novos orçamentos.</p>
+                      </div>
+                      <button onClick={addService} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl shadow-md">+ Add Novo Serviço</button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                      {localServicePrices.map((service) => (
+                          <div key={service.id} className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col md:flex-row items-center gap-6 group hover:border-blue-200 transition-all">
+                              <div className="flex-1 w-full space-y-1">
+                                  <label className="text-[9px] font-black text-slate-400 uppercase">Nome do Serviço</label>
+                                  <input 
+                                    value={service.name} 
+                                    onChange={e => updateService(service.id, 'name', e.target.value)}
+                                    className="w-full bg-white border-slate-200 rounded-xl px-4 h-10 font-bold uppercase text-sm outline-none focus:border-blue-500" 
+                                    placeholder="EX: PROJETO DE INTERIORES"
+                                  />
+                              </div>
+
+                              <div className="w-full md:w-48 space-y-1">
+                                  <label className="text-[9px] font-black text-slate-400 uppercase">Tipo de Cobrança</label>
+                                  <select 
+                                    value={service.unit} 
+                                    onChange={e => updateService(service.id, 'unit', e.target.value)}
+                                    className="w-full bg-white border-slate-200 rounded-xl px-4 h-10 font-bold text-xs outline-none focus:border-blue-500"
+                                  >
+                                      <option value="m²">POR METRAGEM (m²)</option>
+                                      <option value="hora">POR HORA TÉCNICA</option>
+                                      <option value="fixo">VALOR FIXO / PACOTE</option>
+                                  </select>
+                              </div>
+
+                              <div className="w-full md:w-32 space-y-1">
+                                  <label className="text-[9px] font-black text-slate-400 uppercase">Valor Sugerido (R$)</label>
+                                  <input 
+                                    type="number"
+                                    value={service.price || 0} 
+                                    onChange={e => updateService(service.id, 'price', parseFloat(e.target.value) || 0)}
+                                    className="w-full bg-white border-slate-200 rounded-xl px-4 h-10 font-black text-blue-600 text-sm text-center outline-none focus:border-blue-500" 
+                                    placeholder="0,00"
+                                  />
+                              </div>
+
+                              <div className="flex items-end h-full">
+                                  <button onClick={() => removeService(service.id)} className="p-3 text-slate-300 hover:text-red-500 transition-colors">
+                                      <TrashIcon className="w-5 h-5" />
+                                  </button>
+                              </div>
+                          </div>
+                      ))}
+
+                      {localServicePrices.length === 0 && (
+                          <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Nenhum serviço cadastrado ainda.</p>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
+
       {activeTab === 'modelos' && (
           <div className="space-y-12 animate-fadeIn">
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
@@ -305,7 +388,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                               <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[var(--primary-color)] font-black text-xs shadow-sm">{idx + 1}</span>
                               <input 
                                 value={stage.name} 
-                                onMouseDown={(e) => e.stopPropagation()} // Permite focar no input sem arrastar
+                                onMouseDown={(e) => e.stopPropagation()} 
                                 onChange={e => setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.map(s => s.id === stage.id ? { ...s, name: e.target.value.toUpperCase() } : s) }))}
                                 className="flex-1 bg-transparent border-none font-bold text-slate-700 outline-none uppercase" 
                               />
@@ -367,16 +450,20 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
           <div className="max-w-4xl w-full flex justify-between items-center px-10">
               <div className="flex items-center text-slate-400 gap-2">
                   <CheckCircleIcon className="w-5 h-5 text-green-500" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Clique em salvar para aplicar os novos estilos em todo o app</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Salve para aplicar as mudanças e atualizar seu catálogo de serviços</span>
               </div>
               <div className="flex gap-4">
-                  <button onClick={() => setSystemSettings(appData.systemSettings)} className="px-6 py-3 font-black uppercase text-[10px] text-slate-400 hover:text-slate-600 transition-all">Descartar</button>
+                  <button onClick={() => {
+                      setSystemSettings(appData.systemSettings);
+                      setLocalServicePrices(appData.servicePrices);
+                      setLocalHourlyRates(appData.hourlyRates);
+                  }} className="px-6 py-3 font-black uppercase text-[10px] text-slate-400 hover:text-slate-600 transition-all">Descartar</button>
                   <button 
                     onClick={handleSave} 
                     disabled={isSaving}
                     className={`px-12 py-3 bg-[var(--primary-color)] text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-xl shadow-blue-500/20 hover:scale-105 transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {isSaving ? 'Salvando...' : 'Salvar Configurações'}
+                    {isSaving ? 'Salvando...' : 'Salvar Tudo'}
                   </button>
               </div>
           </div>

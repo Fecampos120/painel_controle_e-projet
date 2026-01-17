@@ -129,7 +129,6 @@ const App: React.FC = () => {
     };
 
     const renderView = () => {
-        // Fallbacks de segurança definitivos
         const contracts = Array.isArray(appData.contracts) ? appData.contracts : [];
         const installments = Array.isArray(appData.installments) ? appData.installments : [];
         const schedules = Array.isArray(appData.schedules) ? appData.schedules : [];
@@ -145,16 +144,102 @@ const App: React.FC = () => {
             case 'dashboard':
                 return <Dashboard installments={installments} contracts={contracts} schedules={schedules} projectProgress={[]} otherPayments={otherPayments} expenses={expenses} />;
             case 'budgets':
-                return <Budgets budgets={budgets} onAddBudget={() => setView('new-contract')} onDeleteBudget={(id) => setAppData(p => ({...p, budgets: p.budgets.filter(b => b.id !== id)}))} onApproveBudget={(b) => {setBudgetToConvert(b); setView('new-contract')}} />;
+                return <Budgets budgets={budgets} onAddBudget={() => { setBudgetToConvert(null); setEditingContract(null); setView('new-contract'); }} onDeleteBudget={(id) => setAppData(p => ({...p, budgets: p.budgets.filter(b => b.id !== id)}))} onApproveBudget={(b) => {setBudgetToConvert(b); setEditingContract(null); setView('new-contract')}} />;
             case 'contracts':
-                return <Contracts contracts={contracts} schedules={schedules} clients={appData.clients || []} systemSettings={settings} onEditContract={(c) => {setEditingContract(c); setView('new-contract')}} onDeleteContract={(id) => setAppData(p => ({...p, contracts: p.contracts.filter(c => c.id !== id)}))} onCreateProject={() => setView('new-contract')} onViewPortal={(id) => {setSelectedProjectId(id); setView('project-portal')}} />;
+                return <Contracts contracts={contracts} schedules={schedules} clients={appData.clients || []} systemSettings={settings} onEditContract={(c) => {setEditingContract(c); setBudgetToConvert(null); setView('new-contract')}} onDeleteContract={(id) => setAppData(p => ({...p, contracts: p.contracts.filter(c => c.id !== id)}))} onCreateProject={() => { setBudgetToConvert(null); setEditingContract(null); setView('new-contract'); }} onViewPortal={(id) => {setSelectedProjectId(id); setView('project-portal')}} />;
             case 'new-contract':
-                return <NewContract appData={appData} editingContract={editingContract} budgetToConvert={budgetToConvert} onCancel={() => setView('contracts')} onAddBudgetOnly={(b) => {setAppData(p => ({...p, budgets: [...p.budgets, { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); setView('budgets');}} onAddContract={(c) => {
-                    const contractId = Date.now();
-                    const schedule: ProjectSchedule = { id: Date.now() + 500, contractId, clientName: c.clientName, projectName: c.projectName, startDate: new Date(c.date).toISOString().split('T')[0], stages: (settings.projectStagesTemplate || []).map(t => ({ id: Math.random(), name: t.name, durationWorkDays: t.durationWorkDays })) };
-                    setAppData(p => ({ ...p, contracts: [...p.contracts, { ...c, id: contractId }], schedules: [...p.schedules, schedule] }));
-                    setView('contracts');
-                }} onUpdateContract={(c) => {setAppData(p => ({...p, contracts: p.contracts.map(x => x.id === c.id ? c : x)})); setView('contracts');}} />;
+                return <NewContract 
+                    appData={appData} 
+                    editingContract={editingContract} 
+                    budgetToConvert={budgetToConvert} 
+                    onCancel={() => setView('contracts')} 
+                    onAddBudgetOnly={(b) => {
+                        setAppData(p => ({...p, budgets: [...p.budgets, { ...b, id: Date.now(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); 
+                        setView('budgets');
+                    }} 
+                    onAddContract={(c) => {
+                        const contractId = Date.now();
+                        
+                        // 1. Cronograma
+                        const schedule: ProjectSchedule = { 
+                            id: Date.now() + 500, 
+                            contractId, 
+                            clientName: c.clientName, 
+                            projectName: c.projectName, 
+                            startDate: new Date(c.date).toISOString().split('T')[0], 
+                            stages: (settings.projectStagesTemplate || []).map(t => ({ id: Math.random(), name: t.name, durationWorkDays: t.durationWorkDays })) 
+                        };
+
+                        // 2. Checklist Técnico
+                        const initialChecklist: ProjectChecklist = {
+                            contractId,
+                            items: (settings.checklistTemplate || []).map(t => ({
+                                id: Math.random(),
+                                text: t.text,
+                                stage: t.stage,
+                                completed: false
+                            }))
+                        };
+
+                        // 3. Financeiro (Geração Automática de Parcelas)
+                        const newInstallments: PaymentInstallment[] = [];
+                        
+                        // Entrada / Sinal
+                        if (c.downPayment > 0) {
+                            newInstallments.push({
+                                id: Date.now() + 1000,
+                                contractId,
+                                clientName: c.clientName,
+                                projectName: c.projectName,
+                                installment: 'ENTRADA',
+                                dueDate: new Date(c.downPaymentDate),
+                                value: c.downPayment,
+                                status: 'Pendente'
+                            });
+                        }
+
+                        // Parcelas Mensais
+                        if (c.installments > 0) {
+                            const baseDate = c.firstInstallmentDate ? new Date(c.firstInstallmentDate) : new Date(c.downPaymentDate);
+                            if (!c.firstInstallmentDate) baseDate.setMonth(baseDate.getMonth() + 1);
+                            
+                            for (let i = 1; i <= c.installments; i++) {
+                                const dueDate = new Date(baseDate);
+                                dueDate.setMonth(dueDate.getMonth() + (i - 1));
+                                newInstallments.push({
+                                    id: Date.now() + 2000 + i,
+                                    contractId,
+                                    clientName: c.clientName,
+                                    projectName: c.projectName,
+                                    installment: `${i}/${c.installments}`,
+                                    dueDate: dueDate,
+                                    value: c.installmentValue,
+                                    status: 'Pendente'
+                                });
+                            }
+                        }
+
+                        // Atualiza Estado Global
+                        setAppData(p => ({ 
+                            ...p, 
+                            contracts: [...p.contracts, { ...c, id: contractId }] as Contract[], 
+                            schedules: [...p.schedules, schedule],
+                            checklists: [...p.checklists, initialChecklist],
+                            installments: [...p.installments, ...newInstallments],
+                            // Remove o orçamento se ele estava sendo convertido
+                            budgets: budgetToConvert ? p.budgets.filter(b => b.id !== budgetToConvert.id) : p.budgets
+                        }));
+
+                        setBudgetToConvert(null);
+                        setEditingContract(null);
+                        setView('contracts');
+                    }} 
+                    onUpdateContract={(c) => {
+                        setAppData(p => ({...p, contracts: p.contracts.map(x => x.id === c.id ? c : x)})); 
+                        setEditingContract(null);
+                        setView('contracts');
+                    }} 
+                />;
             case 'client-area':
                 const activeProjects = contracts.filter(c => c.status === 'Ativo');
                 return (
