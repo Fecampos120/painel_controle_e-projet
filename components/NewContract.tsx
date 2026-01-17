@@ -244,10 +244,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                     <select 
                                         value={ct.serviceName} 
                                         onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} 
-                                        className="w-full h-12 px-4 bg-white border-2 border-blue-100 rounded-xl text-sm font-black uppercase text-blue-700 focus:border-blue-500 shadow-sm transition-all"
+                                        className="w-full h-12 px-4 bg-white border-2 border-blue-100 rounded-xl text-sm font-black uppercase text-slate-900 focus:border-blue-500 shadow-sm transition-all block"
+                                        style={{ color: '#0f172a' }} // Garante que o texto selecionado seja preto/slate escuro
                                     >
                                         <option value="" className="text-slate-400">SELECIONE UM SERVIÇO...</option>
-                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
+                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name} className="text-slate-900">{s.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
 
@@ -256,7 +257,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                     <select 
                                         value={ct.calculationMethod} 
                                         onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} 
-                                        className="w-full h-12 px-3 bg-white border-2 border-slate-100 rounded-xl text-[11px] font-bold uppercase tracking-tight"
+                                        className="w-full h-12 px-3 bg-white border-2 border-slate-100 rounded-xl text-[11px] font-bold uppercase tracking-tight text-slate-900"
                                     >
                                         <option value="metragem">Por m²</option>
                                         <option value="hora">Por Hora</option>
@@ -373,8 +374,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº Parcelas</label>
-                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-11 px-4 bg-white border-slate-200 rounded-lg text-sm font-bold">
-                                    {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n}>{n}x</option>)}
+                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-11 px-4 bg-white border-slate-200 rounded-lg text-sm font-bold text-slate-900">
+                                    {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n} className="text-slate-900">{n}x</option>)}
                                 </select>
                             </div>
                         </div>

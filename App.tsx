@@ -94,21 +94,21 @@ const App: React.FC = () => {
     const [editingContract, setEditingContract] = useState<Contract | null>(null);
     const [budgetToConvert, setBudgetToConvert] = useState<Budget | null>(null);
 
-    // EFEITO DE TEMA: Aplica as cores e fontes customizadas no ROOT do sistema
+    // EFEITO DE TEMA SEGURO: Aplica as cores e fontes com verificação de nulos
     useEffect(() => {
-        if (!appData.systemSettings.theme) return;
+        const theme = appData?.systemSettings?.theme;
+        if (!theme) return;
+        
         const root = document.documentElement;
-        const theme = appData.systemSettings.theme;
+        root.style.setProperty('--primary-color', theme.primaryColor || '#2563eb');
+        root.style.setProperty('--sidebar-color', theme.sidebarColor || '#0f172a');
+        root.style.setProperty('--bg-color', theme.backgroundColor || '#f1f5f9');
+        root.style.setProperty('--font-main', theme.fontFamily || "'Inter', sans-serif");
+        root.style.setProperty('--border-radius', theme.borderRadius || '12px');
         
-        root.style.setProperty('--primary-color', theme.primaryColor);
-        root.style.setProperty('--sidebar-color', theme.sidebarColor);
-        root.style.setProperty('--bg-color', theme.backgroundColor);
-        root.style.setProperty('--font-main', theme.fontFamily);
-        root.style.setProperty('--border-radius', theme.borderRadius);
-        
-        document.body.style.fontFamily = theme.fontFamily;
-        document.body.style.backgroundColor = theme.backgroundColor;
-    }, [appData.systemSettings.theme]);
+        document.body.style.fontFamily = theme.fontFamily || "'Inter', sans-serif";
+        document.body.style.backgroundColor = theme.backgroundColor || '#f1f5f9';
+    }, [appData?.systemSettings?.theme]);
 
     if (!user) {
         return <Auth onLoginSuccess={setUser} />;
@@ -240,6 +240,7 @@ const App: React.FC = () => {
                         onAddProjectUpdate={(u) => setAppData(prev => ({...prev, projectUpdates: [...prev.projectUpdates, { ...u, id: Date.now() }]}))}
                         onUpdateChecklist={handleUpdateChecklist}
                         onBack={() => setView('client-area')}
+                        systemSettings={appData.systemSettings}
                     />
                 ) : null;
             case 'pricing':
@@ -289,14 +290,14 @@ const App: React.FC = () => {
         <div className="flex min-h-screen bg-[var(--bg-color)]">
             <aside className="w-64 bg-[var(--sidebar-color)] flex-shrink-0 flex flex-col no-print shadow-2xl z-40 transition-colors duration-500">
                 <div className="p-8 border-b border-white/5 flex flex-col items-center">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mb-4 transition-all duration-500 overflow-hidden ${!appData.systemSettings.logoUrl ? 'bg-[var(--primary-color)]' : 'bg-transparent'}`}>
-                        {appData.systemSettings.logoUrl ? (
+                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mb-4 transition-all duration-500 overflow-hidden ${!appData?.systemSettings?.logoUrl ? 'bg-[var(--primary-color)]' : 'bg-transparent'}`}>
+                        {appData?.systemSettings?.logoUrl ? (
                             <img src={appData.systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                         ) : (
                             <BrandLogo className="w-8 h-8 text-white" />
                         )}
                     </div>
-                    <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] text-center">{appData.systemSettings.appName}</h1>
+                    <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] text-center">{appData?.systemSettings?.appName || 'E-PROJET'}</h1>
                 </div>
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                     <NavItem icon={<DashboardIcon />} label="Dashboard" isActive={view === 'dashboard'} onClick={() => setView('dashboard')} />

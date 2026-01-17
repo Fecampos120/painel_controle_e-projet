@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Contract, ProjectSchedule, ProjectChecklist, ProjectChecklistItem, PaymentInstallment, VisitLog, Meeting, ProjectUpdate, Note } from '../types';
+import { Contract, ProjectSchedule, ProjectChecklist, ProjectChecklistItem, PaymentInstallment, VisitLog, Meeting, ProjectUpdate, Note, SystemSettings } from '../types';
 import { 
     ChevronLeftIcon, 
     CheckCircleIcon, 
@@ -35,6 +35,7 @@ interface ProjectPortalProps {
     onAddProjectUpdate: (update: Omit<ProjectUpdate, 'id'>) => void;
     onUpdateChecklist: (checklist: ProjectChecklist) => void;
     onBack: () => void;
+    systemSettings?: SystemSettings;
 }
 
 const ProjectPortal: React.FC<ProjectPortalProps> = ({ 
@@ -48,7 +49,8 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
     onAddVisitLog,
     onAddProjectUpdate,
     onUpdateChecklist,
-    onBack 
+    onBack,
+    systemSettings
 }) => {
     const [activeTab, setActiveTab] = useState<'geral' | 'mural' | 'checklist' | 'visitas' | 'financeiro'>('geral');
     const [isAddUpdateOpen, setIsAddUpdateOpen] = useState(false);
@@ -456,7 +458,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                         @media print {
                             body * { visibility: hidden; }
                             .print-receipt-content, .print-receipt-content * { visibility: visible; }
-                            .print-receipt-content { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 2cm; background: white; }
+                            .print-receipt-content { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 1.5cm; background: white; }
                             .no-print { display: none !important; }
                         }
                     `}</style>
@@ -473,7 +475,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                             </div>
                             <div className="flex gap-4 no-print">
                                 <button onClick={() => window.print()} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-blue-700 transition-all flex items-center">
-                                    <PrinterIcon className="w-4 h-4 mr-2" /> Imprimir PDF
+                                    <PrinterIcon className="w-4 h-4 mr-2" /> Imprimir / PDF
                                 </button>
                                 <button onClick={() => setIsReceiptModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                                     <XIcon className="w-8 h-8 text-slate-400" />
@@ -492,8 +494,8 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                                 <div className="text-right">
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Projeto Referência</h4>
                                     <p className="text-xl font-bold uppercase">{contract.projectName}</p>
-                                    <p className="text-sm text-slate-500 mt-1">Data: {formatDate(contract.date)}</p>
-                                    <p className="text-sm text-slate-500">ID Contrato: #{contract.id}</p>
+                                    <p className="text-sm text-slate-500 mt-1">Data Início: {formatDate(contract.date)}</p>
+                                    <p className="text-sm text-slate-500">Documento Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
                                 </div>
                             </section>
 
@@ -539,16 +541,16 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                                 <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 border-b-2 border-slate-800 pb-2">2. Situação de Recebimentos</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {installments.map((inst, idx) => (
-                                        <div key={idx} className="p-4 border rounded-xl flex justify-between items-center">
+                                        <div key={idx} className="p-4 border rounded-xl flex justify-between items-center bg-slate-50/50">
                                             <div>
                                                 <p className="text-[10px] font-black uppercase text-slate-400">{inst.installment === 'Entrada' ? 'SINAL' : `PARCELA ${inst.installment}`}</p>
                                                 <p className="font-bold text-slate-800">{formatCurrency(inst.value)}</p>
                                             </div>
                                             <div className="text-right">
-                                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded ${inst.status.includes('Pago') ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded ${inst.status.includes('Pago') ? 'bg-green-600 text-white' : 'bg-amber-100 text-amber-700 border border-amber-200'}`}>
                                                     {inst.status}
                                                 </span>
-                                                <p className="text-[9px] text-slate-400 mt-1 uppercase">Vencimento: {formatDate(inst.dueDate)}</p>
+                                                <p className="text-[9px] text-slate-400 mt-1 uppercase">Venc: {formatDate(inst.dueDate)}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -565,7 +567,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                                     <p className="text-xl font-black text-blue-600">{formatCurrency(financialSummary.totalPending)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Evolução do Cronograma</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Execução da Obra</p>
                                     <p className="text-xl font-black text-slate-900">{progressPercent}%</p>
                                 </div>
                             </div>
@@ -578,6 +580,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({
                                 <div className="text-center">
                                     <div className="w-48 h-px bg-slate-300 mb-2 mx-auto"></div>
                                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Responsável Técnico</p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase mt-1">{systemSettings?.companyName || 'ARQUITETO'}</p>
                                 </div>
                             </footer>
                         </div>
