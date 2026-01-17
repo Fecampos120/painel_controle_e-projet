@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, SparklesIcon, ArchitectIcon, MapPinIcon } from './Icons';
+import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, SparklesIcon, ArchitectIcon, MapPinIcon, GripVerticalIcon } from './Icons';
 import { ServicePrice, AppData, ProjectStageTemplateItem, SystemSettings, ChecklistItemTemplate } from '../types';
 import { FONT_OPTIONS } from '../constants';
 
@@ -16,6 +16,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
   const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'modelos'>('empresa');
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(appData.systemSettings);
   const [isSaving, setIsSaving] = useState(false);
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
@@ -93,6 +94,32 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
         text: 'NOVA AÇÃO TÉCNICA'
     };
     setSystemSettings(prev => ({ ...prev, checklistTemplate: [...prev.checklistTemplate, newItem] }));
+  };
+
+  // Logica de Drag and Drop para as fases
+  const handleDragStart = (index: number) => {
+    setDraggedItemIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (index: number) => {
+    if (draggedItemIndex === null) return;
+    
+    const newList = [...systemSettings.projectStagesTemplate];
+    const draggedItem = newList.splice(draggedItemIndex, 1)[0];
+    newList.splice(index, 0, draggedItem);
+    
+    // Atualiza a sequencia numérica de todos os itens
+    const reorderedList = newList.map((item, idx) => ({
+      ...item,
+      sequence: idx + 1
+    }));
+
+    setSystemSettings(prev => ({ ...prev, projectStagesTemplate: reorderedList }));
+    setDraggedItemIndex(null);
   };
 
   return (
@@ -258,16 +285,27 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                   <div className="flex justify-between items-center mb-8 pb-4 border-b">
                       <div>
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Fases Padrão de Projeto</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Defina a sequência que será carregada em cada novo contrato.</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Defina a sequência que será carregada em cada novo contrato. Clique e arraste para reordenar.</p>
                       </div>
                       <button onClick={addStageTemplate} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl shadow-md">+ Add Etapa</button>
                   </div>
                   <div className="space-y-3">
                       {systemSettings.projectStagesTemplate.map((stage, idx) => (
-                          <div key={stage.id} className="flex gap-4 items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group">
+                          <div 
+                            key={stage.id} 
+                            draggable
+                            onDragStart={() => handleDragStart(idx)}
+                            onDragOver={handleDragOver}
+                            onDrop={() => handleDrop(idx)}
+                            className={`flex gap-4 items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group transition-all cursor-grab active:cursor-grabbing ${draggedItemIndex === idx ? 'opacity-50 border-dashed border-[var(--primary-color)]' : ''}`}
+                          >
+                              <div className="flex items-center text-slate-300">
+                                <GripVerticalIcon className="w-5 h-5" />
+                              </div>
                               <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[var(--primary-color)] font-black text-xs shadow-sm">{idx + 1}</span>
                               <input 
                                 value={stage.name} 
+                                onMouseDown={(e) => e.stopPropagation()} // Permite focar no input sem arrastar
                                 onChange={e => setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.map(s => s.id === stage.id ? { ...s, name: e.target.value.toUpperCase() } : s) }))}
                                 className="flex-1 bg-transparent border-none font-bold text-slate-700 outline-none uppercase" 
                               />
@@ -275,6 +313,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                                   <label className="text-[9px] font-black text-slate-400 uppercase">Dias Úteis:</label>
                                   <input 
                                     type="number" 
+                                    onMouseDown={(e) => e.stopPropagation()}
                                     value={stage.durationWorkDays} 
                                     onChange={e => setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.map(s => s.id === stage.id ? { ...s, durationWorkDays: parseInt(e.target.value) || 0 } : s) }))}
                                     className="w-16 h-8 bg-white border border-slate-200 rounded-lg text-center font-bold text-xs" 

@@ -4,6 +4,23 @@ import { AppData } from '../types';
 
 const LOCAL_STORAGE_KEY = 'E_PROJET_DATA_V1';
 
+// Função de mesclagem profunda para evitar propriedades undefined em objetos complexos
+const deepMerge = (target: any, source: any) => {
+  const output = { ...target };
+  if (source && typeof source === 'object') {
+    Object.keys(source).forEach(key => {
+      if (source[key] !== undefined && source[key] !== null) {
+        if (typeof source[key] === 'object' && !Array.isArray(source[key]) && target[key]) {
+          output[key] = deepMerge(target[key], source[key]);
+        } else {
+          output[key] = source[key];
+        }
+      }
+    });
+  }
+  return output;
+};
+
 export const useUserData = (user: any, initialData: AppData) => {
   const [data, setData] = useState<AppData>(initialData);
   const [loadingData, setLoadingData] = useState(true);
@@ -14,25 +31,31 @@ export const useUserData = (user: any, initialData: AppData) => {
         if (localData && localData !== "undefined" && localData !== "null") {
             const parsedData = JSON.parse(localData);
             
-            // GARANTIA DE INTEGRIDADE: 
-            // Mescla o initialData (que tem todos os campos novos vazios) 
-            // com o parsedData (que tem os dados antigos salvos).
-            const merged = { ...initialData };
+            // Mescla os dados salvos sobre os iniciais, preservando novas estruturas
+            const merged = deepMerge(initialData, parsedData);
             
-            Object.keys(initialData).forEach((key) => {
-                const k = key as keyof AppData;
-                // Se o dado salvo existe, usa ele. Se for nulo/indefinido, mantém o do initialData.
-                if (parsedData[k] !== undefined && parsedData[k] !== null) {
-                    (merged as any)[k] = parsedData[k];
-                }
-            });
+            // Garantia extra para todas as listas principais
+            const finalData = {
+              ...merged,
+              contracts: merged.contracts || [],
+              budgets: merged.budgets || [],
+              installments: merged.installments || [],
+              schedules: merged.schedules || [],
+              partners: merged.partners || [],
+              checklists: merged.checklists || [],
+              expenses: merged.expenses || [],
+              notes: merged.notes || [],
+              visitLogs: merged.visitLogs || [],
+              projectUpdates: merged.projectUpdates || [],
+              otherPayments: merged.otherPayments || []
+            };
 
-            setData(merged);
+            setData(finalData);
         } else {
             setData(initialData);
         }
     } catch (e) {
-        console.error("Erro ao carregar dados locais:", e);
+        console.error("Erro crítico ao restaurar banco de dados:", e);
         setData(initialData);
     } finally {
         setLoadingData(false);
@@ -48,10 +71,9 @@ export const useUserData = (user: any, initialData: AppData) => {
       if (!resolvedData) return prev;
       
       try {
-          const dataToSave = JSON.stringify(resolvedData);
-          localStorage.setItem(LOCAL_STORAGE_KEY, dataToSave);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(resolvedData));
       } catch (error) {
-          console.error("Erro ao salvar no LocalStorage:", error);
+          console.error("Erro ao persistir dados:", error);
       }
       return resolvedData;
     });

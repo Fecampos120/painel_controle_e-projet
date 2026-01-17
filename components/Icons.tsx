@@ -275,3 +275,14 @@ export const HistoryIcon: React.FC<{ className?: string }> = ({ className }) => 
     <path d="M12 7V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
+
+export const GripVerticalIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+    <circle cx="9" cy="5" r="1.5" fill="currentColor"/>
+    <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
+    <circle cx="9" cy="19" r="1.5" fill="currentColor"/>
+    <circle cx="15" cy="5" r="1.5" fill="currentColor"/>
+    <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
+    <circle cx="15" cy="19" r="1.5" fill="currentColor"/>
+  </svg>
+);
