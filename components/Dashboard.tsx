@@ -9,7 +9,11 @@ import {
   DocumentIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  SendIcon
+  SendIcon,
+  HistoryIcon,
+  /* Fix: Added missing imports for TrendingUpIcon and CreditCardIcon */
+  TrendingUpIcon,
+  CreditCardIcon
 } from './Icons';
 import { PaymentInstallment, AttentionPoint, Contract, ProjectProgress, OtherPayment, ProjectSchedule, Expense } from '../types';
 import PaymentReminderModal from './PaymentReminderModal';
@@ -27,7 +31,6 @@ const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('pt-BR', {timeZone: 'UTC'}).format(d);
 }
 
-// FIX: Added getStatusChip helper function to resolve the "Cannot find name 'getStatusChip'" error
 const getStatusChip = (status: string) => {
     switch (status) {
         case 'Pendente': return 'bg-amber-100 text-amber-800';
@@ -92,8 +95,30 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
             }
         });
 
+        // REGRAS DE ASSINATURA SEM PAGAMENTO (5 DIAS)
+        contracts.forEach(c => {
+            if (c.contractSigningDate && c.status === 'Ativo') {
+                const signing = new Date(c.contractSigningDate);
+                const entry = installments.find(i => i.contractId === c.id && i.installment.toUpperCase().includes('ENTRADA'));
+                
+                if (entry && entry.status === 'Pendente') {
+                    const diffTime = today.getTime() - signing.getTime();
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays >= 5) {
+                        points.push({
+                            clientName: c.clientName,
+                            description: `Assinado há ${diffDays} dias e entrada continua PENDENTE.`,
+                            daysRemaining: 0,
+                            type: 'alert',
+                        });
+                    }
+                }
+            }
+        });
+
         return points.sort((a, b) => a.daysRemaining - b.daysRemaining);
-    }, [schedules, contracts]);
+    }, [schedules, contracts, installments]);
 
     const financialAttentionPoints: AttentionPoint[] = useMemo(() => {
         const points: AttentionPoint[] = [];
@@ -269,40 +294,40 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
 
 
   return (
-    <div className="space-y-8">
-      <header className="bg-blue-600 text-white p-6 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
+    <div className="space-y-8 uppercase">
+      <header className="bg-blue-600 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-6 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div>
-                <h1 className="text-3xl font-bold">Painel de Controle E-Projet</h1>
-                <p className="mt-1 text-blue-100">
-                    Visão geral dos seus projetos e recebimentos
+                <h1 className="text-3xl font-black tracking-tight">PAINEL E-PROJET</h1>
+                <p className="mt-1 text-blue-100 font-bold text-sm">
+                    GESTÃO FINANCEIRA E DE PROJETOS ATIVOS
                 </p>
             </div>
-            <button className="mt-4 sm:mt-0 flex items-center justify-center px-4 py-2 bg-white/20 border border-white/30 text-white rounded-lg shadow-sm hover:bg-white/30 transition-colors">
+            <button className="mt-4 sm:mt-0 flex items-center justify-center px-6 py-2.5 bg-white/20 border border-white/30 text-white rounded-xl font-black text-xs tracking-widest hover:bg-white/30 transition-all uppercase">
                 <DownloadIcon className="w-5 h-5 mr-2" />
-                Exportar Excel
+                RELATÓRIO GERAL
             </button>
         </div>
       </header>
       
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Previsto (Mês Atual)"
+          title="PREVISTO (MÊS)"
           value={formatCurrency(expectedThisMonth)}
           icon={<DollarIcon className="w-6 h-6 text-blue-500" />}
         />
         <StatCard
-          title="Recebido (Mês Atual)"
+          title="RECEBIDO (MÊS)"
           value={formatCurrency(receivedThisMonth)}
           icon={<MoneyBagIcon className="w-6 h-6 text-green-500" />}
         />
         <StatCard
-          title="Total Atrasado"
+          title="TOTAL ATRASADO"
           value={formatCurrency(totalOverdue)}
           icon={<ExclamationTriangleIcon className="w-6 h-6 text-red-500" />}
         />
         <StatCard
-          title="Contratos Ativos"
+          title="CONTRATOS ATIVOS"
           value={contracts.filter(c => c.status === 'Ativo').length.toString()}
           icon={<DocumentIcon className="w-6 h-6 text-purple-500" />}
         />
@@ -310,48 +335,53 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
 
       {/* Alertas Section */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-lg font-semibold text-slate-800">Prazos de Etapas</h2>
-          <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto">
+        <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center">
+            <HistoryIcon className="w-5 h-5 mr-2 text-blue-500" /> ALERTAS DE PROJETO
+          </h2>
+          <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto pr-2 no-scrollbar">
             {attentionPoints.length > 0 ? attentionPoints.map((point: AttentionPoint, index: number) => {
-              const iconColor = 'bg-orange-500'; // For stages
+              const iconColor = point.type === 'alert' ? 'bg-red-600 animate-pulse' : 'bg-orange-500';
               return (
-              <li key={index} className="flex items-start">
-                <div className={`w-2.5 h-2.5 ${iconColor} rounded-full mt-1.5 mr-4 flex-shrink-0`}></div>
+              <li key={index} className={`flex items-start p-3 rounded-xl border border-slate-50 transition-all hover:bg-slate-50 ${point.type === 'alert' ? 'bg-red-50 border-red-100' : ''}`}>
+                <div className={`w-3 h-3 ${iconColor} rounded-full mt-1 mr-4 flex-shrink-0`}></div>
                 <div>
-                  <p className="font-semibold text-slate-700">{point.clientName}</p>
-                  <p className="text-sm text-slate-500">{point.description}</p>
+                  <p className="font-black text-xs text-slate-800 tracking-tight">{point.clientName}</p>
+                  <p className={`text-[11px] font-bold mt-1 ${point.type === 'alert' ? 'text-red-700' : 'text-slate-500'}`}>{point.description.toUpperCase()}</p>
                 </div>
               </li>
               )
-            }) : <p className="text-sm text-slate-500">Nenhum prazo próximo nos próximos 7 dias.</p>}
+            }) : <p className="text-[10px] font-bold text-slate-400 py-4 uppercase">Sem pendências críticas detectadas.</p>}
           </ul>
         </div>
-        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-          <h2 className="text-lg font-semibold text-slate-800">Próximos Pagamentos</h2>
-          <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto">
+        <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center">
+            <DollarIcon className="w-5 h-5 mr-2 text-amber-500" /> PRÓXIMOS RECEBIMENTOS
+          </h2>
+          <ul className="mt-4 space-y-4 max-h-64 overflow-y-auto pr-2 no-scrollbar">
             {financialAttentionPoints.length > 0 ? financialAttentionPoints.map((point: AttentionPoint, index: number) => {
               const iconColor = 'bg-amber-500';
               return (
-              <li key={index} className="flex items-start">
-                <div className={`w-2.5 h-2.5 ${iconColor} rounded-full mt-1.5 mr-4 flex-shrink-0`}></div>
+              <li key={index} className="flex items-start p-3 rounded-xl border border-slate-50 transition-all hover:bg-slate-50">
+                <div className={`w-3 h-3 ${iconColor} rounded-full mt-1 mr-4 flex-shrink-0`}></div>
                 <div>
-                  <p className="font-semibold text-slate-700">{point.clientName}</p>
-                  <p className="text-sm text-slate-500">{point.description}</p>
+                  <p className="font-black text-xs text-slate-800 tracking-tight">{point.clientName}</p>
+                  <p className="text-[11px] font-bold text-slate-500 mt-1">{point.description.toUpperCase()}</p>
                 </div>
               </li>
               )
-            }) : <p className="text-sm text-slate-500">Nenhum pagamento vencendo nos próximos 7 dias.</p>}
+            }) : <p className="text-[10px] font-bold text-slate-400 py-4 uppercase">Nenhum recebimento nos próximos 7 dias.</p>}
           </ul>
         </div>
       </section>
 
       {/* Financial Charts & Summary Section */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cash Flow Chart */}
-          <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
-              <h2 className="text-lg font-semibold text-slate-800 mb-6">Fluxo de Caixa (Janeiro - Dezembro)</h2>
-              <div className="h-64 w-full">
+          <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+              <h2 className="text-sm font-black text-slate-800 mb-8 uppercase tracking-widest flex items-center">
+                <TrendingUpIcon className="w-5 h-5 mr-3 text-green-500" /> FLUXO DE CAIXA ANUAL
+              </h2>
+              <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={cashFlowData}>
                           <defs>
@@ -365,37 +395,36 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
                               </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} tickFormatter={(value) => `${value/1000}k`} />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 900}} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 900}} tickFormatter={(value) => `${value/1000}k`} />
                           <Tooltip 
-                              contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff'}}
+                              contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '10px', fontWeight: 'bold'}}
                               formatter={(value: number) => formatCurrency(value)}
                           />
-                          <Legend wrapperStyle={{paddingTop: '20px'}} />
-                          <Area type="monotone" dataKey="Entradas" stroke="#10b981" fillOpacity={1} fill="url(#colorEntry)" strokeWidth={2} />
-                          <Area type="monotone" dataKey="Saídas" stroke="#ef4444" fillOpacity={1} fill="url(#colorExit)" strokeWidth={2} />
+                          <Legend wrapperStyle={{paddingTop: '25px', fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase'}} />
+                          <Area type="monotone" dataKey="Entradas" stroke="#10b981" fillOpacity={1} fill="url(#colorEntry)" strokeWidth={3} />
+                          <Area type="monotone" dataKey="Saídas" stroke="#ef4444" fillOpacity={1} fill="url(#colorExit)" strokeWidth={3} />
                       </AreaChart>
                   </ResponsiveContainer>
               </div>
           </div>
 
-          {/* Expense Breakdown */}
-          <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
-              <h2 className="text-lg font-semibold text-slate-800 mb-2">Despesas</h2>
-              <div className="h-64 w-full relative">
+          <div className="lg:col-span-1 bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+              <h2 className="text-sm font-black text-slate-800 mb-4 uppercase tracking-widest">DESPESAS DO MÊS</h2>
+              <div className="h-72 w-full relative">
                   <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                           <Pie
                               data={expenseData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={60}
-                              outerRadius={80}
-                              paddingAngle={5}
+                              innerRadius={70}
+                              outerRadius={95}
+                              paddingAngle={6}
                               dataKey="value"
                           >
                               {expenseData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                  <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                               ))}
                           </Pie>
                           <Legend 
@@ -403,15 +432,15 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
                               verticalAlign="bottom" 
                               align="center"
                               iconType="circle"
+                              wrapperStyle={{fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase'}}
                           />
-                          <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                          <Tooltip contentStyle={{borderRadius: '12px', fontWeight: 'bold'}} formatter={(value: number) => formatCurrency(value)} />
                       </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="text-center">
-                          <p className="text-[10px] text-slate-500 uppercase font-black">Total Despesas</p>
-                          <p className="text-lg font-black text-slate-800">{formatCurrency(expenseData.reduce((a, b) => a + b.value, 0))}</p>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Mês Corrente</p>
+                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">TOTAL</p>
+                          <p className="text-xl font-black text-slate-800">{formatCurrency(expenseData.reduce((a, b) => a + b.value, 0))}</p>
                       </div>
                   </div>
               </div>
@@ -420,116 +449,99 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
 
       {/* Summary Widgets */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Recebimentos Widget */}
-          <div className="bg-white p-6 rounded-xl shadow-lg">
-              <h2 className="text-lg font-semibold text-slate-800 mb-6">Recebimentos</h2>
-              <div className="space-y-6">
-                  <div className="flex items-center">
-                      <div className="w-1.5 h-12 bg-yellow-400 rounded-full mr-4"></div>
-                      <div>
-                          <p className="text-sm text-slate-500">Faturas em aberto</p>
-                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.recOpen)}</p>
-                      </div>
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+              <h2 className="text-sm font-black text-slate-800 mb-8 uppercase tracking-widest flex items-center">
+                <MoneyBagIcon className="w-5 h-5 mr-3 text-green-500" /> FATURAMENTO ATIVO
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">EM ABERTO</p>
+                      <p className="text-lg font-black text-slate-800">{formatCurrency(summaryMetrics.recOpen)}</p>
                   </div>
-                  <div className="flex items-center">
-                      <div className="w-1.5 h-12 bg-red-500 rounded-full mr-4"></div>
-                      <div>
-                          <p className="text-sm text-slate-500">Faturas em atraso</p>
-                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.recLate)}</p>
-                      </div>
+                  <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                      <p className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-2">ATRASADAS</p>
+                      <p className="text-lg font-black text-red-600">{formatCurrency(summaryMetrics.recLate)}</p>
                   </div>
-                  <div className="flex items-center">
-                      <div className="w-1.5 h-12 bg-green-500 rounded-full mr-4"></div>
-                      <div>
-                          <p className="text-sm text-slate-500">Pago(s) em Esse mês</p>
-                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.recPaidMonth)}</p>
-                      </div>
+                  <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+                      <p className="text-[9px] font-black text-green-400 uppercase tracking-widest mb-2">PAGO (MÊS)</p>
+                      <p className="text-lg font-black text-green-700">{formatCurrency(summaryMetrics.recPaidMonth)}</p>
                   </div>
               </div>
           </div>
 
-          {/* Pagamentos Widget */}
-          <div className="bg-white p-6 rounded-xl shadow-lg">
-              <h2 className="text-lg font-semibold text-slate-800 mb-6">Pagamentos (Despesas)</h2>
-              <div className="space-y-6">
-                  <div className="flex items-center">
-                      <div className="w-1.5 h-12 bg-yellow-400 rounded-full mr-4"></div>
-                      <div>
-                          <p className="text-sm text-slate-500">A vencer</p>
-                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.payOpen)}</p>
-                      </div>
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+              <h2 className="text-sm font-black text-slate-800 mb-8 uppercase tracking-widest flex items-center">
+                <CreditCardIcon className="w-5 h-5 mr-3 text-red-500" /> CUSTOS OPERACIONAIS
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">A VENCER</p>
+                      <p className="text-lg font-black text-slate-800">{formatCurrency(summaryMetrics.payOpen)}</p>
                   </div>
-                  <div className="flex items-center">
-                      <div className="w-1.5 h-12 bg-red-500 rounded-full mr-4"></div>
-                      <div>
-                          <p className="text-sm text-slate-500">Atrasadas</p>
-                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.payLate)}</p>
-                      </div>
+                  <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                      <p className="text-[9px] font-black text-red-400 uppercase tracking-widest mb-2">VENCIDAS</p>
+                      <p className="text-lg font-black text-red-600">{formatCurrency(summaryMetrics.payLate)}</p>
                   </div>
-                  <div className="flex items-center">
-                      <div className="w-1.5 h-12 bg-green-500 rounded-full mr-4"></div>
-                      <div>
-                          <p className="text-sm text-slate-500">Pago(s) em Esse mês</p>
-                          <p className="text-xl font-bold text-slate-800">{formatCurrency(summaryMetrics.payPaidMonth)}</p>
-                      </div>
+                  <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+                      <p className="text-[9px] font-black text-green-400 uppercase tracking-widest mb-2">LIQUIDADO</p>
+                      <p className="text-lg font-black text-green-700">{formatCurrency(summaryMetrics.payPaidMonth)}</p>
                   </div>
               </div>
           </div>
       </section>
 
-      <section className="bg-white p-6 rounded-xl shadow-lg">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-slate-800">Próximas Parcelas a Receber</h2>
+      <section className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">AGENDA DE RECEBIMENTOS</h2>
             <select 
                 value={selectedClientFilter} 
                 onChange={e => setSelectedClientFilter(e.target.value)}
-                className="block rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm h-9 px-2"
+                className="block rounded-xl border-slate-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-[10px] font-black h-10 px-4 uppercase bg-slate-50"
             >
-                <option value="">Todos os Clientes</option>
+                <option value="">TODOS OS CLIENTES</option>
                 {uniqueClients.map(client => (
                     <option key={client} value={client}>{client}</option>
                 ))}
             </select>
         </div>
-        <div className="mt-4 overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-slate-50">
           <table className="w-full text-left">
-            <thead className="border-b border-slate-200">
-              <tr>
-                <th className="p-3 text-sm font-semibold text-slate-500">Cliente</th>
-                <th className="p-3 text-sm font-semibold text-slate-500">Parcela</th>
-                <th className="p-3 text-sm font-semibold text-slate-500">Vencimento</th>
-                <th className="p-3 text-sm font-semibold text-slate-500">Valor</th>
-                <th className="p-3 text-sm font-semibold text-slate-500">Status</th>
-                <th className="p-3 text-sm font-semibold text-slate-500 text-center">Ações</th>
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">CLIENTE</th>
+                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">PARCELA</th>
+                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">VENCIMENTO</th>
+                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">VALOR</th>
+                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">STATUS</th>
+                <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">COBRANÇA</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-50">
               {upcomingInstallments.map((payment: PaymentInstallment) => (
-                <tr key={payment.id} className="border-b border-slate-100 last:border-b-0">
-                  <td className="p-3 text-slate-700">{payment.clientName}</td>
-                  <td className="p-3 text-slate-700">{payment.installment}</td>
-                  <td className="p-3 text-slate-700">{formatDate(new Date(payment.dueDate))}</td>
-                  <td className="p-3 text-slate-700">{formatCurrency(payment.value)}</td>
-                  <td className="p-3">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusChip(payment.status)}`}>
+                <tr key={payment.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-4 text-xs font-black text-slate-800">{payment.clientName}</td>
+                  <td className="p-4 text-xs font-bold text-slate-500">{payment.installment.toUpperCase()}</td>
+                  <td className="p-4 text-xs font-black text-slate-700">{formatDate(new Date(payment.dueDate))}</td>
+                  <td className="p-4 text-xs font-black text-blue-600">{formatCurrency(payment.value)}</td>
+                  <td className="p-4">
+                    <span className={`px-3 py-1 text-[9px] font-black rounded-full uppercase tracking-tighter ${getStatusChip(payment.status)}`}>
                       {payment.status}
                     </span>
                   </td>
-                  <td className="p-3 text-center">
+                  <td className="p-4 text-center">
                     <button
                       onClick={() => handleOpenReminderModal(payment)}
-                      className="p-2 text-slate-500 hover:text-blue-600 transition-colors"
-                      aria-label="Enviar Lembrete"
-                      title="Enviar Lembrete"
+                      className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                      title="Enviar WhatsApp"
                     >
-                      <SendIcon className="w-5 h-5" />
+                      <SendIcon className="w-4 h-4" />
                     </button>
                   </td>
                 </tr>
               ))}
                {upcomingInstallments.length === 0 && (
                 <tr>
-                    <td colSpan={6} className="text-center p-4 text-slate-500">Nenhuma parcela pendente {selectedClientFilter ? 'para este cliente' : ''}.</td>
+                    <td colSpan={6} className="text-center p-12 text-[10px] font-black text-slate-300 uppercase italic">Nenhuma parcela pendente {selectedClientFilter ? 'para este cliente' : ''}.</td>
                 </tr>
                )}
             </tbody>

@@ -50,6 +50,7 @@ export interface Contract {
     projectName: string;
     totalValue: number;
     date: Date;
+    contractSigningDate?: Date; // Nova data de assinatura
     status: 'Ativo' | 'Concluído' | 'Cancelado';
     clientAddress: Address;
     projectAddress: Address;
@@ -76,6 +77,7 @@ export interface Contract {
         sitePhotos: Attachment[];
     };
     budgetId?: number;
+    hasDownPayment?: boolean; // Se tem entrada ou não
 }
 
 export interface ProjectUpdate {
@@ -122,7 +124,7 @@ export interface AttentionPoint {
     clientName: string;
     description: string;
     daysRemaining: number;
-    type: 'stage' | 'payment';
+    type: 'stage' | 'payment' | 'alert';
 }
 
 export interface ProjectStage {
