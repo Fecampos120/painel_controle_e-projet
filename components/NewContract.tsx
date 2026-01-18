@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { UploadIcon, XIcon, CheckCircleIcon, WalletIcon, MapPinIcon, ArchitectIcon, CalendarIcon } from './Icons';
-import { AppData, Contract, ContractService, Budget, PriceTier } from '../types';
+import { AppData, Contract, ContractService, Budget, PriceTier, Address } from '../types';
 
 // Funções auxiliares
 const formatCurrency = (value: number) => {
@@ -62,7 +62,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         return '';
     });
     
-    // Estados principais do formulário (Preenchimento Automático na Conversão)
+    // Estados principais do formulário
     const [contractTypes, setContractTypes] = useState<ContractService[]>(() => {
         if (isEditing) return editingContract.services;
         if (isConverting) return budgetToConvert.services;
@@ -126,19 +126,15 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         setContractTypes(prev => prev.map(ct => {
             if (ct.id !== id) return ct;
             const updated = { ...ct, [field]: field === 'serviceName' ? value.toUpperCase() : value };
-            
             const s = [...appData.servicePrices, ...appData.hourlyRates].find(srv => srv.name === updated.serviceName);
-            
             if (field === 'serviceName' && s) {
                 updated.calculationMethod = s.unit === 'm²' ? 'metragem' : s.unit === 'hora' ? 'hora' : 'manual';
             }
-
             if (updated.calculationMethod === 'metragem') {
                 updated.value = (parseFloat(updated.area || '0') * (s?.price || 0)).toFixed(2);
             } else if (updated.calculationMethod === 'hora') {
                 updated.value = (parseFloat(updated.hours || '0') * (s?.price || 0)).toFixed(2);
             }
-            
             return updated;
         }));
     };
@@ -147,6 +143,24 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         if (!formRef.current) return;
         const formData = new FormData(formRef.current);
         const p = Object.fromEntries(formData.entries());
+
+        const clientAddr = {
+            street: (p.c_street as string || '').toUpperCase(),
+            number: (p.c_number as string || '').toUpperCase(),
+            district: (p.c_district as string || '').toUpperCase(),
+            city: (p.c_city as string || '').toUpperCase(),
+            state: (p.c_state as string || '').toUpperCase(),
+            cep: (p.c_cep as string || '').toUpperCase()
+        };
+
+        const projectAddr = isSameAddress ? { ...clientAddr } : {
+            street: (p.p_street as string || '').toUpperCase(),
+            number: (p.p_number as string || '').toUpperCase(),
+            district: (p.p_district as string || '').toUpperCase(),
+            city: (p.p_city as string || '').toUpperCase(),
+            state: (p.p_state as string || '').toUpperCase(),
+            cep: (p.p_cep as string || '').toUpperCase()
+        };
 
         const baseData = {
             clientName: (p.clientName as string).toUpperCase(),
@@ -165,8 +179,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                 budgetId: budgetToConvert?.id,
                 date: new Date(contractDate + 'T12:00:00'),
                 status: 'Ativo' as const,
-                clientAddress: { street: (p.c_street as string || '').toUpperCase(), number: p.c_number, city: (p.c_city as string || '').toUpperCase(), state: (p.c_state as string || '').toUpperCase(), cep: p.c_cep, district: (p.c_district as string || '').toUpperCase() } as any,
-                projectAddress: isSameAddress ? { street: (p.c_street as string || '').toUpperCase(), number: p.c_number, city: (p.c_city as string || '').toUpperCase(), state: (p.c_state as string || '').toUpperCase(), cep: p.c_cep, district: (p.c_district as string || '').toUpperCase() } : { street: (p.p_street as string || '').toUpperCase(), number: p.p_number, city: (p.p_city as string || '').toUpperCase(), state: (p.p_state as string || '').toUpperCase(), cep: p.p_cep, district: (p.p_district as string || '').toUpperCase() } as any,
+                clientAddress: clientAddr as Address,
+                projectAddress: projectAddr as Address,
                 durationMonths: 6,
                 installments: parseInt(numInstallments),
                 installmentValue: financial.installmentValue,
@@ -203,33 +217,15 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo *</label>
-                            <input 
-                                name="clientName" 
-                                required 
-                                defaultValue={isEditing ? editingContract.clientName : isConverting ? budgetToConvert.clientName : ''} 
-                                className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" 
-                                placeholder="Nome do cliente" 
-                            />
+                            <input name="clientName" required defaultValue={isEditing ? editingContract.clientName : isConverting ? budgetToConvert.clientName : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" placeholder="Nome do cliente" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telefone</label>
-                            <input 
-                                name="phone" 
-                                value={clientPhone}
-                                onChange={e => setClientPhone(maskPhone(e.target.value))}
-                                className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" 
-                                placeholder="(00) 00000-0000" 
-                            />
+                            <input name="phone" value={clientPhone} onChange={e => setClientPhone(maskPhone(e.target.value))} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" placeholder="(00) 00000-0000" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail</label>
-                            <input 
-                                name="email" 
-                                type="email" 
-                                defaultValue={isEditing ? editingContract.clientEmail : isConverting ? budgetToConvert.clientEmail : ''} 
-                                className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" 
-                                placeholder="email@exemplo.com" 
-                            />
+                            <input name="email" type="email" defaultValue={isEditing ? editingContract.clientEmail : isConverting ? budgetToConvert.clientEmail : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" placeholder="email@exemplo.com" />
                         </div>
                     </div>
                 </FormSection>
@@ -241,73 +237,80 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div key={ct.id} className="p-5 border border-slate-100 rounded-xl bg-slate-50/50 flex flex-col md:flex-row gap-6 items-end group">
                                 <div className="flex-1 w-full space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço Selecionado</label>
-                                    <select 
-                                        value={ct.serviceName} 
-                                        onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} 
-                                        className="w-full h-12 px-4 bg-white border-2 border-blue-100 rounded-xl text-sm font-black uppercase text-slate-900 focus:border-blue-500 shadow-sm transition-all block"
-                                        style={{ color: '#0f172a' }} // Garante que o texto selecionado seja preto/slate escuro
-                                    >
-                                        <option value="" className="text-slate-400">SELECIONE UM SERVIÇO...</option>
-                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name} className="text-slate-900">{s.name.toUpperCase()}</option>)}
+                                    <select value={ct.serviceName} onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-blue-100 rounded-xl text-sm font-black uppercase text-slate-900 focus:border-blue-500 shadow-sm block">
+                                        <option value="">SELECIONE UM SERVIÇO...</option>
+                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
                                     </select>
                                 </div>
-
                                 <div className="w-full md:w-32 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cobrança</label>
-                                    <select 
-                                        value={ct.calculationMethod} 
-                                        onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} 
-                                        className="w-full h-12 px-3 bg-white border-2 border-slate-100 rounded-xl text-[11px] font-bold uppercase tracking-tight text-slate-900"
-                                    >
-                                        <option value="metragem">Por m²</option>
-                                        <option value="hora">Por Hora</option>
+                                    <select value={ct.calculationMethod} onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} className="w-full h-12 px-3 bg-white border-2 border-slate-100 rounded-xl text-[11px] font-bold uppercase text-slate-900">
+                                        <option value="metragem">m²</option>
+                                        <option value="hora">Hora</option>
                                         <option value="manual">Manual</option>
                                     </select>
                                 </div>
-
-                                <div className="w-full md:w-28 space-y-1 text-center">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                        {ct.calculationMethod === 'hora' ? 'Horas' : ct.calculationMethod === 'metragem' ? 'Qtd (m²)' : 'Qtd'}
-                                    </label>
-                                    <input 
-                                        type="number" 
-                                        value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} 
-                                        onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} 
-                                        className="w-full h-12 text-center bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700" 
-                                    />
+                                <div className="w-full md:w-28 space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{ct.calculationMethod === 'hora' ? 'Horas' : 'Qtd'}</label>
+                                    <input type="number" value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} className="w-full h-12 text-center bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700" />
                                 </div>
-
                                 <div className="w-full md:w-44 space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Total (R$)</label>
-                                    <input 
-                                        type="number" 
-                                        value={ct.value} 
-                                        onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} 
-                                        className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-blue-700 text-lg" 
-                                    />
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Item (R$)</label>
+                                    <input type="number" value={ct.value} onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-blue-700" />
                                 </div>
-
-                                <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-12 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100">REMOVER</button>
+                                <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-12 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl">REMOVER</button>
                             </div>
                         ))}
-                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-blue-200 bg-blue-50/20 text-blue-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-blue-50 hover:border-blue-400 transition-all">
+                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-blue-200 bg-blue-50/20 text-blue-600 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-blue-50 transition-all">
                             + Adicionar novo item ao escopo
                         </button>
                     </div>
                     <div className="pt-4 space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição do Projeto</label>
-                        <textarea 
-                            name="projectName" 
-                            rows={3} 
-                            defaultValue={isEditing ? editingContract.projectName : isConverting ? budgetToConvert.projectName : ''} 
-                            className="w-full p-4 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold uppercase" 
-                            placeholder="Ex: Reforma total de apartamento..." 
-                        />
+                        <textarea name="projectName" rows={3} defaultValue={isEditing ? editingContract.projectName : isConverting ? budgetToConvert.projectName : ''} className="w-full p-4 bg-slate-50 border-slate-200 rounded-xl text-sm font-bold uppercase" placeholder="Ex: Reforma total de apartamento..." />
                     </div>
                 </FormSection>
 
-                {/* 3. VISITAS E DESLOCAMENTO */}
-                <FormSection title="3. VISITAS E DESLOCAMENTO">
+                {/* 3. LOCALIZAÇÃO (MOVIDO PARA 3º E DETALHADO) */}
+                <FormSection title="3. LOCALIZAÇÃO">
+                    <div className="space-y-8">
+                        <div>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Endereço de Faturamento (Cliente)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                                <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP</label><input name="c_cep" defaultValue={isEditing ? editingContract.clientAddress?.cep : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold no-uppercase" /></div>
+                                <div className="md:col-span-3 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro / Rua</label><input name="c_street" defaultValue={isEditing ? editingContract.clientAddress?.street : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                <div className="md:col-span-2 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Número</label><input name="c_number" defaultValue={isEditing ? editingContract.clientAddress?.number : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                
+                                <div className="md:col-span-2 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Bairro</label><input name="c_district" defaultValue={isEditing ? editingContract.clientAddress?.district : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                <div className="md:col-span-3 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Cidade</label><input name="c_city" defaultValue={isEditing ? editingContract.clientAddress?.city : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Estado</label><input name="c_state" maxLength={2} defaultValue={isEditing ? editingContract.clientAddress?.state : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold text-center uppercase" /></div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center p-4 bg-blue-50 rounded-xl border border-blue-100">
+                            <input type="checkbox" id="sameAdd" checked={isSameAddress} onChange={e => setIsSameAddress(e.target.checked)} className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" />
+                            <label htmlFor="sameAdd" className="ml-3 text-[11px] font-black text-blue-700 uppercase tracking-widest cursor-pointer">O endereço da obra é o mesmo do cliente</label>
+                        </div>
+
+                        {!isSameAddress && (
+                            <div className="animate-fadeIn">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Endereço da Obra (Projeto)</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                                    <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP Obra</label><input name="p_cep" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold no-uppercase" /></div>
+                                    <div className="md:col-span-3 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro Obra</label><input name="p_street" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                    <div className="md:col-span-2 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Número</label><input name="p_number" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                    
+                                    <div className="md:col-span-2 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Bairro Obra</label><input name="p_district" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                    <div className="md:col-span-3 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Cidade Obra</label><input name="p_city" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
+                                    <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">UF Obra</label><input name="p_state" maxLength={2} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold text-center uppercase" /></div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </FormSection>
+
+                {/* 4. VISITAS E DESLOCAMENTO (MOVIDO PARA 4º) */}
+                <FormSection title="4. VISITAS E DESLOCAMENTO">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center"><MapPinIcon className="w-4 h-4 mr-2" /> Locomoção</h3>
@@ -317,7 +320,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             </div>
                             <div className="pt-2 border-t border-slate-200 flex justify-between font-black text-slate-800 text-sm"><span>TOTAL KM:</span><span>{formatCurrency(financial.locomotionTotal)}</span></div>
                         </div>
-
                         <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center"><ArchitectIcon className="w-4 h-4 mr-2" /> Visitas Técnicas</h3>
                             <div className="grid grid-cols-2 gap-4">
@@ -327,26 +329,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div className="pt-2 border-t border-slate-200 flex justify-between font-black text-slate-800 text-sm"><span>TOTAL VISITAS:</span><span>{formatCurrency(financial.visitsTotal)}</span></div>
                         </div>
                     </div>
-                </FormSection>
-
-                {/* 4. LOCALIZAÇÃO */}
-                <FormSection title="4. LOCALIZAÇÃO">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
-                        <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP Cliente</label><input name="c_cep" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" /></div>
-                        <div className="md:col-span-5 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro / Endereço</label><input name="c_street" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
-                    </div>
-
-                    <div className="flex items-center p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <input type="checkbox" id="sameAdd" checked={isSameAddress} onChange={e => setIsSameAddress(e.target.checked)} className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" />
-                        <label htmlFor="sameAdd" className="ml-3 text-[11px] font-black text-blue-700 uppercase tracking-widest cursor-pointer">O endereço da obra é o mesmo do cliente</label>
-                    </div>
-
-                    {!isSameAddress && (
-                        <div className="grid grid-cols-1 md:grid-cols-6 gap-6 animate-fadeIn">
-                            <div className="md:col-span-1 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">CEP Obra</label><input name="p_cep" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" /></div>
-                            <div className="md:col-span-5 space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">Logradouro Obra</label><input name="p_street" className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold uppercase" /></div>
-                        </div>
-                    )}
                 </FormSection>
 
                 {/* 5. FINANCEIRO E DATAS */}
@@ -375,7 +357,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº Parcelas</label>
                                 <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-11 px-4 bg-white border-slate-200 rounded-lg text-sm font-bold text-slate-900">
-                                    {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n} className="text-slate-900">{n}x</option>)}
+                                    {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n}>{n}x</option>)}
                                 </select>
                             </div>
                         </div>
@@ -387,21 +369,19 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                     <label htmlFor="downPay" className="ml-3 text-[11px] font-black text-slate-700 uppercase tracking-widest cursor-pointer">Terá valor de entrada?</label>
                                 </div>
                                 {hasDownPayment && (
-                                    <>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-green-600 uppercase tracking-widest">% Entrada</label>
-                                            <input type="number" value={downPaymentPercent} onChange={e => setDownPaymentPercent(e.target.value)} className="w-full h-11 px-4 border-green-100 rounded-lg text-green-700 font-black" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase">Venc. Entrada</label>
-                                            <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-11 px-4 border-slate-200 rounded-lg text-sm font-bold" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase">1ª Parcela em:</label>
-                                            <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-11 px-4 border-slate-200 rounded-lg text-sm font-bold" placeholder="Opcional" />
-                                        </div>
-                                    </>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-black text-green-600 uppercase tracking-widest">% Entrada</label>
+                                        <input type="number" value={downPaymentPercent} onChange={e => setDownPaymentPercent(e.target.value)} className="w-full h-11 px-4 border-green-100 rounded-lg text-green-700 font-black" />
+                                    </div>
                                 )}
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Venc. Entrada / Início</label>
+                                    <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-11 px-4 border-slate-200 rounded-lg text-sm font-bold" />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">1ª Parcela em:</label>
+                                    <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-11 px-4 border-slate-200 rounded-lg text-sm font-bold" placeholder="Opcional" />
+                                </div>
                             </div>
                         </div>
 
@@ -427,25 +407,15 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                 {/* BOTÕES FINAIS */}
                 <div className="flex flex-col md:flex-row items-center justify-center gap-8 py-8 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
                     {!isConverting && !isEditing && (
-                        <button 
-                            type="button" 
-                            onClick={() => handleSubmit('budget')} 
-                            className="group flex flex-col items-center gap-3"
-                        >
+                        <button type="button" onClick={() => handleSubmit('budget')} className="group flex flex-col items-center gap-3">
                             <div className="px-10 py-5 bg-[#1e293b] text-white font-black rounded-2xl shadow-xl hover:bg-slate-800 transition-all flex items-center">
                                 <WalletIcon className="w-6 h-6 mr-3" /> SALVAR SOMENTE ORÇAMENTO
                             </div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-slate-600">Ficará na lista de negociação</span>
                         </button>
                     )}
-
                     {!isEditing && <span className="text-slate-300 font-bold italic">ou</span>}
-
-                    <button 
-                        type="button" 
-                        onClick={() => handleSubmit('contract')} 
-                        className="group flex flex-col items-center gap-3"
-                    >
+                    <button type="button" onClick={() => handleSubmit('contract')} className="group flex flex-col items-center gap-3">
                         <div className={`px-12 py-5 ${isEditing ? 'bg-blue-600' : 'bg-[#10b981]'} text-white font-black rounded-2xl shadow-xl hover:brightness-110 transition-all flex items-center`}>
                             <CheckCircleIcon className="w-6 h-6 mr-3" /> {isEditing ? 'SALVAR ALTERAÇÕES' : 'ATIVAR PROJETO (CONTRATO)'}
                         </div>
@@ -460,7 +430,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         Desistir e voltar
                     </button>
                 </div>
-
             </form>
         </div>
     );
