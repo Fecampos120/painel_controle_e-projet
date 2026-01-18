@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>E-Projet | Software Arquiteto</title>
     
-    <!-- Google Fonts dinâmicas para as opções do sistema -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Playfair+Display:wght@400;700;900&family=Poppins:wght@400;700;900&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,21 +23,14 @@
         font-family: var(--font-main);
         background-color: var(--bg-color);
         transition: background-color 0.3s ease;
+        text-transform: uppercase; /* Forçar maiúsculas na base do documento */
       }
 
-      /* Estilos para Recharts para manter alinhamento */
-      .recharts-legend-wrapper {
-        width: 100% !important;
-        bottom: 0px !important;
-      }
-      .recharts-default-legend {
-        text-align: center !important;
-        display: flex;
-        justify-content: center;
-        gap: 16px;
+      /* Inputs e Textareas devem respeitar a fonte e maiúsculas */
+      input, select, textarea, button {
+        font-family: inherit !important;
       }
 
-      /* Inputs Customizados baseados no tema */
       input[type="text"],
       input[type="email"],
       input[type="password"],
@@ -51,13 +43,12 @@
         border-color: #e2e8f0;
         border-radius: var(--border-radius);
         transition: all 0.2s ease-in-out;
+        text-transform: uppercase;
       }
 
-      /* REGRA DE MAIÚSCULAS AUTOMÁTICAS */
-      input[type="text"]:not(.no-uppercase), 
-      textarea:not(.no-uppercase),
-      input:not(.no-uppercase)::placeholder {
-        text-transform: uppercase;
+      /* Excessões para e-mail e campos específicos que não podem ser maiúsculos */
+      .no-uppercase, input[type="email"] {
+        text-transform: none !important;
       }
 
       input:focus, select:focus, textarea:focus {
@@ -66,20 +57,11 @@
         outline: none;
       }
 
-      /* Scrollbar Customizada */
-      ::-webkit-scrollbar {
-        width: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 10px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
       .animate-fadeIn {
         animation: fadeIn 0.4s ease-out forwards;
@@ -87,6 +69,12 @@
       @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Padronização de tabelas e textos */
+      th, td, label, h1, h2, h3, h4, span, p {
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
       }
     </style>
   <script type="importmap">
