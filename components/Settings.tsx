@@ -22,6 +22,32 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Lógica de Reordenação por Arrastar
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('draggedIndex', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    const dragIndex = parseInt(e.dataTransfer.getData('draggedIndex'));
+    if (dragIndex === dropIndex) return;
+
+    const items = [...localStages].sort((a, b) => a.sequence - b.sequence);
+    const [reorderedItem] = items.splice(dragIndex, 1);
+    items.splice(dropIndex, 0, reorderedItem);
+
+    // Atualiza a sequência de todos com base na nova ordem
+    const updatedStages = items.map((stage, idx) => ({
+      ...stage,
+      sequence: idx + 1
+    }));
+
+    setLocalStages(updatedStages);
+  };
+
   const handleSaveAll = () => {
     setIsSaving(true);
     setAppData(prev => ({ 
@@ -51,7 +77,6 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
   };
 
   const handleExportExcel = () => {
-    // Exportação simplificada em CSV para compatibilidade Excel
     let csvContent = "data:text/csv;charset=utf-8,";
     csvContent += "TIPO,CLIENTE,PROJETO,VALOR,STATUS\n";
     appData.contracts.forEach(c => {
@@ -334,24 +359,35 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                 </div>
                 <div className="space-y-3">
                     {localStages.sort((a,b) => a.sequence - b.sequence).map((stage, idx) => (
-                        <div key={stage.id} className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100 group">
-                            <div className="w-8 h-8 flex items-center justify-center text-slate-300 cursor-grab"><GripVerticalIcon className="w-5 h-5" /></div>
-                            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs">{idx + 1}</span>
+                        <div 
+                          key={stage.id} 
+                          draggable 
+                          onDragStart={(e) => handleDragStart(e, idx)}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, idx)}
+                          className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100 group transition-all hover:bg-white hover:shadow-sm"
+                        >
+                            <div className="w-8 h-8 flex items-center justify-center text-slate-300 cursor-grab active:cursor-grabbing">
+                                <GripVerticalIcon className="w-5 h-5" />
+                            </div>
+                            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-md">{idx + 1}</span>
                             <input 
                                 value={stage.name} 
                                 onChange={(e) => setLocalStages(localStages.map(s => s.id === stage.id ? {...s, name: e.target.value.toUpperCase()} : s))}
-                                className="flex-1 bg-transparent border-none font-black text-slate-700 uppercase focus:ring-0" 
+                                className="flex-1 bg-transparent border-none font-black text-slate-700 uppercase focus:ring-0 text-sm outline-none" 
                             />
                             <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">DIAS ÚTEIS:</span>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">DIAS ÚTEIS:</span>
                                 <input 
                                     type="number" 
                                     value={stage.durationWorkDays} 
-                                    onChange={(e) => setLocalStages(localStages.map(s => s.id === stage.id ? {...s, durationWorkDays: parseInt(e.target.value)} : s))}
-                                    className="w-16 h-10 bg-white border border-slate-200 rounded-lg text-center font-black text-xs" 
+                                    onChange={(e) => setLocalStages(localStages.map(s => s.id === stage.id ? {...s, durationWorkDays: parseInt(e.target.value) || 0} : s))}
+                                    className="w-16 h-10 bg-white border border-slate-200 rounded-lg text-center font-black text-xs focus:border-blue-500 outline-none" 
                                 />
                             </div>
-                            <button onClick={() => setLocalStages(localStages.filter(s => s.id !== stage.id))} className="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-4 h-4" /></button>
+                            <button onClick={() => setLocalStages(localStages.filter(s => s.id !== stage.id))} className="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
                         </div>
                     ))}
                 </div>
