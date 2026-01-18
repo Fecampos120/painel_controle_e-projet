@@ -1,6 +1,6 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { PlusIcon, TrashIcon, PencilIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, SparklesIcon, ArchitectIcon, MapPinIcon, GripVerticalIcon, MoneyBagIcon } from './Icons';
+import React, { useState, useRef } from 'react';
+import { PlusIcon, TrashIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, ArchitectIcon, MapPinIcon, GripVerticalIcon, MoneyBagIcon, SparklesIcon, DownloadIcon, HistoryIcon } from './Icons';
 import { ServicePrice, AppData, ProjectStageTemplateItem, SystemSettings, ChecklistItemTemplate } from '../types';
 import { FONT_OPTIONS } from '../constants';
 
@@ -13,220 +13,181 @@ const maskPhone = (value: string) => {
 };
 
 const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev: AppData) => AppData)) => void }> = ({ appData, setAppData }) => {
-  const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'modelos' | 'servicos'>('empresa');
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>(appData.systemSettings);
-  
-  // Estados locais para serviços para permitir "Descartar"
-  const [localServicePrices, setLocalServicePrices] = useState<ServicePrice[]>(appData.servicePrices || []);
-  const [localHourlyRates, setLocalHourlyRates] = useState<ServicePrice[]>(appData.hourlyRates || []);
+  const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'servicos' | 'modelos' | 'manutencao'>('empresa');
+  const [localSettings, setLocalSettings] = useState<SystemSettings>(JSON.parse(JSON.stringify(appData.systemSettings)));
+  const [localServices, setLocalServices] = useState<ServicePrice[]>(appData.servicePrices || []);
+  const [localStages, setLocalStages] = useState<ProjectStageTemplateItem[]>(appData.systemSettings.projectStagesTemplate || []);
+  const [localChecklist, setLocalChecklist] = useState<ChecklistItemTemplate[]>(appData.systemSettings.checklistTemplate || []);
   
   const [isSaving, setIsSaving] = useState(false);
-  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSave = () => {
+  const handleSaveAll = () => {
     setIsSaving(true);
-    const finalSettings = {
-        ...systemSettings,
-        theme: { ...systemSettings.theme }
-    };
-
     setAppData(prev => ({ 
         ...prev, 
-        systemSettings: finalSettings,
-        servicePrices: localServicePrices,
-        hourlyRates: localHourlyRates
+        systemSettings: {
+            ...localSettings,
+            projectStagesTemplate: localStages,
+            checklistTemplate: localChecklist
+        },
+        servicePrices: localServices
     }));
-
     setTimeout(() => {
         setIsSaving(false);
-        alert('Configurações salvas com sucesso! O sistema foi atualizado.');
-    }, 500);
+        alert('CONFIGURAÇÕES APLICADAS COM SUCESSO!');
+    }, 800);
   };
 
-  const handleSystemSettingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-      const { name, value } = e.target;
-      
-      let processedValue = value;
-      if (name === 'phone') {
-          processedValue = maskPhone(value);
-      } else if (!name.includes('theme') && !name.includes('logoUrl')) {
-          processedValue = value.toUpperCase();
-      }
+  const handleExportBackup = () => {
+    const dataStr = JSON.stringify(appData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup_eprojet_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
+  const handleExportExcel = () => {
+    // Exportação simplificada em CSV para compatibilidade Excel
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "TIPO,CLIENTE,PROJETO,VALOR,STATUS\n";
+    appData.contracts.forEach(c => {
+        csvContent += `PROJETO,${c.clientName},${c.projectName},${c.totalValue},${c.status}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "relatorio_geral_eprojet.csv");
+    document.body.appendChild(link);
+    link.click();
+  };
+
+  const handleResetData = () => {
+      if (window.confirm("ATENÇÃO: VOCÊ ESTÁ PRESTES A APAGAR TODOS OS CLIENTES, CONTRATOS E FINANCEIRO. ESTA AÇÃO NÃO PODE SER DESFEITA. DESEJA CONTINUAR?")) {
+          localStorage.clear();
+          window.location.reload();
+      }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      const { name, value } = e.target;
+      let val = value;
+      if (name === 'phone') val = maskPhone(value);
+      
       if (name.startsWith('address.')) {
           const field = name.split('.')[1];
-          setSystemSettings(prev => ({ 
-              ...prev, 
-              address: { ...prev.address, [field]: value.toUpperCase() } 
-          }));
+          setLocalSettings(prev => ({ ...prev, address: { ...prev.address, [field]: val.toUpperCase() } }));
       } else if (name.startsWith('theme.')) {
           const field = name.split('.')[1];
-          setSystemSettings(prev => ({ 
-              ...prev, 
-              theme: { ...prev.theme, [field]: value } 
-          }));
+          setLocalSettings(prev => ({ ...prev, theme: { ...prev.theme, [field]: val } }));
       } else {
-          setSystemSettings(prev => ({ ...prev, [name]: processedValue }));
+          setLocalSettings(prev => ({ ...prev, [name]: val.toUpperCase() }));
       }
-  };
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-          const reader = new FileReader();
-          reader.onloadend = () => setSystemSettings(prev => ({ ...prev, logoUrl: reader.result as string }));
-          reader.readAsDataURL(file);
-      }
-  };
-
-  // LÓGICA DE SERVIÇOS
-  const addService = () => {
-    const newService: ServicePrice = {
-        id: Date.now(),
-        name: 'NOVO SERVIÇO',
-        price: 0,
-        unit: 'm²'
-    };
-    setLocalServicePrices(prev => [...prev, newService]);
-  };
-
-  const updateService = (id: number, field: keyof ServicePrice, value: any) => {
-    setLocalServicePrices(prev => prev.map(s => s.id === id ? { ...s, [field]: field === 'name' ? value.toUpperCase() : value } : s));
-  };
-
-  const removeService = (id: number) => {
-    setLocalServicePrices(prev => prev.filter(s => s.id !== id));
-  };
-
-  // FASES E CHECKLISTS
-  const addStageTemplate = () => {
-    const newStage: ProjectStageTemplateItem = { 
-        id: Date.now(), 
-        sequence: systemSettings.projectStagesTemplate.length + 1, 
-        name: 'NOVA ETAPA', 
-        durationWorkDays: 5 
-    };
-    setSystemSettings(prev => ({ ...prev, projectStagesTemplate: [...prev.projectStagesTemplate, newStage] }));
-  };
-
-  const removeStageTemplate = (id: number) => {
-    setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.filter(s => s.id !== id) }));
-  };
-
-  const addChecklistItem = () => {
-    const newItem: ChecklistItemTemplate = {
-        id: Date.now(),
-        stage: 'FASE GERAL',
-        text: 'NOVA AÇÃO TÉCNICA'
-    };
-    setSystemSettings(prev => ({ ...prev, checklistTemplate: [...prev.checklistTemplate, newItem] }));
-  };
-
-  // Drag and Drop Fases
-  const handleDragStart = (index: number) => setDraggedItemIndex(index);
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-  const handleDrop = (index: number) => {
-    if (draggedItemIndex === null) return;
-    const newList = [...systemSettings.projectStagesTemplate];
-    const draggedItem = newList.splice(draggedItemIndex, 1)[0];
-    newList.splice(index, 0, draggedItem);
-    const reorderedList = newList.map((item, idx) => ({ ...item, sequence: idx + 1 }));
-    setSystemSettings(prev => ({ ...prev, projectStagesTemplate: reorderedList }));
-    setDraggedItemIndex(null);
   };
 
   return (
-    <div className="space-y-8 pb-32 animate-fadeIn">
-      <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 flex justify-between items-center transition-colors duration-500">
+    <div className="space-y-8 pb-40 animate-fadeIn uppercase">
+      <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10 flex justify-between items-center">
         <div>
-            <h1 className="text-3xl font-black uppercase tracking-tight">Configurações Gerais</h1>
-            <p className="mt-1 text-white/80 italic text-sm">Personalize o comportamento, visual e catálogo de serviços do seu sistema.</p>
+            <h1 className="text-3xl font-black tracking-tight">CONFIGURAÇÕES GERAIS</h1>
+            <p className="mt-1 text-white/80 italic text-sm">PERSONALIZE O COMPORTAMENTO, VISUAL E CATÁLOGO DE SERVIÇOS DO SEU SISTEMA.</p>
         </div>
-        <button 
-            onClick={handleSave} 
-            disabled={isSaving}
-            className={`px-8 py-3 bg-white text-[var(--primary-color)] font-black rounded-xl shadow-xl hover:scale-105 transition-all uppercase text-xs tracking-widest ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+        <button onClick={handleSaveAll} className="px-8 py-3 bg-white text-[var(--primary-color)] font-black rounded-xl shadow-xl hover:scale-105 transition-all text-xs tracking-widest">
+            SALVAR ALTERAÇÕES
         </button>
       </header>
 
-      <div className="flex border-b border-slate-200 mb-8 space-x-8 overflow-x-auto custom-scrollbar">
-          <button onClick={() => setActiveTab('empresa')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'empresa' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Dados da Empresa</button>
-          <button onClick={() => setActiveTab('visual')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'visual' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Identidade Visual</button>
-          <button onClick={() => setActiveTab('servicos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'servicos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Serviços & Preços</button>
-          <button onClick={() => setActiveTab('modelos')} className={`pb-4 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'modelos' ? 'border-b-2 border-[var(--primary-color)] text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}>Fases & Cronogramas</button>
+      <div className="flex border-b border-slate-200 mb-8 space-x-10 overflow-x-auto no-scrollbar">
+          {['empresa', 'visual', 'servicos', 'modelos', 'manutencao'].map((tab) => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab as any)} 
+                className={`pb-4 text-[11px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {tab === 'empresa' && 'DADOS DA EMPRESA'}
+                {tab === 'visual' && 'IDENTIDADE VISUAL'}
+                {tab === 'servicos' && 'SERVIÇOS & PREÇOS'}
+                {tab === 'modelos' && 'FASES & CRONOGRAMAS'}
+                {tab === 'manutencao' && 'SISTEMA & BACKUP'}
+                {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-[var(--primary-color)] rounded-full"></div>}
+              </button>
+          ))}
       </div>
 
       {activeTab === 'empresa' && (
           <div className="space-y-8 animate-fadeIn">
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                    <div className="lg:col-span-4 flex flex-col items-center">
-                        <div className="w-full aspect-square max-w-[200px] bg-slate-50 rounded-3xl border-4 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group shadow-inner">
-                            {systemSettings.logoUrl ? (
-                                <img src={systemSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                            ) : (
-                                <BrandLogo className="w-16 h-16 text-slate-200" />
-                            )}
-                            <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="lg:col-span-4 flex flex-col items-center justify-center border-r border-slate-100 pr-12">
+                        <div className="w-48 h-48 bg-slate-50 rounded-[2.5rem] border-4 border-dashed border-slate-200 flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                            {localSettings.logoUrl ? <img src={localSettings.logoUrl} className="w-full h-full object-contain p-4" /> : <BrandLogo className="w-16 h-16 text-slate-200" />}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                                 <UploadIcon className="w-8 h-8 text-white" />
-                            </button>
+                            </div>
                         </div>
-                        <input type="file" ref={fileInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
-                        <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center leading-relaxed">Logo Principal<br/>(Aparece nos relatórios e portal)</p>
+                        <input type="file" ref={fileInputRef} onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => setLocalSettings(prev => ({ ...prev, logoUrl: reader.result as string }));
+                                reader.readAsDataURL(file);
+                            }
+                        }} accept="image/*" className="hidden" />
+                        <p className="mt-4 text-[10px] font-black text-slate-400 text-center uppercase tracking-widest leading-relaxed">LOGO PRINCIPAL<br/>(APARECE NOS RELATÓRIOS E PORTAL)</p>
                     </div>
-
-                    <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Sistema / App</label>
-                            <input name="appName" value={systemSettings.appName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold uppercase" />
+                    
+                    <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NOME DO SISTEMA / APP</label>
+                            <input name="appName" value={localSettings.appName} onChange={handleChange} className="w-full h-14 px-5 rounded-2xl border-2 border-slate-100 bg-slate-50/50 font-black text-slate-800" />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Empresa (Razão Social)</label>
-                            <input name="companyName" value={systemSettings.companyName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold uppercase" />
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NOME DA EMPRESA (RAZÃO SOCIAL)</label>
+                            <input name="companyName" value={localSettings.companyName} onChange={handleChange} className="w-full h-14 px-5 rounded-2xl border-2 border-slate-100 bg-slate-50/50 font-black text-slate-800" />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Responsável Técnico / Arquiteto</label>
-                            <input name="professionalName" value={systemSettings.professionalName} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold uppercase" />
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">RESPONSÁVEL TÉCNICO / ARQUITETO</label>
+                            <input name="professionalName" value={localSettings.professionalName} onChange={handleChange} className="w-full h-14 px-5 rounded-2xl border-2 border-slate-100 bg-slate-50/50 font-black text-slate-800" />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WhatsApp Corporativo</label>
-                            <input name="phone" value={systemSettings.phone} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold no-uppercase" />
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">WHATSAPP CORPORATIVO</label>
+                            <input name="phone" value={localSettings.phone} onChange={handleChange} className="w-full h-14 px-5 rounded-2xl border-2 border-slate-100 bg-slate-50/50 font-black text-slate-800 no-uppercase" />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center">
-                    <MapPinIcon className="w-5 h-5 mr-2 text-blue-500" /> Endereço Comercial
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-8 flex items-center">
+                    <MapPinIcon className="w-5 h-5 mr-3 text-[var(--primary-color)]" /> ENDEREÇO COMERCIAL
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
-                    <div className="md:col-span-2 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">CEP</label>
-                        <input name="address.cep" value={systemSettings.address.cep} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold" />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                     <div className="md:col-span-3 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Logradouro / Rua</label>
-                        <input name="address.street" value={systemSettings.address.street} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold uppercase" />
+                        <label className="text-[9px] font-black text-slate-400 uppercase">CEP</label>
+                        <input name="address.cep" value={localSettings.address.cep} onChange={handleChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50/50 font-bold no-uppercase" />
                     </div>
-                    <div className="md:col-span-1 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Nº</label>
-                        <input name="address.number" value={systemSettings.address.number} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold" />
+                    <div className="md:col-span-7 space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase">LOGRADOURO / RUA</label>
+                        <input name="address.street" value={localSettings.address.street} onChange={handleChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50/50 font-bold" />
                     </div>
                     <div className="md:col-span-2 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Bairro</label>
-                        <input name="address.district" value={systemSettings.address.district} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold uppercase" />
+                        <label className="text-[9px] font-black text-slate-400 uppercase">Nº</label>
+                        <input name="address.number" value={localSettings.address.number} onChange={handleChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50/50 font-bold" />
                     </div>
-                    <div className="md:col-span-3 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Cidade</label>
-                        <input name="address.city" value={systemSettings.address.city} onChange={handleSystemSettingChange} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold uppercase" />
+                    <div className="md:col-span-4 space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase">BAIRRO</label>
+                        <input name="address.district" value={localSettings.address.district} onChange={handleChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50/50 font-bold" />
                     </div>
-                    <div className="md:col-span-1 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">UF</label>
-                        <input name="address.state" value={systemSettings.address.state} onChange={handleSystemSettingChange} maxLength={2} className="w-full h-11 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-bold text-center uppercase" />
+                    <div className="md:col-span-6 space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase">CIDADE</label>
+                        <input name="address.city" value={localSettings.address.city} onChange={handleChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50/50 font-bold" />
+                    </div>
+                    <div className="md:col-span-2 space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase">UF</label>
+                        <input name="address.state" maxLength={2} value={localSettings.address.state} onChange={handleChange} className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50/50 font-bold text-center" />
                     </div>
                 </div>
             </div>
@@ -235,237 +196,263 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
 
       {activeTab === 'visual' && (
           <div className="space-y-8 animate-fadeIn">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-8 flex items-center">
-                    <SparklesIcon className="w-5 h-5 mr-2 text-yellow-500" /> Paleta de Cores & Layout
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                      <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Cor de Destaque</label>
-                          <div className="flex gap-3 items-center">
-                            <input type="color" name="theme.primaryColor" value={systemSettings.theme.primaryColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
-                            <input value={systemSettings.theme.primaryColor} onChange={handleSystemSettingChange} name="theme.primaryColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono no-uppercase" />
-                          </div>
-                      </div>
-                      <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Menu Lateral</label>
-                          <div className="flex gap-3 items-center">
-                            <input type="color" name="theme.sidebarColor" value={systemSettings.theme.sidebarColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
-                            <input value={systemSettings.theme.sidebarColor} onChange={handleSystemSettingChange} name="theme.sidebarColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono no-uppercase" />
-                          </div>
-                      </div>
-                      <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Fundo de Tela</label>
-                          <div className="flex gap-3 items-center">
-                            <input type="color" name="theme.backgroundColor" value={systemSettings.theme.backgroundColor} onChange={handleSystemSettingChange} className="w-12 h-12 rounded-xl cursor-pointer border-none" />
-                            <input value={systemSettings.theme.backgroundColor} onChange={handleSystemSettingChange} name="theme.backgroundColor" className="flex-1 h-10 px-3 bg-slate-50 border-slate-200 rounded-lg text-xs font-mono no-uppercase" />
-                          </div>
-                      </div>
-                      <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Arredondamento</label>
-                          <select name="theme.borderRadius" value={systemSettings.theme.borderRadius} onChange={handleSystemSettingChange} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-xl font-bold text-xs no-uppercase">
-                              <option value="0px">Quadrado (0px)</option>
-                              <option value="8px">Leve (8px)</option>
-                              <option value="12px">Padrão (12px)</option>
-                              <option value="24px">Extra Arredondado (24px)</option>
-                              <option value="50px">Cápsula (50px)</option>
-                          </select>
-                      </div>
-                  </div>
-              </div>
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-10 flex items-center">
+                    <SparklesIcon className="w-5 h-5 mr-3 text-yellow-500" /> PALETA DE CORES & LAYOUT
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">COR DE DESTAQUE</label>
+                        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border-2 border-slate-100">
+                            <input type="color" name="theme.primaryColor" value={localSettings.theme.primaryColor} onChange={handleChange} className="w-12 h-12 rounded-xl cursor-pointer bg-transparent" />
+                            <input type="text" value={localSettings.theme.primaryColor} onChange={(e) => setLocalSettings(p => ({...p, theme: {...p.theme, primaryColor: e.target.value}}))} className="bg-transparent font-bold text-xs w-20 outline-none no-uppercase" />
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">MENU LATERAL</label>
+                        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border-2 border-slate-100">
+                            <input type="color" name="theme.sidebarColor" value={localSettings.theme.sidebarColor} onChange={handleChange} className="w-12 h-12 rounded-xl cursor-pointer bg-transparent" />
+                            <input type="text" value={localSettings.theme.sidebarColor} onChange={(e) => setLocalSettings(p => ({...p, theme: {...p.theme, sidebarColor: e.target.value}}))} className="bg-transparent font-bold text-xs w-20 outline-none no-uppercase" />
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">FUNDO DE TELA</label>
+                        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-2xl border-2 border-slate-100">
+                            <input type="color" name="theme.backgroundColor" value={localSettings.theme.backgroundColor} onChange={handleChange} className="w-12 h-12 rounded-xl cursor-pointer bg-transparent" />
+                            <input type="text" value={localSettings.theme.backgroundColor} onChange={(e) => setLocalSettings(p => ({...p, theme: {...p.theme, backgroundColor: e.target.value}}))} className="bg-transparent font-bold text-xs w-20 outline-none no-uppercase" />
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase">ARREDONDAMENTO</label>
+                        <select name="theme.borderRadius" value={localSettings.theme.borderRadius} onChange={handleChange} className="w-full h-16 px-4 bg-slate-50 rounded-2xl border-2 border-slate-100 font-bold outline-none">
+                            <option value="4px">RETRO (4PX)</option>
+                            <option value="8px">LEVE (8PX)</option>
+                            <option value="12px">PADRÃO (12PX)</option>
+                            <option value="20px">MODERNO (20PX)</option>
+                            <option value="32px">SOFT (32PX)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Fonte do Sistema</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {FONT_OPTIONS.map(font => (
-                          <div 
-                            key={font.name} 
-                            onClick={() => setSystemSettings(prev => ({ ...prev, theme: { ...prev.theme, fontFamily: font.value }}))}
-                            className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${systemSettings.theme.fontFamily === font.value ? 'border-[var(--primary-color)] bg-blue-50/30' : 'border-slate-100 hover:border-slate-200'}`}
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-10">FONTE DO SISTEMA</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {FONT_OPTIONS.map(font => (
+                        <div 
+                            key={font.value} 
+                            onClick={() => setLocalSettings(prev => ({ ...prev, theme: { ...prev.theme, fontFamily: font.value } }))}
+                            className={`p-8 rounded-[2rem] border-2 cursor-pointer transition-all hover:scale-[1.02] ${localSettings.theme.fontFamily === font.value ? 'border-[var(--primary-color)] bg-blue-50/20 shadow-lg' : 'border-slate-100 bg-white hover:border-slate-200'}`}
                             style={{ fontFamily: font.value }}
-                          >
-                              <p className="text-lg mb-1 no-uppercase">{font.name.split(' (')[0]}</p>
-                              <p className="text-xs text-slate-500 no-uppercase">The quick brown fox jumps over the lazy dog.</p>
-                              {systemSettings.theme.fontFamily === font.value && <div className="mt-3 flex items-center text-[var(--primary-color)] text-[10px] font-black uppercase tracking-widest"><CheckCircleIcon className="w-4 h-4 mr-1" /> Selecionada</div>}
-                          </div>
-                      ))}
-                  </div>
-              </div>
+                        >
+                            <p className="text-xl font-black mb-2 text-slate-800 no-uppercase">{font.name.split(' (')[0]}</p>
+                            <p className="text-xs text-slate-400 leading-relaxed no-uppercase">The quick brown fox jumps over the lazy dog.</p>
+                            {localSettings.theme.fontFamily === font.value && (
+                                <p className="mt-4 text-[9px] font-black text-[var(--primary-color)] flex items-center uppercase tracking-widest">
+                                    <CheckCircleIcon className="w-4 h-4 mr-2" /> SELECIONADA
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
           </div>
       )}
 
       {activeTab === 'servicos' && (
           <div className="space-y-8 animate-fadeIn">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <div className="flex justify-between items-center mb-8 pb-4 border-b">
-                      <div>
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-10">
+                    <div>
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center">
-                            <MoneyBagIcon className="w-5 h-5 mr-2 text-green-500" /> Catálogo de Serviços do Estúdio
+                            <MoneyBagIcon className="w-5 h-5 mr-3 text-yellow-600" /> CATÁLOGO DE SERVIÇOS DO ESTÚDIO
                         </h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Defina seus serviços e valores base para agilizar novos orçamentos.</p>
-                      </div>
-                      <button onClick={addService} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl shadow-md">+ Add Novo Serviço</button>
-                  </div>
+                        <p className="text-[10px] font-bold text-slate-400 mt-2">DEFINA SEUS SERVIÇOS E VALORES BASE PARA AGILIZAR NOVOS ORÇAMENTOS.</p>
+                    </div>
+                    <button 
+                        onClick={() => setLocalServices([...localServices, { id: Date.now(), name: 'NOVO SERVIÇO', unit: 'm²' }])}
+                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] tracking-widest shadow-lg hover:scale-105 transition-all"
+                    >
+                        + ADD NOVO SERVIÇO
+                    </button>
+                </div>
 
-                  <div className="grid grid-cols-1 gap-4">
-                      {localServicePrices.map((service) => (
-                          <div key={service.id} className="p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 flex flex-col md:flex-row items-center gap-6 group hover:border-blue-200 transition-all">
-                              <div className="flex-1 w-full space-y-1">
-                                  <label className="text-[9px] font-black text-slate-400 uppercase">Nome do Serviço</label>
-                                  <input 
+                <div className="space-y-4">
+                    {localServices.map((service, index) => (
+                        <div key={service.id} className="p-6 bg-slate-50/50 rounded-2xl border-2 border-slate-100 flex flex-col md:flex-row items-center gap-8 group">
+                            <div className="flex-1 w-full space-y-1">
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">NOME DO SERVIÇO</label>
+                                <input 
                                     value={service.name} 
-                                    onChange={e => updateService(service.id, 'name', e.target.value)}
-                                    className="w-full bg-white border-slate-200 rounded-xl px-4 h-10 font-bold uppercase text-sm outline-none focus:border-blue-500" 
-                                    placeholder="EX: PROJETO DE INTERIORES"
-                                  />
-                              </div>
-
-                              <div className="w-full md:w-48 space-y-1">
-                                  <label className="text-[9px] font-black text-slate-400 uppercase">Tipo de Cobrança</label>
-                                  <select 
-                                    value={service.unit} 
-                                    onChange={e => updateService(service.id, 'unit', e.target.value)}
-                                    className="w-full bg-white border-slate-200 rounded-xl px-4 h-10 font-bold text-xs outline-none focus:border-blue-500"
-                                  >
-                                      <option value="m²">POR METRAGEM (m²)</option>
-                                      <option value="hora">POR HORA TÉCNICA</option>
-                                      <option value="fixo">VALOR FIXO / PACOTE</option>
-                                  </select>
-                              </div>
-
-                              <div className="w-full md:w-32 space-y-1">
-                                  <label className="text-[9px] font-black text-slate-400 uppercase">Valor Sugerido (R$)</label>
-                                  <input 
-                                    type="number"
+                                    onChange={(e) => setLocalServices(localServices.map(s => s.id === service.id ? {...s, name: e.target.value.toUpperCase()} : s))}
+                                    className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-800 outline-none focus:border-blue-500" 
+                                />
+                            </div>
+                            <div className="w-full md:w-64 space-y-1">
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">TIPO DE COBRANÇA</label>
+                                <select 
+                                    value={service.unit === 'm²' ? 'metragem' : service.unit === 'hora' ? 'hora' : 'fixo'}
+                                    onChange={(e) => {
+                                        const mapping: any = { metragem: 'm²', hora: 'hora', fixo: 'pacote' };
+                                        setLocalServices(localServices.map(s => s.id === service.id ? {...s, unit: mapping[e.target.value]} : s));
+                                    }}
+                                    className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-[10px] uppercase outline-none focus:border-blue-500"
+                                >
+                                    <option value="metragem">POR METRAGEM (M²)</option>
+                                    <option value="hora">POR HORA TÉCNICA</option>
+                                    <option value="fixo">VALOR FIXO / PACOTE</option>
+                                </select>
+                            </div>
+                            <div className="w-full md:w-40 space-y-1">
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">VALOR SUGERIDO (R$)</label>
+                                <input 
+                                    type="number" 
                                     value={service.price || 0} 
-                                    onChange={e => updateService(service.id, 'price', parseFloat(e.target.value) || 0)}
-                                    className="w-full bg-white border-slate-200 rounded-xl px-4 h-10 font-black text-blue-600 text-sm text-center outline-none focus:border-blue-500" 
-                                    placeholder="0,00"
-                                  />
-                              </div>
-
-                              <div className="flex items-end h-full">
-                                  <button onClick={() => removeService(service.id)} className="p-3 text-slate-300 hover:text-red-500 transition-colors">
-                                      <TrashIcon className="w-5 h-5" />
-                                  </button>
-                              </div>
-                          </div>
-                      ))}
-
-                      {localServicePrices.length === 0 && (
-                          <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic">Nenhum serviço cadastrado ainda.</p>
-                          </div>
-                      )}
-                  </div>
-              </div>
+                                    onChange={(e) => setLocalServices(localServices.map(s => s.id === service.id ? {...s, price: parseFloat(e.target.value)} : s))}
+                                    className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-blue-600 outline-none focus:border-blue-500 text-center" 
+                                />
+                            </div>
+                            <button 
+                                onClick={() => setLocalServices(localServices.filter(s => s.id !== service.id))}
+                                className="p-3 text-slate-300 hover:text-red-500 transition-colors"
+                            >
+                                <TrashIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
           </div>
       )}
 
       {activeTab === 'modelos' && (
           <div className="space-y-12 animate-fadeIn">
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <div className="flex justify-between items-center mb-8 pb-4 border-b">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Fases Padrão de Projeto</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Defina a sequência que será carregada em cada novo contrato. Clique e arraste para reordenar.</p>
-                      </div>
-                      <button onClick={addStageTemplate} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl shadow-md">+ Add Etapa</button>
-                  </div>
-                  <div className="space-y-3">
-                      {systemSettings.projectStagesTemplate.map((stage, idx) => (
-                          <div 
-                            key={stage.id} 
-                            draggable
-                            onDragStart={() => handleDragStart(idx)}
-                            onDragOver={handleDragOver}
-                            onDrop={() => handleDrop(idx)}
-                            className={`flex gap-4 items-center p-3 bg-slate-50 rounded-xl border border-slate-100 group transition-all cursor-grab active:cursor-grabbing ${draggedItemIndex === idx ? 'opacity-50 border-dashed border-[var(--primary-color)]' : ''}`}
-                          >
-                              <div className="flex items-center text-slate-300">
-                                <GripVerticalIcon className="w-5 h-5" />
-                              </div>
-                              <span className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[var(--primary-color)] font-black text-xs shadow-sm">{idx + 1}</span>
-                              <input 
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-10">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">FASES PADRÃO DE PROJETO</h3>
+                    <button onClick={() => setLocalStages([...localStages, { id: Date.now(), name: 'NOVA ETAPA', sequence: localStages.length + 1, durationWorkDays: 5 }])} className="px-5 py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase">+ ADD ETAPA</button>
+                </div>
+                <div className="space-y-3">
+                    {localStages.sort((a,b) => a.sequence - b.sequence).map((stage, idx) => (
+                        <div key={stage.id} className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100 group">
+                            <div className="w-8 h-8 flex items-center justify-center text-slate-300 cursor-grab"><GripVerticalIcon className="w-5 h-5" /></div>
+                            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs">{idx + 1}</span>
+                            <input 
                                 value={stage.name} 
-                                onMouseDown={(e) => e.stopPropagation()} 
-                                onChange={e => setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.map(s => s.id === stage.id ? { ...s, name: e.target.value.toUpperCase() } : s) }))}
-                                className="flex-1 bg-transparent border-none font-bold text-slate-700 outline-none uppercase" 
-                              />
-                              <div className="flex items-center gap-2">
-                                  <label className="text-[9px] font-black text-slate-400 uppercase">Dias Úteis:</label>
-                                  <input 
+                                onChange={(e) => setLocalStages(localStages.map(s => s.id === stage.id ? {...s, name: e.target.value.toUpperCase()} : s))}
+                                className="flex-1 bg-transparent border-none font-black text-slate-700 uppercase focus:ring-0" 
+                            />
+                            <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">DIAS ÚTEIS:</span>
+                                <input 
                                     type="number" 
-                                    onMouseDown={(e) => e.stopPropagation()}
                                     value={stage.durationWorkDays} 
-                                    onChange={e => setSystemSettings(prev => ({ ...prev, projectStagesTemplate: prev.projectStagesTemplate.map(s => s.id === stage.id ? { ...s, durationWorkDays: parseInt(e.target.value) || 0 } : s) }))}
-                                    className="w-16 h-8 bg-white border border-slate-200 rounded-lg text-center font-bold text-xs" 
-                                  />
-                              </div>
-                              <button onClick={() => removeStageTemplate(stage.id)} className="text-slate-300 hover:text-red-500 transition-colors">
-                                  <TrashIcon className="w-4 h-4" />
-                              </button>
-                          </div>
-                      ))}
-                  </div>
-              </div>
+                                    onChange={(e) => setLocalStages(localStages.map(s => s.id === stage.id ? {...s, durationWorkDays: parseInt(e.target.value)} : s))}
+                                    className="w-16 h-10 bg-white border border-slate-200 rounded-lg text-center font-black text-xs" 
+                                />
+                            </div>
+                            <button onClick={() => setLocalStages(localStages.filter(s => s.id !== stage.id))} className="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-4 h-4" /></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
 
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-                  <div className="flex justify-between items-center mb-8 pb-4 border-b">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Checklist Mestre de Obra</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Sua lista técnica que garante a qualidade de cada entrega.</p>
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-10">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">CHECKLIST MESTRE DE OBRA</h3>
+                    <button onClick={() => setLocalChecklist([...localChecklist, { id: Date.now(), text: 'NOVA TAREFA', stage: 'GERAL' }])} className="px-5 py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase">+ ADD TAREFA</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+                    {localChecklist.map(item => (
+                        <div key={item.id} className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center gap-4 group">
+                             <div className="flex-1 space-y-1">
+                                <input 
+                                    value={item.text} 
+                                    onChange={(e) => setLocalChecklist(localChecklist.map(i => i.id === item.id ? {...i, text: e.target.value.toUpperCase()} : i))}
+                                    className="w-full bg-transparent border-none font-bold text-slate-600 uppercase text-[11px] focus:ring-0" 
+                                />
+                                <input 
+                                    value={item.stage} 
+                                    onChange={(e) => setLocalChecklist(localChecklist.map(i => i.id === item.id ? {...i, stage: e.target.value.toUpperCase()} : i))}
+                                    className="w-full bg-transparent border-none text-blue-500 font-black uppercase text-[8px] tracking-widest focus:ring-0" 
+                                />
+                             </div>
+                             <button onClick={() => setLocalChecklist(localChecklist.filter(i => i.id !== item.id))} className="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon className="w-4 h-4" /></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          </div>
+      )}
+
+      {activeTab === 'manutencao' && (
+          <div className="animate-fadeIn space-y-8">
+              <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-10 flex items-center">
+                      <HistoryIcon className="w-5 h-5 mr-3 text-blue-500" /> MANUTENÇÃO DO SISTEMA
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SEGURANÇA DOS DADOS</p>
+                          <h4 className="text-xl font-black text-slate-800">BACKUP EXTERNO</h4>
+                          <p className="text-xs text-slate-500 font-bold leading-relaxed">FAÇA O DOWNLOAD DE TODOS OS SEUS DADOS EM UM ARQUIVO JSON. VOCÊ PODE RESTAURAR ESTE ARQUIVO EM QUALQUER DISPOSITIVO.</p>
+                          <button 
+                            onClick={handleExportBackup}
+                            className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl hover:bg-blue-600 transition-all flex items-center justify-center uppercase text-[10px] tracking-widest"
+                          >
+                            <DownloadIcon className="w-5 h-5 mr-2" /> EXPORTAR BACKUP (JSON)
+                          </button>
                       </div>
-                      <button onClick={addChecklistItem} className="px-4 py-2 bg-[var(--primary-color)] text-white font-black text-[10px] uppercase rounded-xl shadow-md">+ Add Item Técnico</button>
+
+                      <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">RELATÓRIOS</p>
+                          <h4 className="text-xl font-black text-slate-800">EXPORTAÇÃO EXCEL</h4>
+                          <p className="text-xs text-slate-500 font-bold leading-relaxed">GERA UMA PLANILHA COM O RESUMO DE TODOS OS CONTRATOS E CLIENTES PARA ANÁLISE EXTERNA.</p>
+                          <button 
+                            onClick={handleExportExcel}
+                            className="w-full py-4 bg-green-600 text-white font-black rounded-2xl shadow-xl hover:bg-green-700 transition-all flex items-center justify-center uppercase text-[10px] tracking-widest"
+                          >
+                            <DownloadIcon className="w-5 h-5 mr-2" /> EXPORTAR EXCEL (CSV)
+                          </button>
+                      </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {systemSettings.checklistTemplate.map((item) => (
-                          <div key={item.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
-                              <div className="flex justify-between items-center">
-                                  <input 
-                                    placeholder="Fase da Obra" 
-                                    value={item.stage}
-                                    onChange={e => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.map(i => i.id === item.id ? { ...i, stage: e.target.value.toUpperCase() } : i) }))}
-                                    className="text-[9px] font-black uppercase text-[var(--primary-color)] bg-transparent border-none outline-none tracking-widest"
-                                  />
-                                  <button onClick={() => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.filter(i => i.id !== item.id) }))} className="text-slate-300 hover:text-red-500 transition-colors">
-                                      <TrashIcon className="w-4 h-4" />
-                                  </button>
-                              </div>
-                              <input 
-                                value={item.text} 
-                                placeholder="Descreva a ação..."
-                                onChange={e => setSystemSettings(prev => ({ ...prev, checklistTemplate: prev.checklistTemplate.map(i => i.id === item.id ? { ...i, text: e.target.value.toUpperCase() } : i) }))}
-                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-bold text-slate-600 outline-none focus:border-[var(--primary-color)] uppercase"
-                              />
+
+                  <div className="mt-12 pt-10 border-t border-red-50">
+                      <div className="flex flex-col items-center text-center space-y-4">
+                          <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center">
+                              <TrashIcon className="w-6 h-6" />
                           </div>
-                      ))}
+                          <div>
+                              <h4 className="text-lg font-black text-red-600 uppercase tracking-tight">LIMPAR TODOS OS DADOS</h4>
+                              <p className="text-[10px] text-slate-400 font-bold max-w-md mx-auto uppercase mt-2">ESSA OPERAÇÃO APAGA DEFINITIVAMENTE CLIENTES, CONTRATOS, NOTAS E REGISTROS. USE APENAS SE DESEJAR RECOMEÇAR O SISTEMA DO ZERO.</p>
+                          </div>
+                          <button 
+                            onClick={handleResetData}
+                            className="px-10 py-4 border-2 border-red-100 text-red-400 hover:bg-red-500 hover:text-white font-black rounded-2xl transition-all uppercase text-[10px] tracking-widest"
+                          >
+                            LIMPAR BANCO DE DADOS
+                          </button>
+                      </div>
                   </div>
               </div>
           </div>
       )}
 
-      {/* FOOTER PERSISTENTE DE AJUSTES */}
-      <div className="fixed bottom-0 left-64 right-0 p-6 bg-white/80 backdrop-blur-md border-t border-slate-200 z-40 flex justify-center no-print">
-          <div className="max-w-4xl w-full flex justify-between items-center px-10">
-              <div className="flex items-center text-slate-400 gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-green-500" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Salve para aplicar as mudanças e atualizar seu catálogo de serviços</span>
-              </div>
-              <div className="flex gap-4">
-                  <button onClick={() => {
-                      setSystemSettings(appData.systemSettings);
-                      setLocalServicePrices(appData.servicePrices);
-                      setLocalHourlyRates(appData.hourlyRates);
-                  }} className="px-6 py-3 font-black uppercase text-[10px] text-slate-400 hover:text-slate-600 transition-all">Descartar</button>
-                  <button 
-                    onClick={handleSave} 
-                    disabled={isSaving}
-                    className={`px-12 py-3 bg-[var(--primary-color)] text-white font-black uppercase text-xs tracking-widest rounded-xl shadow-xl shadow-blue-500/20 hover:scale-105 transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {isSaving ? 'Salvando...' : 'Salvar Tudo'}
-                  </button>
-              </div>
+      {/* FOOTER PERSISTENTE DE SALVAMENTO */}
+      <div className="fixed bottom-0 left-64 right-0 bg-slate-100/95 backdrop-blur-md p-6 border-t border-slate-200 z-[100] flex justify-between items-center px-12">
+          <div className="flex items-center text-green-600 font-black text-[10px] uppercase tracking-widest animate-pulse">
+              <CheckCircleIcon className="w-5 h-5 mr-3" /> SALVE PARA APLICAR AS MUDANÇAS E ATUALIZAR SEU CATÁLOGO DE SERVIÇOS
+          </div>
+          <div className="flex items-center gap-8">
+              <button onClick={() => window.location.reload()} className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 transition-colors">DESCARTAR</button>
+              <button 
+                onClick={handleSaveAll}
+                disabled={isSaving}
+                className="px-16 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all text-xs tracking-[0.2em]"
+              >
+                  {isSaving ? 'PROCESSANDO...' : 'SALVAR TUDO'}
+              </button>
           </div>
       </div>
     </div>

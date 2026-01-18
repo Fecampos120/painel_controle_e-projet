@@ -27,6 +27,16 @@ const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('pt-BR', {timeZone: 'UTC'}).format(d);
 }
 
+// FIX: Added getStatusChip helper function to resolve the "Cannot find name 'getStatusChip'" error
+const getStatusChip = (status: string) => {
+    switch (status) {
+        case 'Pendente': return 'bg-amber-100 text-amber-800';
+        case 'Pago em dia': return 'bg-green-100 text-green-800';
+        case 'Pago com atraso': return 'bg-yellow-100 text-yellow-800';
+        default: return 'bg-slate-100 text-slate-800';
+    }
+};
+
 interface DashboardProps {
     installments: PaymentInstallment[];
     contracts: Contract[];
@@ -168,16 +178,14 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
 
     // Financial Charts Data Calculation
     const { cashFlowData, expenseData, summaryMetrics } = useMemo(() => {
-        // Cash Flow (Last 6 Months)
+        // Cash Flow (Full Year - Jan to Dec)
         const cashFlow = [];
-        const currentMonth = today.getMonth();
         const currentYear = today.getFullYear();
 
-        for (let i = 5; i >= 0; i--) {
-            const date = new Date(currentYear, currentMonth - i, 1);
+        for (let i = 0; i <= 11; i++) {
+            const date = new Date(currentYear, i, 1);
             const month = date.getMonth();
-            const year = date.getFullYear();
-            const label = date.toLocaleString('pt-BR', { month: 'short' });
+            const label = date.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
 
             let entry = 0;
             let exit = 0;
@@ -185,22 +193,23 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
             installments.forEach(inst => {
                 if (inst.paymentDate) {
                     const d = new Date(inst.paymentDate);
-                    if (d.getMonth() === month && d.getFullYear() === year) entry += inst.value;
+                    if (d.getMonth() === month && d.getFullYear() === currentYear) entry += inst.value;
                 }
             });
             otherPayments.forEach(op => {
                 const d = new Date(op.paymentDate);
-                if (d.getMonth() === month && d.getFullYear() === year) entry += op.value;
+                if (d.getMonth() === month && d.getFullYear() === currentYear) entry += op.value;
             });
             expenses.forEach(exp => {
-                const d = new Date(exp.paidDate || exp.dueDate); // Use due date if pending to simulate flow or paid date
-                if (d.getMonth() === month && d.getFullYear() === year) exit += exp.amount;
+                const d = new Date(exp.paidDate || exp.dueDate);
+                if (d.getMonth() === month && d.getFullYear() === currentYear) exit += exp.amount;
             });
 
             cashFlow.push({ name: label, Entradas: entry, Saídas: exit });
         }
 
         // Expense Pie Chart - FILTRO POR MÊS CORRENTE
+        const currentMonth = today.getMonth();
         let fixedExp = 0;
         let varExp = 0;
         expenses.forEach(exp => {
@@ -341,7 +350,7 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Cash Flow Chart */}
           <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
-              <h2 className="text-lg font-semibold text-slate-800 mb-6">Fluxo de Caixa (6 Meses)</h2>
+              <h2 className="text-lg font-semibold text-slate-800 mb-6">Fluxo de Caixa (Janeiro - Dezembro)</h2>
               <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={cashFlowData}>
@@ -356,8 +365,8 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
                               </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `${value/1000}k`} />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} tickFormatter={(value) => `${value/1000}k`} />
                           <Tooltip 
                               contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff'}}
                               formatter={(value: number) => formatCurrency(value)}
@@ -538,12 +547,3 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
 };
 
 export default Dashboard;
-
-const getStatusChip = (status: PaymentInstallment['status']) => {
-    switch (status) {
-        case 'Pendente': return 'bg-amber-100 text-amber-800';
-        case 'Pago em dia': return 'bg-green-100 text-green-800';
-        case 'Pago com atraso': return 'bg-yellow-100 text-yellow-800';
-        default: return 'bg-slate-100 text-slate-800';
-    }
-};
