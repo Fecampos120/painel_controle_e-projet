@@ -258,7 +258,28 @@ const App: React.FC = () => {
             case 'progress':
                 return <Progress schedules={schedules} setSchedules={(s) => setAppData(prev => ({...prev, schedules: s}))} contracts={contracts} />;
             case 'projections':
-                return <Projections installments={installments} otherPayments={otherPayments} contracts={contracts} onRegisterInstallment={(id, date) => setAppData(prev => ({...prev, installments: prev.installments.map(i => i.id === id ? {...i, status: 'Pago em dia', paymentDate: date} : i)}))} onRegisterOther={(desc, date, val) => setAppData(prev => ({...prev, otherPayments: [...prev.otherPayments, {id: Date.now() + Math.random(), description: desc, paymentDate: date, value: val}]}))} />;
+                return <Projections 
+                    installments={installments} 
+                    otherPayments={otherPayments} 
+                    contracts={contracts} 
+                    onRegisterInstallment={(id, date, newValue) => setAppData(prev => ({
+                        ...prev, 
+                        installments: prev.installments.map(i => {
+                            if (i.id === id) {
+                                const dueDate = new Date(i.dueDate);
+                                const isLate = date > dueDate;
+                                return {
+                                    ...i, 
+                                    status: isLate ? 'Pago com atraso' : 'Pago em dia', 
+                                    paymentDate: date,
+                                    value: newValue !== undefined ? newValue : i.value
+                                };
+                            }
+                            return i;
+                        })
+                    }))} 
+                    onRegisterOther={(desc, date, val) => setAppData(prev => ({...prev, otherPayments: [...prev.otherPayments, {id: Date.now() + Math.random(), description: desc, paymentDate: date, value: val}]}))} 
+                />;
             case 'expenses':
                 return <Expenses 
                     expenses={expenses} 
