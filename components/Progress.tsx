@@ -198,13 +198,16 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
     const [mode, setMode] = useState<'list' | 'edit'>('list');
     const [currentSchedule, setCurrentSchedule] = useState<ProjectSchedule | null>(null);
     const [filterStatus, setFilterStatus] = useState<'todos' | 'atrasados' | 'vencendo'>('todos');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const processedProjects = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const activeContracts = contracts.filter(c => c.status === 'Ativo');
-        const list = schedules.filter(s => activeContracts.some(c => c.id === s.contractId)).map(schedule => {
+        
+        // Filtra cronogramas de contratos ativos
+        let list = schedules.filter(s => activeContracts.some(c => c.id === s.contractId)).map(schedule => {
             const contract = contracts.find(c => c.id === schedule.contractId)!;
             const completedStages = schedule.stages.filter(st => st.completionDate).length;
             const progress = schedule.stages.length > 0 ? Math.round((completedStages / schedule.stages.length) * 100) : 0;
@@ -213,7 +216,6 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
             const lastStage = schedule.stages[schedule.stages.length - 1];
             const end = lastStage?.deadline ? new Date(lastStage.deadline + 'T12:00:00') : new Date();
 
-            // Lógica de atraso e proximidade para a fase atual (primeira pendente)
             const currentStage = schedule.stages.find(s => !s.completionDate);
             let isLate = false;
             let isNear = false;
@@ -239,12 +241,21 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                 daysUntilNext,
                 currentStageName: currentStage?.name || 'Projeto Finalizado'
             };
-        }).sort((a, b) => a.startDateObj.getTime() - b.startDateObj.getTime());
+        });
+
+        // BUSCA POR CLIENTE
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            list = list.filter(p => p.clientName.toLowerCase().includes(term) || p.projectName.toLowerCase().includes(term));
+        }
+
+        // ORDEM DE CONTRATO (Cronológica por ID ou Data de Início)
+        list.sort((a, b) => a.contract.id - b.contract.id);
 
         if (filterStatus === 'atrasados') return list.filter(p => p.isLate);
         if (filterStatus === 'vencendo') return list.filter(p => p.isNear);
         return list;
-    }, [schedules, contracts, filterStatus]);
+    }, [schedules, contracts, filterStatus, searchTerm]);
 
     const handleEdit = (schedule: ProjectSchedule) => {
         setCurrentSchedule(JSON.parse(JSON.stringify(schedule)));
@@ -276,25 +287,40 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                         </p>
                     </div>
                     
-                    <div className="bg-white/5 p-1.5 rounded-2xl flex gap-2 backdrop-blur-md border border-white/5">
-                        <button 
-                            onClick={() => setFilterStatus('todos')}
-                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'todos' ? 'bg-white text-slate-900 shadow-lg' : 'text-white hover:bg-white/5'}`}
-                        >
-                            Todos
-                        </button>
-                        <button 
-                            onClick={() => setFilterStatus('atrasados')}
-                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'atrasados' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'text-white hover:bg-white/5'}`}
-                        >
-                            Atrasados
-                        </button>
-                        <button 
-                            onClick={() => setFilterStatus('vencendo')}
-                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'vencendo' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-white hover:bg-white/5'}`}
-                        >
-                            A vencer em breve
-                        </button>
+                    <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto items-center">
+                        <div className="relative w-full sm:w-64">
+                            <input 
+                                type="text"
+                                placeholder="BUSCAR CLIENTE..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-full h-10 pl-10 pr-4 bg-white/10 border border-white/20 rounded-xl text-[10px] font-black text-white placeholder-white/40 focus:bg-white/20 transition-all outline-none"
+                            />
+                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+
+                        <div className="bg-white/5 p-1.5 rounded-2xl flex gap-2 backdrop-blur-md border border-white/5">
+                            <button 
+                                onClick={() => setFilterStatus('todos')}
+                                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'todos' ? 'bg-white text-slate-900 shadow-lg' : 'text-white hover:bg-white/5'}`}
+                            >
+                                Todos
+                            </button>
+                            <button 
+                                onClick={() => setFilterStatus('atrasados')}
+                                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'atrasados' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'text-white hover:bg-white/5'}`}
+                            >
+                                Atrasados
+                            </button>
+                            <button 
+                                onClick={() => setFilterStatus('vencendo')}
+                                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === 'vencendo' ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'text-white hover:bg-white/5'}`}
+                            >
+                                A vencer em breve
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -313,7 +339,7 @@ const Progress: React.FC<ProgressProps> = ({ schedules, setSchedules, contracts 
                                         <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${project.isLate ? 'bg-red-500 text-white' : project.isNear ? 'bg-amber-500 text-white' : 'bg-blue-100 text-blue-600'}`}>
                                             {project.isLate ? '● CRÍTICO: ETAPA EM ATRASO' : project.isNear ? '● ATENÇÃO: VENCIMENTO PRÓXIMO' : '● NO PRAZO'}
                                         </span>
-                                        <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full uppercase tracking-widest">ID {project.contract.id}</span>
+                                        <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full uppercase tracking-widest">ID {project.contract.id.toString().split('.')[0]}</span>
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-800 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{project.projectName}</h3>
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">CLIENTE: {project.clientName}</p>
