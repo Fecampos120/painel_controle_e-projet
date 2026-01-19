@@ -108,6 +108,17 @@ export interface Reminder {
     completed: boolean;
 }
 
+export interface Appointment {
+    id: number;
+    title: string;
+    date: string; // YYYY-MM-DD
+    time: string; // HH:mm
+    clientId?: number;
+    clientName?: string;
+    completed: boolean;
+    description?: string;
+}
+
 export interface PaymentInstallment {
     id: number;
     contractId: number;
@@ -248,6 +259,15 @@ export interface Note {
     contractId?: number;
 }
 
+export interface MenuItem {
+    id: string;
+    label: string;
+    iconName: string;
+    view: string;
+    sequence: number;
+    visible: boolean;
+}
+
 export interface ThemeSettings {
     primaryColor: string;      // Cor de botões, destaques
     sidebarColor: string;      // Cor do menu lateral
@@ -266,6 +286,7 @@ export interface SystemSettings {
     theme: ThemeSettings;
     projectStagesTemplate: ProjectStageTemplateItem[];
     checklistTemplate: ChecklistItemTemplate[];
+    menuOrder: MenuItem[];
 }
 
 export interface PricingParticipant {
@@ -310,6 +331,7 @@ export interface AppData {
     contracts: Contract[];
     budgets: Budget[];
     reminders: Reminder[];
+    appointments: Appointment[]; // Nova lista de compromissos
     installments: PaymentInstallment[];
     schedules: ProjectSchedule[];
     servicePrices: ServicePrice[];

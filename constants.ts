@@ -6,7 +6,8 @@ import {
   ChecklistItemTemplate,
   ServicePrice,
   PriceTier,
-  ProjectStageTemplateItem
+  ProjectStageTemplateItem,
+  MenuItem
 } from './types';
 
 export const PARTNER_TYPES = [
@@ -29,6 +30,22 @@ export const INITIAL_PROJECT_STAGES_TEMPLATE: ProjectStageTemplateItem[] = [
     { id: 4, sequence: 4, name: 'Modelagem 3D', durationWorkDays: 10 },
     { id: 5, sequence: 5, name: 'Detalhamento Executivo', durationWorkDays: 12 },
     { id: 6, sequence: 6, name: 'Entrega Técnica', durationWorkDays: 1 },
+];
+
+export const INITIAL_MENU_ORDER: MenuItem[] = [
+    { id: 'dash', label: 'Dashboard', iconName: 'DashboardIcon', view: 'dashboard', sequence: 1, visible: true },
+    { id: 'agenda', label: 'Agenda', iconName: 'CalendarIcon', view: 'agenda', sequence: 2, visible: true },
+    { id: 'budg', label: 'Orçamentos', iconName: 'WalletIcon', view: 'budgets', sequence: 3, visible: true },
+    { id: 'cont', label: 'Projetos', iconName: 'FileTextIcon', view: 'contracts', sequence: 4, visible: true },
+    { id: 'chk', label: 'Checklist Obra', iconName: 'CheckCircleIcon', view: 'construction-checklist', sequence: 5, visible: true },
+    { id: 'note', label: 'Notas & Visitas', iconName: 'NotepadIcon', view: 'notes', sequence: 6, visible: true },
+    { id: 'part', label: 'Parceiros', iconName: 'UsersIcon', view: 'partners', sequence: 7, visible: true },
+    { id: 'client', label: 'Área Cliente', iconName: 'UsersIcon', view: 'client-area', sequence: 8, visible: true },
+    { id: 'price', label: 'Precificação', iconName: 'MoneyBagIcon', view: 'pricing', sequence: 9, visible: true },
+    { id: 'prog', label: 'Andamento', iconName: 'TrendingUpIcon', view: 'progress', sequence: 10, visible: true },
+    { id: 'fin', label: 'Financeiro', iconName: 'ReceiptIcon', view: 'projections', sequence: 11, visible: true },
+    { id: 'exp', label: 'Despesas', iconName: 'CreditCardIcon', view: 'expenses', sequence: 12, visible: true },
+    { id: 'set', label: 'Ajustes', iconName: 'CogIcon', view: 'settings', sequence: 13, visible: true },
 ];
 
 export const INITIAL_CHECKLIST_TEMPLATE: ChecklistItemTemplate[] = [
@@ -88,7 +105,8 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
         borderRadius: '12px'
     },
     projectStagesTemplate: INITIAL_PROJECT_STAGES_TEMPLATE,
-    checklistTemplate: INITIAL_CHECKLIST_TEMPLATE
+    checklistTemplate: INITIAL_CHECKLIST_TEMPLATE,
+    menuOrder: INITIAL_MENU_ORDER
 };
 
 export const MOCK_FIXED_EXPENSE_TEMPLATES: FixedExpenseTemplate[] = [
