@@ -42,6 +42,7 @@ export interface Budget {
     services: ContractService[];
     clientEmail?: string;
     clientPhone?: string;
+    serviceType?: string; // Adicionado para análise categórica
 }
 
 export interface Contract {

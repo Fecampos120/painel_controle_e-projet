@@ -76,7 +76,19 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         return '0';
     });
 
-    const [contractSigningDate, setContractSigningDate] = useState(new Date().toISOString().split('T')[0]);
+    const [serviceCategory, setServiceCategory] = useState<'RESIDENCIAL' | 'COMERCIAL' | 'CORPORATIVO' | 'TERCEIRO'>(() => {
+        if (isEditing) return (editingContract.serviceType || 'RESIDENCIAL') as any;
+        if (isConverting) return (budgetToConvert.serviceType || 'RESIDENCIAL') as any;
+        return 'RESIDENCIAL';
+    });
+
+    const [contractSigningDate, setContractSigningDate] = useState(() => {
+        if (isEditing && editingContract.contractSigningDate) {
+            return new Date(editingContract.contractSigningDate).toISOString().split('T')[0];
+        }
+        return new Date().toISOString().split('T')[0];
+    });
+    
     const [numInstallments, setNumInstallments] = useState('2');
     const [hasDownPayment, setHasDownPayment] = useState(true);
     const [downPaymentType, setDownPaymentType] = useState<'percent' | 'value'>('percent');
@@ -172,7 +184,8 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
             totalValue: financial.totalFinal,
             services: contractTypes,
             clientPhone: clientPhone,
-            clientEmail: p.email as string
+            clientEmail: p.email as string,
+            serviceType: serviceCategory
         };
 
         if (mode === 'budget') {
@@ -189,7 +202,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                 durationMonths: 6,
                 installments: parseInt(numInstallments),
                 installmentValue: financial.installmentValue,
-                serviceType: 'RESIDENCIAL',
+                serviceType: serviceCategory,
                 discountType: 'PORCENTAGEM',
                 discountValue: financial.discountVal,
                 mileageDistance: parseFloat(mileageDistance),
@@ -216,15 +229,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         {isConverting ? `CONVERTENDO ORÇAMENTO DE ${budgetToConvert.clientName}` : 'CONFIGURE O ESCOPO E AS CONDIÇÕES FINANCEIRAS.'}
                     </p>
                 </div>
-                <div className="text-right">
-                    <label className="text-[10px] font-black text-white/60 uppercase tracking-widest block mb-1">Data de Assinatura</label>
-                    <input type="date" value={contractSigningDate} onChange={e => setContractSigningDate(e.target.value)} className="bg-white/20 border border-white/30 rounded-lg h-10 px-3 text-sm font-bold text-white outline-none" />
-                </div>
             </header>
 
             <form ref={formRef} className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-                <FormSection title="1. DADOS DO CLIENTE">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <FormSection title="1. DADOS DO CLIENTE & CATEGORIA">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NOME COMPLETO *</label>
                             <input name="clientName" required defaultValue={isEditing ? editingContract.clientName : isConverting ? budgetToConvert.clientName : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" />
@@ -236,6 +245,24 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TELEFONE</label>
                             <input name="phone" value={clientPhone} onChange={e => setClientPhone(maskPhone(e.target.value))} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" />
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TIPO DE SERVIÇO (PARA ANÁLISE ANUAL)</label>
+                        <div className="flex flex-wrap gap-4">
+                            {['RESIDENCIAL', 'COMERCIAL', 'CORPORATIVO', 'TERCEIRO'].map((type) => (
+                                <label key={type} className={`flex items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${serviceCategory === type ? 'border-[var(--primary-color)] bg-blue-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
+                                    <input 
+                                        type="radio" 
+                                        name="serviceType" 
+                                        checked={serviceCategory === type} 
+                                        onChange={() => setServiceCategory(type as any)} 
+                                        className="w-4 h-4 text-[var(--primary-color)]"
+                                    />
+                                    <span className={`text-[11px] font-black tracking-widest ${serviceCategory === type ? 'text-[var(--primary-color)]' : 'text-slate-500'}`}>{type}</span>
+                                </label>
+                            ))}
                         </div>
                     </div>
                 </FormSection>
@@ -390,7 +417,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                 <FormSection title="5. FINANCEIRO E DATAS">
                     <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200">
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-end">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-end mb-8">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SUBTOTAL BRUTO</label>
                                 <p className="text-xl font-black text-slate-300 line-through tracking-tighter">{formatCurrency(financial.subtotalBruto)}</p>
@@ -404,25 +431,29 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                 <p className="text-4xl font-black text-[var(--primary-color)] tracking-tighter">{formatCurrency(financial.totalFinal)}</p>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VENC. ENTRADA / INÍCIO</label>
-                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black" />
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DE ASSINATURA</label>
+                                <input type="date" value={contractSigningDate} onChange={e => setContractSigningDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº PARCELAS</label>
-                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl font-black text-sm">
-                                    {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n}>{n}X</option>)}
-                                </select>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VENC. ENTRADA</label>
+                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black" />
                             </div>
                         </div>
 
-                        <div className="mt-10 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                            <div className="md:col-span-4 flex items-center p-4 bg-white rounded-xl border border-slate-100 shadow-sm h-16">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                            <div className="md:col-span-3 space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº PARCELAS</label>
+                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl font-black text-sm bg-white">
+                                    {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n}>{n}X</option>)}
+                                </select>
+                            </div>
+                            <div className="md:col-span-3 flex items-center p-4 bg-white rounded-xl border border-slate-100 shadow-sm h-16 mt-4">
                                 <input type="checkbox" id="hasDown" checked={hasDownPayment} onChange={e => setHasDownPayment(e.target.checked)} className="w-5 h-5 rounded text-[var(--primary-color)] shrink-0" />
                                 <label htmlFor="hasDown" className="ml-3 text-[10px] font-black text-slate-600 uppercase tracking-widest cursor-pointer">COBRAR SINAL / ENTRADA?</label>
                             </div>
 
                             {hasDownPayment && (
-                                <div className="md:col-span-4 flex items-center gap-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-16">
+                                <div className="md:col-span-3 flex items-center gap-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-16 mt-4">
                                     <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
                                         <button 
                                             type="button" 
@@ -452,7 +483,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                 </div>
                             )}
 
-                            <div className="md:col-span-4 space-y-1">
+                            <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DO 1º PAGAMENTO (PARCELA 1)</label>
                                 <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-200 rounded-xl text-sm font-black" />
                             </div>
