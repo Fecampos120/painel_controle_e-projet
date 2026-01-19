@@ -18,6 +18,7 @@ import Partners from './components/Partners';
 import TechnicalVisits from './components/TechnicalVisits';
 import ConstructionChecklist from './components/ConstructionChecklist';
 import Agenda from './components/Agenda';
+import Analytics from './components/Analytics';
 import { useUserData } from './hooks/useUserData';
 
 import { 
@@ -36,7 +37,8 @@ import {
     CheckCircleIcon,
     MapPinIcon,
     CalendarIcon,
-    XIcon
+    XIcon,
+    ChartPieIcon
 } from './components/Icons';
 
 import { AppData, Contract, Budget, PaymentInstallment, ProjectSchedule, ProjectChecklist, ThemeSettings, VisitLog, Partner, Expense, FixedExpenseTemplate, Appointment } from './types';
@@ -49,7 +51,7 @@ import {
   INITIAL_MEASUREMENT_TIERS,
 } from './constants';
 
-type View = 'dashboard' | 'agenda' | 'budgets' | 'contracts' | 'new-contract' | 'client-area' | 'pricing' | 'progress' | 'projections' | 'expenses' | 'notes' | 'settings' | 'project-portal' | 'receipts' | 'construction-checklist' | 'partners';
+type View = 'dashboard' | 'agenda' | 'budgets' | 'contracts' | 'new-contract' | 'client-area' | 'pricing' | 'progress' | 'projections' | 'expenses' | 'notes' | 'settings' | 'project-portal' | 'receipts' | 'construction-checklist' | 'partners' | 'analytics';
 
 const INITIAL_DATA: AppData = {
     clients: [],
@@ -89,6 +91,7 @@ const ICON_COMPONENTS: Record<string, React.ReactNode> = {
     ReceiptIcon: <ReceiptIcon />,
     CreditCardIcon: <CreditCardIcon />,
     CogIcon: <CogIcon />,
+    ChartPieIcon: <ChartPieIcon />,
 };
 
 const NavItem: React.FC<{ iconName: string, label: string, isActive: boolean, onClick: () => void }> = ({ iconName, label, isActive, onClick }) => {
@@ -172,6 +175,8 @@ const App: React.FC = () => {
                 return <Budgets budgets={budgets} onAddBudget={() => { setBudgetToConvert(null); setEditingContract(null); setView('new-contract'); }} onDeleteBudget={(id) => setAppData(p => ({...p, budgets: p.budgets.filter(b => b.id !== id)}))} onApproveBudget={(b) => {setBudgetToConvert(b); setEditingContract(null); setView('new-contract')}} />;
             case 'contracts':
                 return <Contracts contracts={contracts} schedules={schedules} clients={appData.clients || []} systemSettings={settings} onEditContract={(c) => {setEditingContract(c); setBudgetToConvert(null); setView('new-contract')}} onDeleteContract={(id) => setAppData(p => ({...p, contracts: p.contracts.filter(c => c.id !== id)}))} onCreateProject={() => { setBudgetToConvert(null); setEditingContract(null); setView('new-contract'); }} onViewPortal={(id) => {setSelectedProjectId(id); setView('project-portal')}} />;
+            case 'analytics':
+                return <Analytics appData={appData} />;
             case 'new-contract':
                 return <NewContract appData={appData} editingContract={editingContract} budgetToConvert={budgetToConvert} onCancel={() => setView('contracts')} onAddBudgetOnly={(b) => { setAppData(p => ({...p, budgets: [...p.budgets, { ...b, id: Date.now() + Math.random(), createdAt: new Date(), lastContactDate: new Date(), status: 'Aberto' }]})); setView('budgets'); }} onAddContract={(c) => { const contractId = Date.now() + Math.random(); const schedule: ProjectSchedule = { id: Date.now() + Math.random(), contractId, clientName: c.clientName, projectName: c.projectName, startDate: new Date(c.date).toISOString().split('T')[0], stages: (settings.projectStagesTemplate || []).map(t => ({ id: Math.random(), name: t.name, durationWorkDays: t.durationWorkDays })) }; const initialChecklist: ProjectChecklist = { contractId, items: (settings.checklistTemplate || []).map(t => ({ id: Math.random(), text: t.text, stage: t.stage, completed: false })) }; const newInstallments: PaymentInstallment[] = []; if (c.downPayment > 0) { newInstallments.push({ id: Date.now() + Math.random(), contractId, clientName: c.clientName, projectName: c.projectName, installment: 'ENTRADA', dueDate: new Date(c.downPaymentDate), value: c.downPayment, status: 'Pendente' }); } if (c.installments > 0) { const baseDate = c.firstInstallmentDate ? new Date(c.firstInstallmentDate) : new Date(c.downPaymentDate); if (!c.firstInstallmentDate) baseDate.setMonth(baseDate.getMonth() + 1); for (let i = 1; i <= c.installments; i++) { const dueDate = new Date(baseDate); dueDate.setMonth(dueDate.getMonth() + (i - 1)); newInstallments.push({ id: Date.now() + Math.random(), contractId, clientName: c.clientName, projectName: c.projectName, installment: `${i}/${c.installments}`, dueDate: dueDate, value: c.installmentValue, status: 'Pendente' }); } } setAppData(p => ({ ...p, contracts: [...p.contracts, { ...c, id: contractId }] as Contract[], schedules: [...p.schedules, schedule], checklists: [...p.checklists, initialChecklist], installments: [...p.installments, ...newInstallments], budgets: budgetToConvert ? p.budgets.filter(b => b.id !== budgetToConvert.id) : p.budgets })); setBudgetToConvert(null); setEditingContract(null); setView('contracts'); }} onUpdateContract={(c) => { setAppData(p => ({...p, contracts: p.contracts.map(x => x.id === c.id ? c : x)})); setEditingContract(null); setView('contracts'); }} />;
             case 'client-area':

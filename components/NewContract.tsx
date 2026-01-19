@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { UploadIcon, XIcon, CheckCircleIcon, WalletIcon, MapPinIcon, ArchitectIcon, CalendarIcon, HistoryIcon } from './Icons';
 import { AppData, Contract, ContractService, Budget, PriceTier, Address } from '../types';
 
@@ -8,9 +8,14 @@ const formatCurrency = (value: number) => {
 };
 
 const formatDate = (date: string | Date) => {
-  if (!date) return '';
-  const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : date;
-  return new Intl.DateTimeFormat('pt-BR').format(d);
+  if (!date) return '--/--/----';
+  try {
+    const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : date;
+    if (isNaN(d.getTime())) return '--/--/----';
+    return new Intl.DateTimeFormat('pt-BR').format(d);
+  } catch (e) {
+    return '--/--/----';
+  }
 };
 
 const maskPhone = (value: string) => {
@@ -81,13 +86,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         if (isConverting) return (budgetToConvert.serviceType || 'RESIDENCIAL') as any;
         return 'RESIDENCIAL';
     });
-
-    const [contractSigningDate, setContractSigningDate] = useState(() => {
-        if (isEditing && editingContract.contractSigningDate) {
-            return new Date(editingContract.contractSigningDate).toISOString().split('T')[0];
-        }
-        return new Date().toISOString().split('T')[0];
-    });
     
     const [numInstallments, setNumInstallments] = useState('2');
     const [hasDownPayment, setHasDownPayment] = useState(true);
@@ -123,16 +121,28 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
         const installmentValue = Math.max(0, remaining / instCount);
 
         const previewFlow = [];
-        if (hasDownPayment && downPaymentValue > 0) {
+        if (hasDownPayment && downPaymentValue > 0 && downPaymentDate) {
             previewFlow.push({ label: 'ENTRADA / INÍCIO', value: downPaymentValue, date: downPaymentDate });
         }
         
-        const baseDate = new Date(firstInstallmentDate + 'T12:00:00');
-
-        for (let i = 1; i <= instCount; i++) {
-            const d = new Date(baseDate);
-            d.setMonth(d.getMonth() + (i - 1));
-            previewFlow.push({ label: `PARCELA ${i}/${instCount}`, value: installmentValue, date: d.toISOString().split('T')[0] });
+        // CORREÇÃO CRÍTICA: Validar data antes de processar
+        if (firstInstallmentDate && firstInstallmentDate.length === 10) {
+            const baseDate = new Date(firstInstallmentDate + 'T12:00:00');
+            if (!isNaN(baseDate.getTime())) {
+                for (let i = 1; i <= instCount; i++) {
+                    const d = new Date(baseDate);
+                    d.setMonth(d.getMonth() + (i - 1));
+                    try {
+                        previewFlow.push({ 
+                            label: `PARCELA ${i}/${instCount}`, 
+                            value: installmentValue, 
+                            date: d.toISOString().split('T')[0] 
+                        });
+                    } catch (e) {
+                        // Silently handle invalid dates during typing
+                    }
+                }
+            }
         }
 
         return { subtotalBruto, locomotionTotal, visitsTotal, discountVal, totalFinal, downPaymentValue, installmentValue, previewFlow };
@@ -194,8 +204,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
             const contractData = {
                 ...baseData,
                 budgetId: budgetToConvert?.id,
-                date: new Date(contractSigningDate + 'T12:00:00'),
-                contractSigningDate: new Date(contractSigningDate + 'T12:00:00'),
+                date: new Date(downPaymentDate + 'T12:00:00'),
                 status: 'Ativo' as const,
                 clientAddress: clientAddr as Address,
                 projectAddress: projectAddr as Address,
@@ -369,7 +378,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                 <FormSection title="4. VISITAS E DESLOCAMENTO">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* LOCOMOÇÃO */}
                         <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-6">
                             <div className="flex items-center gap-2 text-slate-400">
                                 <MapPinIcon className="w-5 h-5" />
@@ -391,7 +399,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             </div>
                         </div>
 
-                        {/* VISITAS TÉCNICAS */}
                         <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-6">
                             <div className="flex items-center gap-2 text-slate-400">
                                 <HistoryIcon className="w-5 h-5" />
@@ -417,7 +424,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                 <FormSection title="5. FINANCEIRO E DATAS">
                     <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200">
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-end mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-end mb-8">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SUBTOTAL BRUTO</label>
                                 <p className="text-xl font-black text-slate-300 line-through tracking-tighter">{formatCurrency(financial.subtotalBruto)}</p>
@@ -426,17 +433,9 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                 <label className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-widest">DESCONTO (%)</label>
                                 <input type="number" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-full h-12 px-4 border-2 border-[var(--primary-color)]/20 focus:border-[var(--primary-color)] rounded-xl text-[var(--primary-color)] font-black text-xl" />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALOR FINAL</label>
+                            <div className="space-y-1 md:col-span-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALOR FINAL DO CONTRATO</label>
                                 <p className="text-4xl font-black text-[var(--primary-color)] tracking-tighter">{formatCurrency(financial.totalFinal)}</p>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DE ASSINATURA</label>
-                                <input type="date" value={contractSigningDate} onChange={e => setContractSigningDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VENC. ENTRADA</label>
-                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black" />
                             </div>
                         </div>
 
@@ -447,9 +446,15 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                     {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n}>{n}X</option>)}
                                 </select>
                             </div>
+                            
+                            <div className="md:col-span-3 space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VENC. ENTRADA (SINAL)</label>
+                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black bg-white" />
+                            </div>
+
                             <div className="md:col-span-3 flex items-center p-4 bg-white rounded-xl border border-slate-100 shadow-sm h-16 mt-4">
                                 <input type="checkbox" id="hasDown" checked={hasDownPayment} onChange={e => setHasDownPayment(e.target.checked)} className="w-5 h-5 rounded text-[var(--primary-color)] shrink-0" />
-                                <label htmlFor="hasDown" className="ml-3 text-[10px] font-black text-slate-600 uppercase tracking-widest cursor-pointer">COBRAR SINAL / ENTRADA?</label>
+                                <label htmlFor="hasDown" className="ml-3 text-[10px] font-black text-slate-600 uppercase tracking-widest cursor-pointer leading-tight">POSSUI ENTRADA / SINAL?</label>
                             </div>
 
                             {hasDownPayment && (
@@ -478,13 +483,13 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                             className="w-full bg-transparent border-none text-right font-black text-slate-700 outline-none p-0 focus:ring-0" 
                                             placeholder={downPaymentType === 'percent' ? "20" : "1500"}
                                         />
-                                        <span className="text-[10px] font-black text-slate-300 uppercase">{downPaymentType === 'percent' ? '%' : 'FIXO'}</span>
+                                        <span className="text-[10px] font-black text-slate-300 uppercase">{downPaymentType === 'percent' ? '%' : 'R$'}</span>
                                     </div>
                                 </div>
                             )}
 
                             <div className="md:col-span-3 space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DO 1º PAGAMENTO (PARCELA 1)</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DA 1ª PARCELA</label>
                                 <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-200 rounded-xl text-sm font-black" />
                             </div>
                         </div>

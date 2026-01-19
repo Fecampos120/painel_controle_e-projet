@@ -90,19 +90,22 @@ const Dashboard: React.FC<DashboardProps> = ({ installments, contracts, schedule
                 }
             }
         });
-        contracts.forEach(c => {
-            if (c.contractSigningDate && c.status === 'Ativo') {
-                const signing = new Date(c.contractSigningDate);
-                const entry = installments.find(i => i.contractId === c.id && i.installment.toUpperCase().includes('ENTRADA'));
-                if (entry && entry.status === 'Pendente') {
-                    const diffTime = today.getTime() - signing.getTime();
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    if (diffDays >= 5) {
-                        points.push({ clientName: c.clientName, description: `Assinado há ${diffDays} dias e entrada continua PENDENTE.`, daysRemaining: 0, type: 'alert' });
-                    }
+        
+        // Alerta simplificado para entradas pendentes
+        installments.forEach(inst => {
+            if (inst.installment.toUpperCase().includes('ENTRADA') && inst.status === 'Pendente') {
+                const dueDate = new Date(inst.dueDate);
+                if (dueDate < today) {
+                    points.push({ 
+                        clientName: inst.clientName, 
+                        description: `ENTRADA EM ATRASO DESDE ${formatDate(dueDate)}.`, 
+                        daysRemaining: 0, 
+                        type: 'alert' 
+                    });
                 }
             }
         });
+
         return points.sort((a, b) => a.daysRemaining - b.daysRemaining);
     }, [schedules, contracts, installments]);
 

@@ -42,7 +42,7 @@ export interface Budget {
     services: ContractService[];
     clientEmail?: string;
     clientPhone?: string;
-    serviceType?: string; // Adicionado para análise categórica
+    serviceType?: string;
 }
 
 export interface Contract {
@@ -51,7 +51,6 @@ export interface Contract {
     projectName: string;
     totalValue: number;
     date: Date;
-    contractSigningDate?: Date; // Nova data de assinatura
     status: 'Ativo' | 'Concluído' | 'Cancelado';
     clientAddress: Address;
     projectAddress: Address;
@@ -78,7 +77,7 @@ export interface Contract {
         sitePhotos: Attachment[];
     };
     budgetId?: number;
-    hasDownPayment?: boolean; // Se tem entrada ou não
+    hasDownPayment?: boolean;
 }
 
 export interface ProjectUpdate {
@@ -87,7 +86,7 @@ export interface ProjectUpdate {
     date: string;
     description: string;
     nextSteps: string;
-    photos?: string[]; // base64 strings
+    photos?: string[];
 }
 
 export interface Meeting {
@@ -96,7 +95,7 @@ export interface Meeting {
     date: string;
     title: string;
     participants: string;
-    summary: string; // Ata da reunião
+    summary: string;
     decisions: string;
 }
 
@@ -112,8 +111,8 @@ export interface Reminder {
 export interface Appointment {
     id: number;
     title: string;
-    date: string; // YYYY-MM-DD
-    time: string; // HH:mm
+    date: string;
+    time: string;
     clientId?: number;
     clientName?: string;
     completed: boolean;
@@ -201,7 +200,7 @@ export interface Partner {
     photoUrl?: string;
     address?: Address;
     clientIds?: number[];
-    rating?: number; // Avaliação de 1 a 5 estrelas
+    rating?: number;
 }
 
 export interface ChecklistItemTemplate {
@@ -270,11 +269,11 @@ export interface MenuItem {
 }
 
 export interface ThemeSettings {
-    primaryColor: string;      // Cor de botões, destaques
-    sidebarColor: string;      // Cor do menu lateral
-    backgroundColor: string;   // Cor do fundo do app
-    fontFamily: string;        // Tipo de letra
-    borderRadius: string;      // Arredondamento de cards
+    primaryColor: string;
+    sidebarColor: string;
+    backgroundColor: string;
+    fontFamily: string;
+    borderRadius: string;
 }
 
 export interface SystemSettings {
@@ -332,7 +331,7 @@ export interface AppData {
     contracts: Contract[];
     budgets: Budget[];
     reminders: Reminder[];
-    appointments: Appointment[]; // Nova lista de compromissos
+    appointments: Appointment[];
     installments: PaymentInstallment[];
     schedules: ProjectSchedule[];
     servicePrices: ServicePrice[];
