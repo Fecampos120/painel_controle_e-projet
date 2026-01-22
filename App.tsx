@@ -241,6 +241,9 @@ const App: React.FC = () => {
                 return <Settings appData={appData} setAppData={setAppData} />;
             case 'construction-checklist':
                 return <ConstructionChecklist contracts={contracts} checklists={appData.checklists || []} onUpdateChecklist={handleUpdateChecklist} />;
+            // Added missing receipts case to allow rendering the Receipts component
+            case 'receipts':
+                return <Receipts contracts={contracts} installments={installments} systemSettings={settings} />;
             default:
                 return <Dashboard appointments={appointments} installments={installments} contracts={contracts} schedules={schedules} projectProgress={[]} otherPayments={otherPayments} expenses={expenses} />;
         }

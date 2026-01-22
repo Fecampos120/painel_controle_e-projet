@@ -20,7 +20,8 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
 
     useEffect(() => {
         if (selectedContractId) {
-            const savedChecklist = (checklists || []).find(c => c.contractId === parseInt(selectedContractId));
+            // FIX: Use Number instead of parseInt to match float IDs
+            const savedChecklist = (checklists || []).find(c => c.contractId === Number(selectedContractId));
             if (savedChecklist) {
                 setLocalItems(savedChecklist.items);
             } else {
@@ -77,8 +78,9 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
 
     const handleSave = () => {
         if (!selectedContractId) return;
+        // FIX: Use Number instead of parseInt to preserve full ID precision
         onUpdateChecklist({
-            contractId: parseInt(selectedContractId),
+            contractId: Number(selectedContractId),
             items: localItems
         });
         setHasUnsavedChanges(false);

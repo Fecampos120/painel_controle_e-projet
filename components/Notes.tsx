@@ -51,7 +51,7 @@ const Notes: React.FC<NotesProps> = ({ notes, visitLogs, onUpdateNote, onDeleteN
             title: formData.title.toUpperCase(),
             content: formData.content.toUpperCase(),
             alertDate: formData.alertDate,
-            contractId: formData.contractId ? parseInt(formData.contractId) : undefined
+            contractId: formData.contractId ? Number(formData.contractId) : undefined
         };
 
         if (editingNote) {
@@ -71,7 +71,7 @@ const Notes: React.FC<NotesProps> = ({ notes, visitLogs, onUpdateNote, onDeleteN
             return;
         }
         onAddVisitLog({
-            contractId: parseInt(visitFormData.contractId),
+            contractId: Number(visitFormData.contractId),
             date: visitFormData.date,
             notes: visitFormData.notes.toUpperCase()
         });
@@ -83,7 +83,7 @@ const Notes: React.FC<NotesProps> = ({ notes, visitLogs, onUpdateNote, onDeleteN
     // Filtered timeline (Notes + VisitLogs)
     const combinedTimeline = useMemo(() => {
         if (!selectedFilterContract) return [];
-        const contractId = parseInt(selectedFilterContract);
+        const contractId = Number(selectedFilterContract);
         
         const filteredNotes = notes.filter(n => n.contractId === contractId).map(n => ({
             ...n,
