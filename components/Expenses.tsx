@@ -65,16 +65,27 @@ const Expenses: React.FC<any> = ({
         onUpdateExpense({ ...exp, status: newStatus, paidDate: newStatus === 'Pago' ? new Date().toISOString().split('T')[0] : undefined });
     };
 
+    const handleAddFixedTemplate = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!fixedTemplateForm.description || !fixedTemplateForm.amount) return;
+        onAddFixedExpenseTemplate({
+            description: fixedTemplateForm.description.toUpperCase(),
+            amount: parseFloat(fixedTemplateForm.amount),
+            day: parseInt(fixedTemplateForm.day)
+        });
+        setFixedTemplateForm({ description: '', amount: '', day: '5' });
+    };
+
     return (
         <div className="space-y-8 animate-fadeIn pb-24 uppercase font-bold">
-            <header className="bg-red-600 text-white p-8 rounded-xl shadow-lg -mx-6 -mt-6 mb-10 md:-mx-8 md:-mt-8 lg:-mx-10 lg:-mt-10">
+            <header className="bg-red-600 text-white p-8 rounded-xl shadow-lg -mx-4 md:-mx-8 lg:-mx-10 -mt-4 md:-mt-8 lg:-mt-10 mb-10">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h1 className="text-3xl font-black uppercase tracking-tight">FLUXO DE DESPESAS</h1>
                         <p className="mt-1 text-red-100 italic text-sm">CUSTOS FIXOS SÃO REPLICADOS AUTOMATICAMENTE.</p>
                     </div>
                     <button onClick={() => setIsFixedManagerOpen(true)} className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl flex items-center uppercase text-xs tracking-widest transition-all">
-                        <CogIcon className="w-5 h-5 mr-2" /> MODELOS FIXOS
+                        <CogIcon className="w-5 h-5 mr-2" /> GERENCIAR FIXOS
                     </button>
                 </div>
             </header>
@@ -106,7 +117,7 @@ const Expenses: React.FC<any> = ({
                             <input type="number" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} placeholder="VALOR R$" className="w-full h-11 px-4 bg-slate-50 rounded-lg font-black" />
                             <input type="date" value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} className="w-full h-11 px-4 bg-slate-50 rounded-lg text-xs" />
                         </div>
-                        <button onClick={() => onAddExpense({...formData, amount: parseFloat(formData.amount), description: formData.description.toUpperCase()})} className="w-full py-4 bg-red-600 text-white rounded-xl uppercase tracking-widest hover:bg-red-700 transition-all">LANÇAR DESPESA</button>
+                        <button onClick={() => onAddExpense({...formData, amount: parseFloat(formData.amount), description: formData.description.toUpperCase()})} className="w-full py-4 bg-red-600 text-white rounded-xl uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg">LANÇAR DESPESA</button>
                     </div>
                 </div>
 
@@ -132,10 +143,10 @@ const Expenses: React.FC<any> = ({
                                         </td>
                                         <td className="p-5 text-right font-black">{formatCurrency(exp.amount)}</td>
                                         <td className="p-5 text-center">
-                                            <input type="checkbox" checked={exp.status === 'Pago'} onChange={() => togglePaid(exp)} className="w-6 h-6 rounded-lg text-green-600" />
+                                            <input type="checkbox" checked={exp.status === 'Pago'} onChange={() => togglePaid(exp)} className="w-6 h-6 rounded-lg text-green-600 cursor-pointer" />
                                         </td>
                                         <td className="p-5 text-right">
-                                            <button onClick={() => onDeleteExpense(exp.id)} className="text-slate-300 hover:text-red-500"><TrashIcon className="w-5 h-5 ml-auto" /></button>
+                                            <button onClick={() => onDeleteExpense(exp.id)} className="text-slate-300 hover:text-red-500 transition-colors"><TrashIcon className="w-5 h-5 ml-auto" /></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -144,20 +155,77 @@ const Expenses: React.FC<any> = ({
                     </div>
                 </div>
             </div>
+
             {isFixedManagerOpen && (
                 <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-8 uppercase">
-                        <div className="flex justify-between items-center mb-8 border-b pb-4">
-                            <h3 className="text-2xl font-black">MODELOS FIXOS</h3>
-                            <button onClick={() => setIsFixedManagerOpen(false)}><XIcon className="w-8 h-8 text-slate-400" /></button>
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-slideUp">
+                        <div className="p-8 bg-slate-900 text-white flex justify-between items-center border-b border-white/10">
+                            <div>
+                                <h3 className="text-2xl font-black uppercase tracking-tight">Custos Fixos Mensais</h3>
+                                <p className="text-red-400 text-[10px] font-black mt-2 uppercase tracking-[0.2em]">Modelos que repetem todo mês</p>
+                            </div>
+                            <button onClick={() => setIsFixedManagerOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors outline-none">
+                                <XIcon className="w-8 h-8 text-slate-400" />
+                            </button>
                         </div>
-                        <div className="space-y-4">
-                            {fixedExpenseTemplates.map((t: any) => (
-                                <div key={t.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div><p className="text-sm">{t.description}</p><p className="text-[10px] text-slate-400">DIA {t.day} • {formatCurrency(t.amount)}</p></div>
-                                    <button onClick={() => onDeleteFixedExpenseTemplate(t.id)} className="text-red-300 hover:text-red-600"><TrashIcon className="w-4 h-4" /></button>
+
+                        <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto no-scrollbar">
+                            <form onSubmit={handleAddFixedTemplate} className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 space-y-4">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Novo Modelo Fixo</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                    <div className="md:col-span-6">
+                                        <input 
+                                            value={fixedTemplateForm.description} 
+                                            onChange={e => setFixedTemplateForm({...fixedTemplateForm, description: e.target.value.toUpperCase()})} 
+                                            placeholder="DESCRIÇÃO (EX: ALUGUEL)" 
+                                            className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none" 
+                                        />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                        <input 
+                                            type="number" 
+                                            value={fixedTemplateForm.amount} 
+                                            onChange={e => setFixedTemplateForm({...fixedTemplateForm, amount: e.target.value})} 
+                                            placeholder="VALOR R$" 
+                                            className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm font-black text-red-600 outline-none" 
+                                        />
+                                    </div>
+                                    <div className="md:col-span-3">
+                                        <select 
+                                            value={fixedTemplateForm.day} 
+                                            onChange={e => setFixedTemplateForm({...fixedTemplateForm, day: e.target.value})} 
+                                            className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                                        >
+                                            {Array.from({length: 31}, (_, i) => <option key={i+1} value={i+1}>DIA {i+1}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
-                            ))}
+                                <button type="submit" className="w-full py-3 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-lg">
+                                    + ADICIONAR MODELO FIXO
+                                </button>
+                            </form>
+
+                            <div className="space-y-3">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Modelos Ativos</h4>
+                                {fixedExpenseTemplates.map((t: any) => (
+                                    <div key={t.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-100 shadow-sm group">
+                                        <div>
+                                            <p className="text-sm font-black text-slate-800 uppercase">{t.description}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">TODO DIA {t.day} • {formatCurrency(t.amount)}</p>
+                                        </div>
+                                        <button onClick={() => onDeleteFixedExpenseTemplate(t.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ))}
+                                {fixedExpenseTemplates.length === 0 && (
+                                    <div className="py-10 text-center opacity-30 italic text-slate-400 text-sm">Nenhum custo fixo cadastrado.</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-slate-50 border-t border-slate-100 text-center">
+                            <button onClick={() => setIsFixedManagerOpen(false)} className="px-10 py-3 bg-slate-900 text-white font-black text-xs tracking-widest uppercase rounded-xl">FECHAR GERENCIADOR</button>
                         </div>
                     </div>
                 </div>

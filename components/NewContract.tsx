@@ -248,15 +248,15 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NOME COMPLETO *</label>
-                            <input name="clientName" required defaultValue={isEditing ? editingContract.clientName : isConverting ? budgetToConvert.clientName : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" />
+                            <input name="clientName" required defaultValue={isEditing ? editingContract.clientName : isConverting ? budgetToConvert.clientName : ''} className="w-full h-11 px-4 bg-slate-50 border-[1.5px] border-slate-300 rounded-lg text-sm font-bold" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PROJETO *</label>
-                            <input name="projectName" required defaultValue={isEditing ? editingContract.projectName : isConverting ? budgetToConvert.projectName : ''} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm font-bold" />
+                            <input name="projectName" required defaultValue={isEditing ? editingContract.projectName : isConverting ? budgetToConvert.projectName : ''} className="w-full h-11 px-4 bg-slate-50 border-[1.5px] border-slate-300 rounded-lg text-sm font-bold" />
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TELEFONE</label>
-                            <input name="phone" value={clientPhone} onChange={e => setClientPhone(maskPhone(e.target.value))} className="w-full h-11 px-4 bg-slate-50 border-slate-200 rounded-lg text-sm no-uppercase font-bold" />
+                            <input name="phone" value={clientPhone} onChange={e => setClientPhone(maskPhone(e.target.value))} className="w-full h-11 px-4 bg-slate-50 border-[1.5px] border-slate-300 rounded-lg text-sm no-uppercase font-bold" />
                         </div>
                     </div>
                     
@@ -264,7 +264,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TIPO DE SERVIÇO (PARA ANÁLISE ANUAL)</label>
                         <div className="flex flex-wrap gap-4">
                             {['RESIDENCIAL', 'COMERCIAL', 'CORPORATIVO', 'TERCEIRO'].map((type) => (
-                                <label key={type} className={`flex items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${serviceCategory === type ? 'border-[var(--primary-color)] bg-blue-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
+                                <label key={type} className={`flex items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${serviceCategory === type ? 'border-[var(--primary-color)] bg-blue-50' : 'border-slate-300 bg-white hover:border-slate-400'}`}>
                                     <input 
                                         type="radio" 
                                         name="serviceType" 
@@ -282,13 +282,13 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                 <FormSection title="2. ESCOPO DO TRABALHO">
                     <div className="space-y-4">
                         {contractTypes.map(ct => (
-                            <div key={ct.id} className="p-5 border border-slate-100 rounded-xl bg-slate-50/50 flex flex-col md:flex-row gap-6 items-end group">
+                            <div key={ct.id} className="p-5 border-[1.5px] border-slate-300 rounded-xl bg-slate-50/50 flex flex-col md:flex-row gap-6 items-end group">
                                 <div className="flex-1 w-full space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SERVIÇO SELECIONADO</label>
                                     <select 
                                         value={ct.serviceName.toUpperCase()} 
                                         onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} 
-                                        className="w-full h-14 px-4 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold uppercase text-slate-900 focus:border-[var(--primary-color)] focus:ring-4 focus:ring-blue-500/10 outline-none shadow-sm transition-all"
+                                        className="w-full h-14 px-4 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold uppercase text-slate-900 focus:border-[var(--primary-color)] focus:ring-4 focus:ring-blue-500/10 outline-none shadow-sm transition-all"
                                     >
                                         <option value="">-- ESCOLHA O SERVIÇO --</option>
                                         {[...appData.servicePrices, ...appData.hourlyRates].map(s => (
@@ -300,7 +300,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                 </div>
                                 <div className="w-full md:w-32 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">COBRANÇA</label>
-                                    <select value={ct.calculationMethod} onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} className="w-full h-14 px-3 bg-white border-2 border-slate-200 rounded-xl text-xs font-bold uppercase text-slate-700 outline-none shadow-sm">
+                                    <select value={ct.calculationMethod} onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} className="w-full h-14 px-3 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold uppercase text-slate-700 outline-none shadow-sm">
                                         <option value="metragem">M²</option>
                                         <option value="hora">HORA</option>
                                         <option value="manual">MANUAL</option>
@@ -308,16 +308,16 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                 </div>
                                 <div className="w-full md:w-28 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{ct.calculationMethod === 'hora' ? 'HORAS' : 'QTD'}</label>
-                                    <input type="number" value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} className="w-full h-14 text-center bg-white border-2 border-slate-200 rounded-xl font-black text-slate-700 outline-none shadow-sm" />
+                                    <input type="number" value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} className="w-full h-14 text-center bg-white border-2 border-slate-300 rounded-xl font-black text-slate-700 outline-none shadow-sm" />
                                 </div>
                                 <div className="w-full md:w-44 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TOTAL ITEM (R$)</label>
-                                    <input type="number" value={ct.value} onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} className="w-full h-14 px-4 bg-white border-2 border-slate-200 rounded-xl font-black text-[var(--primary-color)] outline-none shadow-sm" />
+                                    <input type="number" value={ct.value} onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} className="w-full h-14 px-4 bg-white border-2 border-slate-300 rounded-xl font-black text-[var(--primary-color)] outline-none shadow-sm" />
                                 </div>
                                 <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-14 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl transition-colors">REMOVER</button>
                             </div>
                         ))}
-                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-slate-200 bg-slate-50/50 text-[var(--primary-color)] font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-white transition-all">
+                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-slate-300 bg-slate-50/50 text-[var(--primary-color)] font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-white transition-all">
                             + ADICIONAR NOVO ITEM AO ESCOPO
                         </button>
                     </div>
@@ -329,36 +329,36 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                             <div className="md:col-span-2 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CEP</label>
-                                <input name="c_cep" defaultValue={editingContract?.clientAddress?.cep} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold no-uppercase" />
+                                <input name="c_cep" defaultValue={editingContract?.clientAddress?.cep} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold no-uppercase" />
                             </div>
                             <div className="md:col-span-7 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">LOGRADOURO / RUA</label>
-                                <input name="c_street" defaultValue={editingContract?.clientAddress?.street} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold" />
+                                <input name="c_street" defaultValue={editingContract?.clientAddress?.street} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold" />
                             </div>
                             <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NÚMERO</label>
-                                <input name="c_number" defaultValue={editingContract?.clientAddress?.number} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold" />
+                                <input name="c_number" defaultValue={editingContract?.clientAddress?.number} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold" />
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                             <div className="md:col-span-4 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">BAIRRO</label>
-                                <input name="c_district" defaultValue={editingContract?.clientAddress?.district} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold" />
+                                <input name="c_district" defaultValue={editingContract?.clientAddress?.district} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold" />
                             </div>
                             <div className="md:col-span-6 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CIDADE</label>
-                                <input name="c_city" defaultValue={editingContract?.clientAddress?.city} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold" />
+                                <input name="c_city" defaultValue={editingContract?.clientAddress?.city} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold" />
                             </div>
                             <div className="md:col-span-2 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ESTADO</label>
-                                <input name="c_state" maxLength={2} defaultValue={editingContract?.clientAddress?.state} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold text-center" />
+                                <input name="c_state" maxLength={2} defaultValue={editingContract?.clientAddress?.state} className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold text-center" />
                             </div>
                         </div>
                         
-                        <div className="bg-slate-50/80 p-4 rounded-xl flex items-center gap-3">
+                        <div className="bg-slate-50/80 p-4 rounded-xl flex items-center gap-3 border-[1.5px] border-slate-200">
                             <div 
                                 onClick={() => setIsSameAddress(!isSameAddress)}
-                                className={`w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-all ${isSameAddress ? 'bg-slate-700 text-white' : 'bg-white border-2 border-slate-200'}`}
+                                className={`w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-all ${isSameAddress ? 'bg-slate-700 text-white' : 'bg-white border-2 border-slate-300'}`}
                             >
                                 {isSameAddress && <CheckCircleIcon className="w-4 h-4" />}
                             </div>
@@ -366,20 +366,20 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         </div>
 
                         {!isSameAddress && (
-                             <div className="pt-6 border-t border-slate-100 space-y-4 animate-fadeIn">
+                             <div className="pt-6 border-t border-slate-200 space-y-4 animate-fadeIn">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ENDEREÇO DA OBRA (PROJETO)</p>
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                     <div className="md:col-span-2 space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CEP</label>
-                                        <input name="p_cep" className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold no-uppercase" />
+                                        <input name="p_cep" className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold no-uppercase" />
                                     </div>
                                     <div className="md:col-span-7 space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">LOGRADOURO</label>
-                                        <input name="p_street" className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold" />
+                                        <input name="p_street" className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold" />
                                     </div>
                                     <div className="md:col-span-3 space-y-1">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NÚMERO</label>
-                                        <input name="p_number" className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-100 rounded-xl font-bold" />
+                                        <input name="p_number" className="w-full h-12 px-4 bg-slate-50/50 border-2 border-slate-300 rounded-xl font-bold" />
                                     </div>
                                 </div>
                              </div>
@@ -389,7 +389,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                 <FormSection title="4. VISITAS E DESLOCAMENTO">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-6">
+                        <div className="bg-slate-50/50 p-6 rounded-2xl border-[1.5px] border-slate-300 space-y-6">
                             <div className="flex items-center gap-2 text-slate-400">
                                 <MapPinIcon className="w-5 h-5" />
                                 <span className="text-[10px] font-black uppercase tracking-widest">LOCOMOÇÃO</span>
@@ -397,11 +397,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">KM TOTAL ESTIMADO</label>
-                                    <input type="number" value={mileageDistance} onChange={e => setMileageDistance(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
+                                    <input type="number" value={mileageDistance} onChange={e => setMileageDistance(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-300 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">VALOR POR KM (R$)</label>
-                                    <input type="text" value={mileageCost} onChange={e => setMileageCost(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
+                                    <input type="text" value={mileageCost} onChange={e => setMileageCost(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-300 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                             </div>
                             <div className="flex justify-between items-center pt-2">
@@ -410,7 +410,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             </div>
                         </div>
 
-                        <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-6">
+                        <div className="bg-slate-50/50 p-6 rounded-2xl border-[1.5px] border-slate-300 space-y-6">
                             <div className="flex items-center gap-2 text-slate-400">
                                 <HistoryIcon className="w-5 h-5" />
                                 <span className="text-[10px] font-black uppercase tracking-widest">VISITAS TÉCNICAS</span>
@@ -418,11 +418,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">QTD DE VISITAS</label>
-                                    <input type="number" value={techVisitsQty} onChange={e => setTechVisitsQty(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
+                                    <input type="number" value={techVisitsQty} onChange={e => setTechVisitsQty(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-300 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">R$ POR VISITA</label>
-                                    <input type="text" value={techVisitsPrice} onChange={e => setTechVisitsPrice(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
+                                    <input type="text" value={techVisitsPrice} onChange={e => setTechVisitsPrice(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-300 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                             </div>
                             <div className="flex justify-between items-center pt-2">
@@ -434,7 +434,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                 </FormSection>
 
                 <FormSection title="5. FINANCEIRO E DATAS">
-                    <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200">
+                    <div className="bg-slate-50 p-8 rounded-2xl border-[1.5px] border-slate-300">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-end mb-8">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SUBTOTAL BRUTO</label>
@@ -442,7 +442,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-widest">DESCONTO (%)</label>
-                                <input type="number" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-full h-12 px-4 border-2 border-[var(--primary-color)]/20 focus:border-[var(--primary-color)] rounded-xl text-[var(--primary-color)] font-black text-xl outline-none" />
+                                <input type="number" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-300 focus:border-[var(--primary-color)] rounded-xl text-[var(--primary-color)] font-black text-xl outline-none" />
                             </div>
                             <div className="space-y-1 md:col-span-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALOR FINAL DO CONTRATO</label>
@@ -453,24 +453,24 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
                             <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº PARCELAS</label>
-                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl font-black text-sm bg-white outline-none">
+                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-300 rounded-xl font-black text-sm bg-white outline-none">
                                     {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n}>{n}X</option>)}
                                 </select>
                             </div>
                             
                             <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VENC. ENTRADA (SINAL)</label>
-                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black bg-white outline-none" />
+                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-300 rounded-xl text-sm font-black bg-white outline-none" />
                             </div>
 
-                            <div className="md:col-span-3 flex items-center p-4 bg-white rounded-xl border border-slate-100 shadow-sm h-16 mt-4">
+                            <div className="md:col-span-3 flex items-center p-4 bg-white rounded-xl border-[1.5px] border-slate-300 shadow-sm h-16 mt-4">
                                 <input type="checkbox" id="hasDown" checked={hasDownPayment} onChange={e => setHasDownPayment(e.target.checked)} className="w-5 h-5 rounded text-[var(--primary-color)] shrink-0" />
                                 <label htmlFor="hasDown" className="ml-3 text-[10px] font-black text-slate-600 uppercase tracking-widest cursor-pointer leading-tight">POSSUI ENTRADA / SINAL?</label>
                             </div>
 
                             {hasDownPayment && (
-                                <div className="md:col-span-3 flex items-center gap-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-16 mt-4">
-                                    <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
+                                <div className="md:col-span-3 flex items-center gap-3 bg-white p-4 rounded-xl border-[1.5px] border-slate-300 shadow-sm h-16 mt-4">
+                                    <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-200">
                                         <button 
                                             type="button" 
                                             onClick={() => setDownPaymentType('percent')}
@@ -501,14 +501,14 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                             <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DA 1ª PARCELA</label>
-                                <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-200 rounded-xl text-sm font-black outline-none" />
+                                <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-300 rounded-xl text-sm font-black outline-none" />
                             </div>
                         </div>
 
                         <div className="mt-10 overflow-x-auto pb-4 no-scrollbar">
                              <div className="flex gap-4">
                                 {financial.previewFlow.map((item, idx) => (
-                                    <div key={idx} className="bg-white min-w-[160px] p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center transition-transform hover:scale-105">
+                                    <div key={idx} className="bg-white min-w-[160px] p-6 rounded-2xl border-[1.5px] border-slate-300 shadow-sm flex flex-col items-center text-center transition-transform hover:scale-105">
                                         <span className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-widest">{item.label}</span>
                                         <span className="text-base font-black text-slate-800 tracking-tighter">{formatCurrency(item.value)}</span>
                                         <span className="text-[11px] font-black text-slate-400 mt-2">{formatDate(item.date)}</span>
@@ -519,7 +519,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                     </div>
                 </FormSection>
 
-                <div className="flex flex-col md:flex-row items-center justify-center gap-8 py-10 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-8 py-10 bg-white rounded-3xl border-2 border-dashed border-slate-300">
                     {!isConverting && !isEditing && (
                         <button type="button" onClick={() => handleSubmit('budget')} className="px-10 py-5 bg-slate-800 text-white font-black rounded-2xl shadow-xl hover:scale-105 transition-all text-xs tracking-widest">
                              SALVAR SOMENTE ORÇAMENTO
