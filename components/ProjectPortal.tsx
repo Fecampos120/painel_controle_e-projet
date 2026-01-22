@@ -67,6 +67,12 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
         window.open(`https://wa.me/${contract.clientPhone?.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
+    const handleTriggerPrint = () => {
+        setTimeout(() => {
+            window.print();
+        }, 300);
+    };
+
     return (
         <div className="space-y-8 animate-fadeIn pb-20 uppercase">
             <div className="flex items-center justify-between no-print">
@@ -79,7 +85,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                 </div>
             </div>
 
-            <header className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100">
+            <header className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-100 no-print">
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-5">
                         <div className="w-14 h-14 bg-[var(--primary-color)] rounded-2xl flex items-center justify-center text-white shadow-xl"><ArchitectIcon className="w-8 h-8" /></div>
@@ -106,8 +112,10 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                 ))}
             </div>
 
+            {/* TAB CONTENT (REMAINS SAME AS PREVIOUS ProjectPortal.tsx) */}
             {activeTab === 'geral' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 no-print">
+                    {/* Content... */}
                     <div className="lg:col-span-2 space-y-8">
                         <section className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center">
@@ -191,12 +199,12 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
             )}
 
             {activeTab === 'mural' && (
-                <div className="max-w-4xl mx-auto space-y-8">
+                <div className="max-w-4xl mx-auto space-y-8 no-print">
                     <div className="flex justify-between items-center">
                         <h2 className="text-xl font-black text-slate-800 tracking-tight">MURAL DE ATUALIZAÇÕES</h2>
                         <button onClick={() => setIsAddUpdateOpen(true)} className="px-6 py-2 bg-[var(--primary-color)] text-white rounded-xl font-black text-[10px] tracking-widest shadow-lg flex items-center"><PlusIcon className="w-4 h-4 mr-2" /> NOVA ATUALIZAÇÃO</button>
                     </div>
-
+                    {/* List of updates... */}
                     {isAddUpdateOpen && (
                         <div className="bg-white p-8 rounded-3xl shadow-xl border-2 border-[var(--primary-color)] animate-slideUp">
                             <form onSubmit={submitUpdate} className="space-y-6">
@@ -226,7 +234,6 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                             </form>
                         </div>
                     )}
-
                     <div className="space-y-10 relative pl-10 md:pl-16">
                         <div className="absolute left-5 md:left-8 top-0 bottom-0 w-0.5 bg-slate-200"></div>
                         {updates.length === 0 && (
@@ -241,7 +248,6 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                                 <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl transition-all">
                                     <p className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-widest mb-2">{formatDate(update.date)}</p>
                                     <h3 className="text-lg font-black text-slate-800 mb-4">{update.description}</h3>
-                                    
                                     {update.photos && update.photos.length > 0 && (
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                                             {update.photos.map((photo, pIdx) => (
@@ -251,7 +257,6 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                                             ))}
                                         </div>
                                     )}
-
                                     {update.nextSteps && (
                                         <div className="bg-slate-50 p-4 rounded-2xl border-l-4 border-blue-500">
                                             <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">PRÓXIMOS PASSOS</p>
@@ -266,7 +271,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
             )}
 
             {activeTab === 'checklist' && (
-                <div className="max-w-4xl mx-auto space-y-8">
+                <div className="max-w-4xl mx-auto space-y-8 no-print">
                     <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-8">CHECKLIST DE ANDAMENTO</h2>
                         <div className="space-y-6">
@@ -292,45 +297,9 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                 </div>
             )}
 
-            {activeTab === 'visitas' && (
-                <div className="max-w-3xl mx-auto space-y-8">
-                    <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
-                        <div className="flex justify-between items-center mb-10">
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">REGISTRO DE VISITAS</h2>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">ATA DE OBRA E CONFERÊNCIA TÉCNICA</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-4xl font-black text-[var(--primary-color)]">{visitsDone}</p>
-                                <p className="text-[9px] font-black text-slate-400 uppercase">DE {visitsTotal} VISITAS</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            {projectVisits.map(log => (
-                                <div key={log.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[var(--primary-color)] shadow-sm"><MapPinIcon className="w-6 h-6" /></div>
-                                            <p className="text-sm font-black text-slate-800">{formatDate(log.date)}</p>
-                                        </div>
-                                        <HistoryIcon className="w-5 h-5 text-slate-200" />
-                                    </div>
-                                    <p className="text-sm text-slate-600 leading-relaxed italic">"{log.notes}"</p>
-                                </div>
-                            ))}
-                            {projectVisits.length === 0 && (
-                                <div className="text-center py-10 opacity-40">
-                                    <p className="text-slate-400 font-bold italic">Nenhuma visita técnica registrada.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
+            {/* FINANCEIRO TAB (no-print) */}
             {activeTab === 'financeiro' && (
-                <div className="max-w-4xl mx-auto space-y-8">
+                <div className="max-w-4xl mx-auto space-y-8 no-print">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                          <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">TOTAL PAGO</p>
@@ -341,7 +310,6 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                             <p className="text-3xl font-black text-blue-600">{formatCurrency(financialSummary.totalPending)}</p>
                         </div>
                     </div>
-
                     <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
                         <table className="w-full text-left">
                             <thead className="bg-slate-50 border-b border-slate-100">
@@ -371,212 +339,267 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                 </div>
             )}
 
+            {/* VISITAS TAB (no-print) */}
+            {activeTab === 'visitas' && (
+                <div className="max-w-3xl mx-auto space-y-8 no-print">
+                    <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
+                        <div className="flex justify-between items-center mb-10">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">REGISTRO DE VISITAS</h2>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">ATA DE OBRA E CONFERÊNCIA TÉCNICA</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-4xl font-black text-[var(--primary-color)]">{visitsDone}</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase">DE {visitsTotal} VISITAS</p>
+                            </div>
+                        </div>
+                        <div className="space-y-6">
+                            {projectVisits.map(log => (
+                                <div key={log.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 relative group">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[var(--primary-color)] shadow-sm"><MapPinIcon className="w-6 h-6" /></div>
+                                            <p className="text-sm font-black text-slate-800">{formatDate(log.date)}</p>
+                                        </div>
+                                        <HistoryIcon className="w-5 h-5 text-slate-200" />
+                                    </div>
+                                    <p className="text-sm text-slate-600 leading-relaxed italic">"{log.notes}"</p>
+                                </div>
+                            ))}
+                            {projectVisits.length === 0 && (
+                                <div className="text-center py-10 opacity-40">
+                                    <p className="text-slate-400 font-bold italic">Nenhuma visita técnica registrada.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* FULL REPORT MODAL FOR PRINTING */}
             {isReceiptModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[200] flex items-start justify-center p-0 md:p-4 overflow-y-auto no-print-bg">
                     <style>{`
                         @media print {
-                            body * { visibility: hidden; }
-                            .print-content, .print-content * { visibility: visible; }
+                            body * { visibility: hidden !important; }
+                            .print-content, .print-content * { 
+                                visibility: visible !important; 
+                                position: static !important;
+                                display: block !important;
+                            }
                             .print-content { 
-                                position: absolute; left: 0; top: 0; width: 100%; 
-                                padding: 1.5cm; background: white !important; color: black;
+                                position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; 
+                                padding: 1.5cm !important; background: white !important; color: black !important;
+                                height: auto !important; overflow: visible !important;
+                                border: none !important; box-shadow: none !important;
                             }
                             .no-print { display: none !important; }
                             .page-break { page-break-before: always; }
-                            .report-section { break-inside: avoid; margin-bottom: 2rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
-                            @page { margin: 1cm; }
+                            .report-section { break-inside: avoid; margin-bottom: 2.5rem; border-bottom: 1px solid #eee; padding-bottom: 1.5rem; }
+                            table { break-inside: auto; width: 100% !important; }
+                            tr { break-inside: avoid; break-after: auto; }
+                            @page { margin: 1.5cm; }
                         }
                     `}</style>
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto print-content no-scrollbar">
+                    <div className="bg-white w-full max-w-5xl rounded-none md:rounded-3xl shadow-2xl overflow-visible print-content">
                         <div className="p-6 bg-slate-900 text-white flex justify-between items-center no-print">
-                            <h2 className="font-black text-sm tracking-widest uppercase">Relatório Consolidado de Projeto</h2>
+                            <h2 className="font-black text-sm tracking-widest uppercase">Gerador de Relatório Executivo</h2>
                             <div className="flex gap-2">
-                                <button onClick={() => window.print()} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center"><PrinterIcon className="w-4 h-4 inline mr-2"/> Gerar PDF / Imprimir</button>
-                                <button onClick={() => setIsReceiptModalOpen(false)} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"><XIcon className="w-6 h-6 text-white"/></button>
+                                <button onClick={handleTriggerPrint} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center">
+                                    <PrinterIcon className="w-4 h-4 inline mr-2"/> Gerar PDF / Imprimir
+                                </button>
+                                <button onClick={() => setIsReceiptModalOpen(false)} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors">
+                                    <XIcon className="w-6 h-6 text-white"/>
+                                </button>
                             </div>
                         </div>
 
-                        <div className="p-10 space-y-10">
-                            {/* CABEÇALHO DO RELATÓRIO */}
-                            <div className="flex justify-between border-b-4 border-slate-900 pb-8">
-                                <div className="flex items-center gap-6">
-                                    <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl print:shadow-none">
-                                        <ArchitectIcon className="w-12 h-12" />
+                        <div className="p-12 space-y-12">
+                            {/* HEADER */}
+                            <div className="flex justify-between border-b-4 border-slate-900 pb-10">
+                                <div className="flex items-center gap-8">
+                                    <div className="w-24 h-24 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl">
+                                        <ArchitectIcon className="w-14 h-14" />
                                     </div>
                                     <div>
-                                        <h3 className="text-3xl font-black tracking-tighter uppercase">{systemSettings?.companyName || 'E-PROJET STUDIO'}</h3>
-                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{systemSettings?.professionalName || 'Arquiteto Responsável'}</p>
-                                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Relatório Gerado em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
+                                        <h3 className="text-4xl font-black tracking-tighter uppercase leading-none">{systemSettings?.companyName || 'E-PROJET STUDIO'}</h3>
+                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-2">{systemSettings?.professionalName || 'Arquiteto Responsável'}</p>
+                                        <p className="text-[10px] font-black text-blue-600 mt-2 uppercase tracking-widest">Relatório: {new Date().toLocaleDateString('pt-BR')} • {new Date().toLocaleTimeString('pt-BR')}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">{contract.projectName}</p>
-                                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mt-2">Portfólio ID: #{contract.id.toString().slice(-6)}</p>
+                                    <p className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{contract.projectName}</p>
+                                    <p className="text-[12px] font-black text-blue-600 uppercase tracking-[0.3em] mt-3">PROJETO ID: #{contract.id.toString().slice(-6)}</p>
                                 </div>
                             </div>
 
-                            {/* DADOS DO CLIENTE E CONTRATO */}
-                            <div className="grid grid-cols-2 gap-8 report-section">
-                                <div className="bg-slate-50 p-6 rounded-2xl">
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Informações do Cliente</h4>
-                                    <p className="text-lg font-black text-slate-800 uppercase">{contract.clientName}</p>
-                                    <p className="text-sm font-bold text-slate-500 mt-1">{contract.clientEmail} | {contract.clientPhone}</p>
-                                    <div className="mt-4 pt-4 border-t border-slate-200">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local da Obra</p>
+                            {/* CORE INFO */}
+                            <div className="grid grid-cols-2 gap-10 report-section">
+                                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100">
+                                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Dados do Contratante</h4>
+                                    <p className="text-xl font-black text-slate-800 uppercase">{contract.clientName}</p>
+                                    <p className="text-sm font-bold text-slate-500 mt-1">{contract.clientEmail} • {contract.clientPhone}</p>
+                                    <div className="mt-6 pt-6 border-t border-slate-200">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Endereço da Obra</p>
                                         <p className="text-sm font-bold text-slate-700">{contract.projectAddress.street}, {contract.projectAddress.number}</p>
                                         <p className="text-xs text-slate-500 uppercase">{contract.projectAddress.district} - {contract.projectAddress.city}/{contract.projectAddress.state}</p>
                                     </div>
                                 </div>
-                                <div className="bg-slate-50 p-6 rounded-2xl flex flex-col justify-between">
+                                <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 flex flex-col justify-between">
                                     <div>
-                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Status de Execução</h4>
-                                        <div className="flex justify-between items-end mb-2">
-                                            <span className="text-3xl font-black text-slate-900">{progressPercent}%</span>
-                                            <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">Ativo e no Prazo</span>
+                                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Desempenho Técnico</h4>
+                                        <div className="flex justify-between items-end mb-3">
+                                            <span className="text-4xl font-black text-slate-900">{progressPercent}%</span>
+                                            <span className="text-[10px] font-black text-green-600 uppercase tracking-widest bg-green-50 px-3 py-1 rounded-full">Fluxo Ativo</span>
                                         </div>
-                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
                                             <div className="h-full bg-blue-600" style={{ width: `${progressPercent}%` }}></div>
                                         </div>
                                     </div>
-                                    <div className="mt-4 flex gap-6">
-                                        <div><p className="text-[9px] font-black text-slate-400 uppercase">Visitas</p><p className="font-black text-slate-800">{visitsDone} / {visitsTotal}</p></div>
-                                        <div><p className="text-[9px] font-black text-slate-400 uppercase">Tipo</p><p className="font-black text-slate-800 uppercase">{contract.serviceType}</p></div>
+                                    <div className="mt-8 grid grid-cols-2 gap-4">
+                                        <div className="bg-white p-3 rounded-2xl border border-slate-100"><p className="text-[9px] font-black text-slate-400 uppercase">Atas de Obra</p><p className="text-lg font-black text-slate-800">{visitsDone} / {visitsTotal}</p></div>
+                                        <div className="bg-white p-3 rounded-2xl border border-slate-100"><p className="text-[9px] font-black text-slate-400 uppercase">Tipologia</p><p className="text-xs font-black text-slate-800 uppercase">{contract.serviceType}</p></div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* MURAL DE ATUALIZAÇÕES */}
+                            {/* UPDATES MURAL */}
                             <div className="report-section">
-                                <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-blue-50 p-2 rounded">
-                                    <CameraIcon className="w-4 h-4 mr-2" /> Mural de Atualizações de Obra
+                                <h4 className="text-[12px] font-black text-blue-600 uppercase tracking-[0.2em] mb-8 flex items-center bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                                    <CameraIcon className="w-5 h-5 mr-3" /> Resumo do Mural de Atualizações
                                 </h4>
                                 {updates.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {updates.map(u => (
-                                            <div key={u.id} className="border-l-4 border-slate-100 pl-4 py-1">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-[10px] font-black text-slate-400">{formatDate(u.date)}</span>
+                                    <div className="grid grid-cols-1 gap-6">
+                                        {updates.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(u => (
+                                            <div key={u.id} className="border-l-4 border-blue-600 pl-6 py-2 bg-slate-50/30 rounded-r-2xl">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded uppercase">{formatDate(u.date)}</span>
                                                 </div>
-                                                <p className="text-sm font-black text-slate-800 uppercase">{u.description}</p>
-                                                {u.nextSteps && <p className="text-xs font-bold text-blue-500 mt-1 italic lowercase">Próximos Passos: {u.nextSteps}</p>}
+                                                <p className="text-base font-black text-slate-800 uppercase leading-tight">{u.description}</p>
+                                                {u.nextSteps && <p className="text-xs font-bold text-slate-400 mt-2 italic">Próximos Passos: {u.nextSteps}</p>}
                                             </div>
                                         ))}
                                     </div>
-                                ) : <p className="text-xs text-slate-400 italic">Nenhuma atualização publicada no mural.</p>}
+                                ) : <p className="text-sm text-slate-300 italic py-4">Nenhum registro no mural técnico.</p>}
                             </div>
 
-                            {/* CHECKLIST TÉCNICO */}
+                            <div className="page-break"></div>
+
+                            {/* CHECKLIST */}
                             <div className="report-section">
-                                <h4 className="text-[11px] font-black text-purple-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-purple-50 p-2 rounded">
-                                    <CheckCircleIcon className="w-4 h-4 mr-2" /> Checklist de Execução Técnica
+                                <h4 className="text-[12px] font-black text-purple-600 uppercase tracking-[0.2em] mb-8 flex items-center bg-purple-50/50 p-3 rounded-xl border border-purple-100">
+                                    <CheckCircleIcon className="w-5 h-5 mr-3" /> Checklist de Conferência de Obra
                                 </h4>
-                                <div className="grid grid-cols-2 gap-x-12 gap-y-2">
+                                <div className="grid grid-cols-2 gap-x-12 gap-y-4">
                                     {(checklist?.items || []).map(item => (
-                                        <div key={item.id} className="flex items-center gap-3 py-1 border-b border-slate-50">
-                                            <div className={`w-3 h-3 rounded-sm border ${item.completed ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}></div>
-                                            <div className="flex-1">
-                                                <p className={`text-[10px] font-black uppercase ${item.completed ? 'text-slate-800' : 'text-slate-400'}`}>{item.text}</p>
+                                        <div key={item.id} className="flex items-center gap-4 py-2 border-b border-slate-50">
+                                            <div className={`w-4 h-4 rounded-md border-2 shrink-0 ${item.completed ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}></div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-[11px] font-black uppercase truncate ${item.completed ? 'text-slate-800' : 'text-slate-400'}`}>{item.text}</p>
                                             </div>
-                                            {item.completed && <span className="text-[8px] font-bold text-slate-400">{item.completionDate}</span>}
+                                            {item.completed && <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">{item.completionDate}</span>}
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="page-break"></div>
-
-                            {/* HISTÓRICO DE VISITAS E ANOTAÇÕES */}
-                            <div className="grid grid-cols-2 gap-10 report-section">
+                            {/* VISITS AND NOTES */}
+                            <div className="grid grid-cols-2 gap-12 report-section">
                                 <div>
-                                    <h4 className="text-[11px] font-black text-orange-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-orange-50 p-2 rounded">
-                                        <MapPinIcon className="w-4 h-4 mr-2" /> Atas de Visita Técnica
+                                    <h4 className="text-[12px] font-black text-orange-600 uppercase tracking-[0.2em] mb-8 flex items-center bg-orange-50/50 p-3 rounded-xl border border-orange-100">
+                                        <MapPinIcon className="w-5 h-5 mr-3" /> Atas de Visita Técnica
                                     </h4>
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                         {projectVisits.map(v => (
-                                            <div key={v.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                                <p className="text-[9px] font-black text-slate-400 mb-1">{formatDate(v.date)}</p>
-                                                <p className="text-xs font-bold text-slate-700 italic">"{v.notes}"</p>
+                                            <div key={v.id} className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                                                <p className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">{formatDate(v.date)}</p>
+                                                <p className="text-sm font-bold text-slate-700 italic leading-relaxed">"{v.notes}"</p>
                                             </div>
                                         ))}
-                                        {projectVisits.length === 0 && <p className="text-xs text-slate-300 italic uppercase">Sem visitas registradas.</p>}
+                                        {projectVisits.length === 0 && <p className="text-xs text-slate-300 italic uppercase">Sem visitas registradas no log.</p>}
                                     </div>
                                 </div>
                                 <div>
-                                    <h4 className="text-[11px] font-black text-sky-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-sky-50 p-2 rounded">
-                                        <NotepadIcon className="w-4 h-4 mr-2" /> Histórico de Notas e Alertas
+                                    <h4 className="text-[12px] font-black text-sky-600 uppercase tracking-[0.2em] mb-8 flex items-center bg-sky-50/50 p-3 rounded-xl border border-sky-100">
+                                        <NotepadIcon className="w-5 h-5 mr-3" /> Histórico de Notas Internas
                                     </h4>
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                         {notes.map(n => (
-                                            <div key={n.id} className={`p-3 rounded-xl border ${n.completed ? 'bg-green-50 border-green-100 opacity-60' : 'bg-slate-50 border-slate-100'}`}>
-                                                <p className="text-[10px] font-black text-slate-800 uppercase">{n.title}</p>
-                                                <p className="text-[10px] text-slate-500 mt-1 line-clamp-3">{n.content}</p>
+                                            <div key={n.id} className={`p-5 rounded-2xl border ${n.completed ? 'bg-green-50 border-green-100 opacity-60' : 'bg-slate-50 border-slate-100'}`}>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <p className="text-[11px] font-black text-slate-800 uppercase leading-none">{n.title}</p>
+                                                    {n.createdAt && <span className="text-[8px] font-bold text-slate-400">{new Date(n.createdAt).toLocaleDateString()}</span>}
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-2 line-clamp-4 leading-relaxed font-bold">{n.content}</p>
                                             </div>
                                         ))}
-                                        {notes.length === 0 && <p className="text-xs text-slate-300 italic uppercase">Sem anotações no histórico.</p>}
+                                        {notes.length === 0 && <p className="text-xs text-slate-300 italic uppercase">Sem anotações registradas.</p>}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* RESUMO FINANCEIRO DETALHADO */}
+                            {/* FINANCIAL */}
                             <div className="report-section">
-                                <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-emerald-50 p-2 rounded">
-                                    <DollarIcon className="w-4 h-4 mr-2" /> Demonstrativo Financeiro de Contrato
+                                <h4 className="text-[12px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-8 flex items-center bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
+                                    <DollarIcon className="w-5 h-5 mr-3" /> Extrato Financeiro de Quitação
                                 </h4>
-                                <table className="w-full text-left text-[11px]">
-                                    <thead className="bg-slate-900 text-white font-black uppercase tracking-widest">
-                                        <tr>
-                                            <th className="p-3">Parcela</th>
-                                            <th className="p-3">Vencimento</th>
-                                            <th className="p-3">Pagamento</th>
-                                            <th className="p-3">Valor</th>
-                                            <th className="p-3 text-right">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 border border-slate-100">
-                                        {installments.map(inst => (
-                                            <tr key={inst.id} className="font-bold">
-                                                <td className="p-3 text-slate-800">{inst.installment.toUpperCase()}</td>
-                                                <td className="p-3 text-slate-500">{formatDate(inst.dueDate)}</td>
-                                                <td className="p-3 text-slate-900">{inst.paymentDate ? formatDate(inst.paymentDate) : '---'}</td>
-                                                <td className="p-3 text-blue-600">{formatCurrency(inst.value)}</td>
-                                                <td className="p-3 text-right">
-                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${inst.status.includes('Pago') ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                        {inst.status}
-                                                    </span>
-                                                </td>
+                                <div className="overflow-hidden rounded-3xl border border-slate-200">
+                                    <table className="w-full text-left text-[12px]">
+                                        <thead className="bg-slate-900 text-white font-black uppercase tracking-widest">
+                                            <tr>
+                                                <th className="p-4">Identificação</th>
+                                                <th className="p-4">Vencimento</th>
+                                                <th className="p-4">Efetivado em</th>
+                                                <th className="p-4">Valor Bruto</th>
+                                                <th className="p-4 text-right">Status</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="bg-slate-50 font-black">
-                                            <td colSpan={3} className="p-4 text-right uppercase text-[9px] text-slate-400">Total Pago até o momento:</td>
-                                            <td colSpan={2} className="p-4 text-green-600 text-lg">{formatCurrency(financialSummary.totalPaid)}</td>
-                                        </tr>
-                                        <tr className="bg-white font-black">
-                                            <td colSpan={3} className="p-4 text-right uppercase text-[9px] text-slate-400">Saldo Remanescente (A Pagar):</td>
-                                            <td colSpan={2} className="p-4 text-blue-600 text-lg">{formatCurrency(financialSummary.totalPending)}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {installments.map(inst => (
+                                                <tr key={inst.id} className="font-bold">
+                                                    <td className="p-4 text-slate-800 uppercase tracking-tight">{inst.installment}</td>
+                                                    <td className="p-4 text-slate-500">{formatDate(inst.dueDate)}</td>
+                                                    <td className="p-4 text-slate-900">{inst.paymentDate ? formatDate(inst.paymentDate) : '---'}</td>
+                                                    <td className="p-4 text-blue-600">{formatCurrency(inst.value)}</td>
+                                                    <td className="p-4 text-right">
+                                                        <span className={`px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest ${inst.status.includes('Pago') ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                            {inst.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="bg-slate-50 border-t-2 border-slate-200">
+                                                <td colSpan={3} className="p-6 text-right uppercase text-[10px] font-black text-slate-400">Total Liquidado (Pago):</td>
+                                                <td colSpan={2} className="p-6 text-green-600 text-2xl font-black text-right">{formatCurrency(financialSummary.totalPaid)}</td>
+                                            </tr>
+                                            <tr className="bg-white">
+                                                <td colSpan={3} className="p-6 text-right uppercase text-[10px] font-black text-slate-400">Saldo Remanescente Devedor:</td>
+                                                <td colSpan={2} className="p-6 text-blue-600 text-2xl font-black text-right">{formatCurrency(financialSummary.totalPending)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
                             </div>
 
-                            {/* RODAPÉ DE ASSINATURAS */}
-                            <div className="mt-20 pt-16 border-t border-slate-100 flex justify-between gap-20">
+                            {/* SIGNATURES */}
+                            <div className="mt-24 pt-16 border-t-2 border-slate-100 flex justify-between gap-24">
                                 <div className="flex-1 text-center">
-                                    <div className="border-t-2 border-slate-900 pt-3">
-                                        <p className="text-[10px] font-black uppercase tracking-widest">{contract.clientName}</p>
-                                        <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Contratante / Proprietário</p>
+                                    <div className="border-t-2 border-slate-900 pt-4">
+                                        <p className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-800">{contract.clientName}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-2 tracking-widest">Contratante / Proprietário</p>
                                     </div>
                                 </div>
                                 <div className="flex-1 text-center">
-                                    <div className="border-t-2 border-slate-900 pt-3">
-                                        <p className="text-[10px] font-black uppercase tracking-widest">{systemSettings?.professionalName || 'O Profissional'}</p>
-                                        <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Arquiteto(a) Responsável</p>
+                                    <div className="border-t-2 border-slate-900 pt-4">
+                                        <p className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-800">{systemSettings?.professionalName || 'O Profissional'}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-2 tracking-widest">Arquiteto(a) Responsável</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <p className="text-center text-[7px] font-bold text-slate-300 uppercase mt-12 tracking-widest">Documento gerado eletronicamente pelo sistema E-Projet. Todas as informações técnicas e financeiras foram registradas pelo escritório responsável.</p>
+                            <p className="text-center text-[8px] font-black text-slate-300 uppercase mt-16 tracking-[0.4em] opacity-50">Documento certificado e gerado eletronicamente por E-Projet v2.5</p>
                         </div>
                     </div>
                 </div>

@@ -27,9 +27,24 @@
         color: #1e293b;
       }
 
+      @media print {
+        body, html {
+          height: auto !important;
+          overflow: visible !important;
+          background: white !important;
+        }
+        #root {
+          height: auto !important;
+          overflow: visible !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+
       input, select, textarea, button {
         font-family: inherit !important;
-        font-size: 16px !important; /* Evita zoom no iOS */
+        font-size: 16px !important;
       }
 
       input[type="text"],
@@ -40,8 +55,8 @@
       select,
       textarea {
         background-color: white;
-        border-width: 1.5px; /* Bordas levemente mais grossas */
-        border-color: #cbd5e1; /* Cor de borda mais intensa (slate-300) */
+        border-width: 1.5px;
+        border-color: #cbd5e1;
         border-radius: var(--border-radius);
         transition: all 0.2s ease-in-out;
       }
@@ -64,7 +79,6 @@
         to { opacity: 1; transform: translateY(0); }
       }
 
-      /* Utilitário para esconder scrollbar em menus mobile */
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       

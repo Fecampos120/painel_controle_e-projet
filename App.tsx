@@ -172,7 +172,6 @@ const App: React.FC = () => {
         });
     };
 
-    // NOVA LÓGICA DE REGISTRO FINANCEIRO COM RECALQUE
     const handleRegisterInstallment = (id: number, date: Date, newValue?: number) => {
         setAppData(prev => {
             const installmentToPay = prev.installments.find(i => i.id === id);
@@ -183,7 +182,6 @@ const App: React.FC = () => {
             const paidValue = newValue !== undefined ? newValue : originalValue;
             const difference = originalValue - paidValue;
 
-            // 1. Atualizar a parcela atual como paga
             const updatedInstallments = prev.installments.map(i => {
                 if (i.id === id) {
                     const dueDate = new Date(i.dueDate);
@@ -198,7 +196,6 @@ const App: React.FC = () => {
                 return i;
             });
 
-            // 2. Se houve diferença, recalcular as próximas parcelas pendentes do MESMO contrato
             if (Math.abs(difference) > 0.01) {
                 const pendingInstallments = updatedInstallments.filter(i => 
                     i.contractId === contractId && 
@@ -302,9 +299,9 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="flex h-screen bg-[var(--bg-color)] overflow-hidden">
+        <div className="flex h-screen bg-[var(--bg-color)] overflow-hidden print:h-auto print:overflow-visible">
             <aside 
-                className={`fixed inset-y-0 left-0 z-[60] w-72 bg-[var(--sidebar-color)] transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`fixed inset-y-0 left-0 z-[60] w-72 bg-[var(--sidebar-color)] transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 no-print ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
                 <div className="h-full flex flex-col shadow-2xl">
                     <div className="p-8 border-b border-white/5 flex flex-col items-center relative">
@@ -343,11 +340,11 @@ const App: React.FC = () => {
             </aside>
 
             {isSidebarOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[55] lg:hidden" onClick={() => setIsSidebarOpen(false)}></div>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[55] lg:hidden no-print" onClick={() => setIsSidebarOpen(false)}></div>
             )}
 
-            <div className="flex-1 flex flex-col h-full min-w-0">
-                <header className="lg:hidden h-16 bg-white border-b border-slate-200 flex items-center justify-between px-5 shrink-0 z-40">
+            <div className="flex-1 flex flex-col h-full min-w-0 print:h-auto print:overflow-visible">
+                <header className="lg:hidden h-16 bg-white border-b border-slate-200 flex items-center justify-between px-5 shrink-0 z-40 no-print">
                     <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-500 hover:text-slate-900">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                             <path d="M4 6h16M4 12h16M4 18h16" />
@@ -362,7 +359,7 @@ const App: React.FC = () => {
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 no-print">
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 print:p-0 print:overflow-visible">
                     {renderView()}
                 </main>
             </div>
