@@ -125,7 +125,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
             previewFlow.push({ label: 'ENTRADA / INÍCIO', value: downPaymentValue, date: downPaymentDate });
         }
         
-        // CORREÇÃO CRÍTICA: Validar data antes de processar
         if (firstInstallmentDate && firstInstallmentDate.length === 10) {
             const baseDate = new Date(firstInstallmentDate + 'T12:00:00');
             if (!isNaN(baseDate.getTime())) {
@@ -139,7 +138,6 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             date: d.toISOString().split('T')[0] 
                         });
                     } catch (e) {
-                        // Silently handle invalid dates during typing
                     }
                 }
             }
@@ -151,15 +149,20 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
     const handleServiceChange = (id: number, field: string, value: string) => {
         setContractTypes(prev => prev.map(ct => {
             if (ct.id !== id) return ct;
-            const updated = { ...ct, [field]: value.toUpperCase() };
-            const s = [...appData.servicePrices, ...appData.hourlyRates].find(srv => srv.name === updated.serviceName);
+            const upperValue = value.toUpperCase();
+            const updated = { ...ct, [field]: upperValue };
+            
+            // Buscar o serviço no catálogo comparando em uppercase para garantir o match
+            const s = [...appData.servicePrices, ...appData.hourlyRates].find(srv => srv.name.toUpperCase() === upperValue);
+            
             if (field === 'serviceName' && s) {
                 updated.calculationMethod = s.unit === 'm²' ? 'metragem' : s.unit === 'hora' ? 'hora' : 'manual';
-            }
-            if (updated.calculationMethod === 'metragem') {
-                updated.value = (parseFloat(updated.area || '0') * (s?.price || 0)).toFixed(2);
-            } else if (updated.calculationMethod === 'hora') {
-                updated.value = (parseFloat(updated.hours || '0') * (s?.price || 0)).toFixed(2);
+                // Recalcular valor se houver preço base
+                if (updated.calculationMethod === 'metragem' && s.price) {
+                    updated.value = (parseFloat(updated.area || '0') * s.price).toFixed(2);
+                } else if (updated.calculationMethod === 'hora' && s.price) {
+                    updated.value = (parseFloat(updated.hours || '0') * s.price).toFixed(2);
+                }
             }
             return updated;
         }));
@@ -282,14 +285,22 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div key={ct.id} className="p-5 border border-slate-100 rounded-xl bg-slate-50/50 flex flex-col md:flex-row gap-6 items-end group">
                                 <div className="flex-1 w-full space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SERVIÇO SELECIONADO</label>
-                                    <select value={ct.serviceName} onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl text-sm font-black uppercase text-slate-900 focus:border-[var(--primary-color)]">
-                                        <option value="">SELECIONE UM SERVIÇO...</option>
-                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => <option key={s.id} value={s.name}>{s.name.toUpperCase()}</option>)}
+                                    <select 
+                                        value={ct.serviceName.toUpperCase()} 
+                                        onChange={e => handleServiceChange(ct.id, 'serviceName', e.target.value)} 
+                                        className="w-full h-14 px-4 bg-white border-2 border-slate-200 rounded-xl text-sm font-bold uppercase text-slate-900 focus:border-[var(--primary-color)] focus:ring-4 focus:ring-blue-500/10 outline-none shadow-sm transition-all"
+                                    >
+                                        <option value="">-- ESCOLHA O SERVIÇO --</option>
+                                        {[...appData.servicePrices, ...appData.hourlyRates].map(s => (
+                                            <option key={s.id} value={s.name.toUpperCase()}>
+                                                {s.name.toUpperCase()}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="w-full md:w-32 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">COBRANÇA</label>
-                                    <select value={ct.calculationMethod} onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} className="w-full h-12 px-3 bg-white border-2 border-slate-100 rounded-xl text-[11px] font-bold uppercase">
+                                    <select value={ct.calculationMethod} onChange={e => handleServiceChange(ct.id, 'calculationMethod', e.target.value)} className="w-full h-14 px-3 bg-white border-2 border-slate-200 rounded-xl text-xs font-bold uppercase text-slate-700 outline-none shadow-sm">
                                         <option value="metragem">M²</option>
                                         <option value="hora">HORA</option>
                                         <option value="manual">MANUAL</option>
@@ -297,13 +308,13 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                 </div>
                                 <div className="w-full md:w-28 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{ct.calculationMethod === 'hora' ? 'HORAS' : 'QTD'}</label>
-                                    <input type="number" value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} className="w-full h-12 text-center bg-white border-2 border-slate-100 rounded-xl font-black" />
+                                    <input type="number" value={ct.calculationMethod === 'hora' ? ct.hours : ct.area} onChange={e => handleServiceChange(ct.id, ct.calculationMethod === 'hora' ? 'hours' : 'area', e.target.value)} className="w-full h-14 text-center bg-white border-2 border-slate-200 rounded-xl font-black text-slate-700 outline-none shadow-sm" />
                                 </div>
                                 <div className="w-full md:w-44 space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TOTAL ITEM (R$)</label>
-                                    <input type="number" value={ct.value} onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-[var(--primary-color)]" />
+                                    <input type="number" value={ct.value} onChange={e => handleServiceChange(ct.id, 'value', e.target.value)} className="w-full h-14 px-4 bg-white border-2 border-slate-200 rounded-xl font-black text-[var(--primary-color)] outline-none shadow-sm" />
                                 </div>
-                                <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-12 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl">REMOVER</button>
+                                <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-14 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl transition-colors">REMOVER</button>
                             </div>
                         ))}
                         <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-slate-200 bg-slate-50/50 text-[var(--primary-color)] font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-white transition-all">
@@ -386,11 +397,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">KM TOTAL ESTIMADO</label>
-                                    <input type="number" value={mileageDistance} onChange={e => setMileageDistance(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700" />
+                                    <input type="number" value={mileageDistance} onChange={e => setMileageDistance(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">VALOR POR KM (R$)</label>
-                                    <input type="text" value={mileageCost} onChange={e => setMileageCost(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700" />
+                                    <input type="text" value={mileageCost} onChange={e => setMileageCost(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                             </div>
                             <div className="flex justify-between items-center pt-2">
@@ -407,11 +418,11 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">QTD DE VISITAS</label>
-                                    <input type="number" value={techVisitsQty} onChange={e => setTechVisitsQty(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700" />
+                                    <input type="number" value={techVisitsQty} onChange={e => setTechVisitsQty(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-black text-slate-400 uppercase">R$ POR VISITA</label>
-                                    <input type="text" value={techVisitsPrice} onChange={e => setTechVisitsPrice(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700" />
+                                    <input type="text" value={techVisitsPrice} onChange={e => setTechVisitsPrice(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-100 rounded-xl font-black text-slate-700 outline-none" />
                                 </div>
                             </div>
                             <div className="flex justify-between items-center pt-2">
@@ -431,7 +442,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-[var(--primary-color)] uppercase tracking-widest">DESCONTO (%)</label>
-                                <input type="number" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-full h-12 px-4 border-2 border-[var(--primary-color)]/20 focus:border-[var(--primary-color)] rounded-xl text-[var(--primary-color)] font-black text-xl" />
+                                <input type="number" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-full h-12 px-4 border-2 border-[var(--primary-color)]/20 focus:border-[var(--primary-color)] rounded-xl text-[var(--primary-color)] font-black text-xl outline-none" />
                             </div>
                             <div className="space-y-1 md:col-span-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VALOR FINAL DO CONTRATO</label>
@@ -442,14 +453,14 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
                             <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº PARCELAS</label>
-                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl font-black text-sm bg-white">
+                                <select value={numInstallments} onChange={e => setNumInstallments(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl font-black text-sm bg-white outline-none">
                                     {[1, 2, 3, 4, 5, 6, 8, 10, 12, 18, 24, 36].map(n => <option key={n} value={n}>{n}X</option>)}
                                 </select>
                             </div>
                             
                             <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VENC. ENTRADA (SINAL)</label>
-                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black bg-white" />
+                                <input type="date" value={downPaymentDate} onChange={e => setDownPaymentDate(e.target.value)} className="w-full h-12 px-4 border-2 border-slate-200 rounded-xl text-sm font-black bg-white outline-none" />
                             </div>
 
                             <div className="md:col-span-3 flex items-center p-4 bg-white rounded-xl border border-slate-100 shadow-sm h-16 mt-4">
@@ -490,7 +501,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
 
                             <div className="md:col-span-3 space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DA 1ª PARCELA</label>
-                                <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-200 rounded-xl text-sm font-black" />
+                                <input type="date" value={firstInstallmentDate} onChange={e => setFirstInstallmentDate(e.target.value)} className="w-full h-12 px-4 bg-white border-2 border-slate-200 rounded-xl text-sm font-black outline-none" />
                             </div>
                         </div>
 

@@ -1,6 +1,6 @@
 
-import React, { useState, useRef } from 'react';
-import { PlusIcon, TrashIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, ArchitectIcon, MapPinIcon, GripVerticalIcon, MoneyBagIcon, SparklesIcon, DownloadIcon, HistoryIcon, PencilIcon } from './Icons';
+import React, { useState, useRef, useMemo } from 'react';
+import { PlusIcon, TrashIcon, XIcon, BrandLogo, UploadIcon, CheckCircleIcon, ArchitectIcon, MapPinIcon, GripVerticalIcon, MoneyBagIcon, SparklesIcon, DownloadIcon, HistoryIcon, PencilIcon, NotepadIcon } from './Icons';
 import { ServicePrice, AppData, ProjectStageTemplateItem, SystemSettings, ChecklistItemTemplate, MenuItem } from '../types';
 import { FONT_OPTIONS } from '../constants';
 
@@ -13,7 +13,7 @@ const maskPhone = (value: string) => {
 };
 
 const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev: AppData) => AppData)) => void }> = ({ appData, setAppData }) => {
-  const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'servicos' | 'modelos' | 'menu' | 'manutencao'>('empresa');
+  const [activeTab, setActiveTab] = useState<'empresa' | 'visual' | 'servicos' | 'modelos' | 'checklist' | 'menu' | 'manutencao'>('empresa');
   const [localSettings, setLocalSettings] = useState<SystemSettings>(JSON.parse(JSON.stringify(appData.systemSettings)));
   const [localServices, setLocalServices] = useState<ServicePrice[]>(appData.servicePrices || []);
   const [localStages, setLocalStages] = useState<ProjectStageTemplateItem[]>(appData.systemSettings.projectStagesTemplate || []);
@@ -23,13 +23,12 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lógica de Drag and Drop para Fases
+  // Lógica de Drag and Drop
   const [draggedStageIndex, setDraggedStageIndex] = useState<number | null>(null);
   const [draggedMenuIndex, setDraggedMenuIndex] = useState<number | null>(null);
 
   const handleStageDragStart = (index: number) => setDraggedStageIndex(index);
   const handleMenuDragStart = (index: number) => setDraggedMenuIndex(index);
-
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   const handleStageDrop = (index: number) => {
@@ -86,34 +85,44 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
       }
   };
 
+  const groupedChecklist = useMemo(() => {
+    const groups: { [key: string]: ChecklistItemTemplate[] } = {};
+    localChecklist.forEach(item => {
+        if (!groups[item.stage]) groups[item.stage] = [];
+        groups[item.stage].push(item);
+    });
+    return groups;
+  }, [localChecklist]);
+
   return (
     <div className="space-y-8 pb-40 animate-fadeIn">
-      <header className="bg-[var(--primary-color)] text-white p-8 rounded-2xl shadow-lg -mx-4 md:-mx-8 lg:-mx-10 -mt-4 md:-mt-8 lg:-mt-10 mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+      <header className="bg-[var(--primary-color)] text-white p-8 rounded-xl shadow-lg -mx-4 md:-mx-8 lg:-mx-10 -mt-4 md:-mt-8 lg:-mt-10 mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight uppercase">Configurações Gerais</h1>
-            <p className="mt-1 text-white/80 text-sm italic">Personalize o comportamento, visual e catálogo de serviços do seu sistema.</p>
+            <h1 className="text-3xl font-black tracking-tight uppercase">Configurações Gerais</h1>
+            <p className="mt-1 text-white/80 text-[10px] font-black uppercase tracking-widest">Personalize o comportamento, visual e modelos do seu estúdio.</p>
         </div>
-        <button onClick={handleSaveAll} className="w-full sm:w-auto px-8 py-3 bg-white text-[var(--primary-color)] font-bold rounded-xl shadow-xl hover:scale-105 transition-all text-xs tracking-widest uppercase">
+        <button onClick={handleSaveAll} className="w-full sm:w-auto px-8 py-3 bg-white text-[var(--primary-color)] font-black rounded-xl shadow-xl hover:scale-105 transition-all text-[10px] tracking-[0.2em] uppercase">
             Salvar Alterações
         </button>
       </header>
 
       <div className="flex border-b border-slate-200 mb-10 space-x-8 overflow-x-auto no-scrollbar pb-1">
           {[
-            { id: 'empresa', label: 'Dados da Empresa' },
-            { id: 'visual', label: 'Identidade Visual' },
-            { id: 'servicos', label: 'Serviços & Preços' },
-            { id: 'modelos', label: 'Fases & Cronogramas' },
-            { id: 'menu', label: 'Menu Lateral' },
-            { id: 'manutencao', label: 'Sistema & Backup' }
+            { id: 'empresa', label: 'Empresa', color: 'text-blue-500' },
+            { id: 'visual', label: 'Visual', color: 'text-pink-500' },
+            { id: 'servicos', label: 'Serviços', color: 'text-green-500' },
+            { id: 'modelos', label: 'Cronogramas', color: 'text-indigo-500' },
+            { id: 'checklist', label: 'Checklist Obra', color: 'text-amber-500' },
+            { id: 'menu', label: 'Menu', color: 'text-purple-500' },
+            { id: 'manutencao', label: 'Backup', color: 'text-red-500' }
           ].map((tab) => (
               <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)} 
-                className={`pb-4 text-xs font-bold uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === tab.id ? 'text-[var(--primary-color)]' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`pb-4 text-[10px] font-black uppercase tracking-[0.15em] transition-all relative whitespace-nowrap ${activeTab === tab.id ? tab.color : 'text-slate-400 hover:text-slate-600'}`}
               >
                 {tab.label}
-                {activeTab === tab.id && <div className="absolute bottom-0 left-0 w-full h-1 bg-[var(--primary-color)] rounded-full"></div>}
+                {activeTab === tab.id && <div className={`absolute bottom-0 left-0 w-full h-1 bg-current rounded-full`}></div>}
               </button>
           ))}
       </div>
@@ -270,7 +279,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                         </h3>
                         <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wide">Defina seus serviços e valores base para agilizar novos orçamentos.</p>
                     </div>
-                    <button onClick={() => setLocalServices([...localServices, { id: Date.now(), name: 'NOVO SERVIÇO', unit: 'm²' }])} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] tracking-widest shadow-lg hover:scale-105 transition-all uppercase">
+                    <button onClick={() => setLocalServices(prev => [...prev, { id: Date.now(), name: 'NOVO SERVIÇO', unit: 'm²' }])} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] tracking-widest shadow-lg hover:scale-105 transition-all uppercase">
                         + Add Novo Serviço
                     </button>
                 </div>
@@ -279,7 +288,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                         <div key={service.id} className="p-6 bg-slate-50/50 rounded-2xl border-2 border-slate-100 flex flex-col md:flex-row items-center gap-8 group">
                             <div className="flex-1 w-full space-y-1">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Nome do Serviço</label>
-                                <input value={service.name} onChange={e => setLocalServices(localServices.map(s => s.id === service.id ? {...s, name: e.target.value.toUpperCase()} : s))} className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm" />
+                                <input value={service.name} onChange={e => setLocalServices(prev => prev.map(s => s.id === service.id ? {...s, name: e.target.value.toUpperCase()} : s))} className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl font-bold text-sm shadow-sm" />
                             </div>
                             <div className="w-full md:w-56 space-y-1">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Tipo de Cobrança</label>
@@ -291,9 +300,9 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                             </div>
                             <div className="w-full md:w-36 space-y-1">
                                 <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Valor Sugerido (R$)</label>
-                                <input type="number" value={service.price || 0} onChange={e => setLocalServices(localServices.map(s => s.id === service.id ? {...s, price: parseFloat(e.target.value)} : s))} className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl font-bold text-blue-600 text-sm shadow-sm text-center" />
+                                <input type="number" value={service.price || 0} onChange={e => setLocalServices(prev => prev.map(s => s.id === service.id ? {...s, price: parseFloat(e.target.value)} : s))} className="w-full h-11 px-4 bg-white border border-slate-200 rounded-xl font-bold text-blue-600 text-sm shadow-sm text-center" />
                             </div>
-                            <button onClick={() => setLocalServices(localServices.filter(s => s.id !== service.id))} className="text-slate-300 hover:text-red-500 transition-colors p-2"><TrashIcon className="w-5 h-5" /></button>
+                            <button onClick={() => setLocalServices(prev => prev.filter(s => s.id !== service.id))} className="text-slate-300 hover:text-red-500 transition-colors p-2"><TrashIcon className="w-5 h-5" /></button>
                         </div>
                     ))}
                 </div>
@@ -307,14 +316,14 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center">
-                            <GripVerticalIcon className="w-5 h-5 mr-3 text-blue-600" /> Fases Padrão de Projeto
+                            <GripVerticalIcon className="w-5 h-5 mr-3 text-blue-600" /> Fases Padrão de Projeto (Cronograma)
                         </h3>
                         <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wide">Arraste as fases para reordenar a sequência cronológica.</p>
                     </div>
-                    <button onClick={() => setLocalStages([...localStages, { id: Date.now(), name: 'NOVA ETAPA', sequence: localStages.length + 1, durationWorkDays: 5 }])} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-[9px] tracking-widest shadow-lg uppercase">+ Add Etapa</button>
+                    <button onClick={() => setLocalStages(prev => [...prev, { id: Date.now(), name: 'NOVA ETAPA', sequence: prev.length + 1, durationWorkDays: 5 }])} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-[9px] tracking-widest shadow-lg uppercase">+ Add Etapa</button>
                 </div>
                 <div className="space-y-3">
-                    {localStages.sort((a,b) => a.sequence - b.sequence).map((stage, idx) => (
+                    {[...localStages].sort((a,b) => a.sequence - b.sequence).map((stage, idx) => (
                         <div 
                             key={stage.id} 
                             draggable
@@ -325,32 +334,66 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                         >
                             <div className="text-slate-300"><GripVerticalIcon className="w-5 h-5" /></div>
                             <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-md">{idx + 1}</div>
-                            <input value={stage.name} onChange={e => setLocalStages(localStages.map(s => s.id === stage.id ? {...s, name: e.target.value.toUpperCase()} : s))} className="flex-1 bg-transparent border-none font-bold text-sm uppercase focus:ring-0 text-slate-700" />
+                            <input value={stage.name} onChange={e => setLocalStages(prev => prev.map(s => s.id === stage.id ? {...s, name: e.target.value.toUpperCase()} : s))} className="flex-1 bg-transparent border-none font-bold text-sm uppercase focus:ring-0 text-slate-700" />
                             <div className="flex items-center gap-4">
                                 <div className="flex flex-col items-end">
                                     <span className="text-[8px] font-bold text-slate-400 uppercase">Dias Úteis</span>
-                                    <input type="number" value={stage.durationWorkDays} onChange={e => setLocalStages(localStages.map(s => s.id === stage.id ? {...s, durationWorkDays: parseInt(e.target.value) || 0} : s))} className="w-16 h-8 bg-white border border-slate-200 rounded-lg text-center font-bold text-xs" />
+                                    <input type="number" value={stage.durationWorkDays} onChange={e => setLocalStages(prev => prev.map(s => s.id === stage.id ? {...s, durationWorkDays: parseInt(e.target.value) || 0} : s))} className="w-16 h-8 bg-white border border-slate-200 rounded-lg text-center font-bold text-xs" />
                                 </div>
-                                <button onClick={() => setLocalStages(localStages.filter(s => s.id !== stage.id))} className="text-slate-200 group-hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                <button onClick={() => setLocalStages(prev => prev.filter(s => s.id !== stage.id))} className="text-slate-200 group-hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
+          </div>
+      )}
 
-            <div className="bg-white p-10 rounded-[2rem] shadow-sm border border-slate-200">
-                <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Checklist Mestre de Obra</h3>
-                    <button onClick={() => setLocalChecklist([...localChecklist, { id: Date.now(), text: 'NOVO ITEM...', stage: 'GERAL' }])} className="px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-[9px] tracking-widest shadow-lg uppercase">+ Add Tarefa</button>
+      {activeTab === 'checklist' && (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center">
+                            <NotepadIcon className="w-5 h-5 mr-3 text-purple-600" /> Checklist Mestre de Obra
+                        </h3>
+                        <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wide">Configure as tarefas padrão que serão carregadas em cada nova obra técnica.</p>
+                    </div>
+                    <button onClick={() => setLocalChecklist(prev => [...prev, { id: Date.now(), text: 'NOVA TAREFA...', stage: '1. GESTÃO INICIAL' }])} className="px-6 py-2.5 bg-purple-600 text-white rounded-xl font-bold text-[10px] tracking-widest shadow-lg hover:scale-105 transition-all uppercase">
+                        + Add Tarefa
+                    </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {localChecklist.map(item => (
-                        <div key={item.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4 group">
-                            <div className="flex-1">
-                                <input value={item.text} onChange={e => setLocalChecklist(localChecklist.map(c => c.id === item.id ? {...c, text: e.target.value.toUpperCase()} : c))} className="w-full bg-transparent border-none font-bold text-xs uppercase text-slate-600 p-0 focus:ring-0" />
-                                <input value={item.stage} onChange={e => setLocalChecklist(localChecklist.map(c => c.id === item.id ? {...c, stage: e.target.value.toUpperCase()} : c))} className="text-[8px] font-black text-blue-400 uppercase tracking-widest bg-transparent border-none p-0 focus:ring-0 mt-1" />
+
+                <div className="space-y-10">
+                    {/* Fix: Explicitly typed groupedChecklist entries to resolve potential unknown sorting issues */}
+                    {(Object.entries(groupedChecklist) as [string, ChecklistItemTemplate[]][]).sort(([a], [b]) => a.localeCompare(b)).map(([stageName, items]) => (
+                        <div key={stageName} className="space-y-4">
+                            <h4 className="text-[11px] font-black text-purple-400 uppercase tracking-[0.2em] border-b border-purple-50 pb-2">{stageName}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {items.map(item => (
+                                    <div key={item.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-4 group hover:bg-white hover:border-purple-200 transition-all">
+                                        <div className="flex-1">
+                                            <input 
+                                                value={item.text} 
+                                                /* Fix: Added explicit type (ChecklistItemTemplate[]) to setLocalChecklist functional update to resolve unknown inference */
+                                                onChange={e => setLocalChecklist((prev: ChecklistItemTemplate[]) => prev.map(c => c.id === item.id ? {...c, text: e.target.value.toUpperCase()} : c))} 
+                                                className="w-full bg-transparent border-none font-bold text-xs uppercase text-slate-700 p-0 focus:ring-0" 
+                                                placeholder="DESCRIÇÃO DA TAREFA"
+                                            />
+                                            <select 
+                                                value={item.stage} 
+                                                /* Fix: Added explicit type (ChecklistItemTemplate[]) to setLocalChecklist functional update to resolve unknown inference */
+                                                onChange={e => setLocalChecklist((prev: ChecklistItemTemplate[]) => prev.map(c => c.id === item.id ? {...c, stage: e.target.value.toUpperCase()} : c))}
+                                                className="text-[8px] font-black text-purple-400 uppercase tracking-widest bg-transparent border-none p-0 focus:ring-0 mt-1 cursor-pointer appearance-none outline-none"
+                                            >
+                                                {Object.keys(groupedChecklist).map(s => <option key={s} value={s}>{s}</option>)}
+                                                <option value="NOVA CATEGORIA">ADICIONAR NOVA ETAPA...</option>
+                                            </select>
+                                        </div>
+                                        <button onClick={() => setLocalChecklist(prev => prev.filter(c => c.id !== item.id))} className="text-slate-200 group-hover:text-red-400 transition-colors p-2"><TrashIcon className="w-4 h-4" /></button>
+                                    </div>
+                                ))}
                             </div>
-                            <button onClick={() => setLocalChecklist(localChecklist.filter(c => c.id !== item.id))} className="text-slate-200 group-hover:text-red-400 transition-colors"><TrashIcon className="w-4 h-4" /></button>
                         </div>
                     ))}
                 </div>
@@ -368,7 +411,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                     <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wide">Arraste para reordenar o acesso rápido e use as chaves para ocultar módulos.</p>
                 </div>
                 <div className="space-y-3 max-w-2xl">
-                    {localMenu.sort((a,b) => a.sequence - b.sequence).map((item, idx) => (
+                    {[...localMenu].sort((a,b) => a.sequence - b.sequence).map((item, idx) => (
                         <div 
                             key={item.id} 
                             draggable
@@ -387,7 +430,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
                                     <input 
                                         type="checkbox" 
                                         checked={item.visible} 
-                                        onChange={e => setLocalMenu(localMenu.map(m => m.id === item.id ? { ...m, visible: e.target.checked } : m))}
+                                        onChange={e => setLocalMenu(prev => prev.map(m => m.id === item.id ? { ...m, visible: e.target.checked } : m))}
                                         className="sr-only peer" 
                                     />
                                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -452,7 +495,7 @@ const Settings: React.FC<{ appData: AppData; setAppData: (data: AppData | ((prev
       {/* FOOTER FIXO DE SALVAMENTO */}
       <div className="fixed bottom-0 left-0 lg:left-72 right-0 bg-white/95 backdrop-blur-md p-6 border-t border-slate-200 z-[50] flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center text-green-600 font-bold text-[10px] uppercase tracking-widest">
-              <CheckCircleIcon className="w-4 h-4 mr-2" /> Salve para aplicar as mudanças e atualizar seu sistema
+              <CheckCircleIcon className="w-4 h-4 mr-2" /> Salve para aplicar os modelos em novos projetos
           </div>
           <div className="flex items-center gap-8 w-full sm:w-auto">
               <button onClick={() => window.location.reload()} className="flex-1 sm:flex-none text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 tracking-widest">Descartar</button>

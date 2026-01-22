@@ -94,17 +94,39 @@ const ICON_COMPONENTS: Record<string, React.ReactNode> = {
     ChartPieIcon: <ChartPieIcon />,
 };
 
-const NavItem: React.FC<{ iconName: string, label: string, isActive: boolean, onClick: () => void }> = ({ iconName, label, isActive, onClick }) => {
+// Mapeamento de cores vibrantes para os menus
+const MENU_ICON_COLORS: Record<string, string> = {
+    dashboard: 'text-blue-400',
+    agenda: 'text-purple-400',
+    budgets: 'text-green-400',
+    contracts: 'text-indigo-400',
+    analytics: 'text-pink-400',
+    'construction-checklist': 'text-amber-400',
+    notes: 'text-sky-400',
+    partners: 'text-orange-400',
+    'client-area': 'text-emerald-400',
+    pricing: 'text-yellow-400',
+    progress: 'text-teal-400',
+    projections: 'text-cyan-400',
+    expenses: 'text-red-400',
+    settings: 'text-slate-400',
+};
+
+const NavItem: React.FC<{ view: string, iconName: string, label: string, isActive: boolean, onClick: () => void }> = ({ view, iconName, label, isActive, onClick }) => {
     const icon = ICON_COMPONENTS[iconName] || <BrandLogo />;
+    const iconColorClass = MENU_ICON_COLORS[view] || 'text-slate-400';
+
     return (
         <li 
           className={`flex items-center px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 group ${isActive ? 'bg-[var(--primary-color)] shadow-lg shadow-blue-500/20 text-white' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`} 
           onClick={onClick}
         >
-            <div className={`mr-3.5 transition-transform ${isActive ? 'scale-110' : 'opacity-60 group-hover:opacity-100'}`}>
-              {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5' })}
+            <div className={`mr-3.5 transition-all ${isActive ? 'scale-110 text-white' : `${iconColorClass} opacity-80 group-hover:opacity-100`}`}>
+              {React.cloneElement(icon as React.ReactElement, { 
+                  className: 'w-5 h-5'
+              })}
             </div>
-            <span className="text-sm font-semibold tracking-wide uppercase">
+            <span className={`text-[11px] font-black tracking-widest uppercase ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
               {label}
             </span>
         </li>
@@ -241,13 +263,14 @@ const App: React.FC = () => {
                         <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-[var(--primary-color)] shadow-lg mb-4">
                             {appData?.systemSettings?.logoUrl ? <img src={appData.systemSettings.logoUrl} className="w-full h-full object-contain p-2" /> : <BrandLogo className="w-8 h-8 text-white" />}
                         </div>
-                        <h1 className="text-xl font-bold text-white tracking-[0.2em] uppercase">{appData?.systemSettings?.appName || 'E-PROJET'}</h1>
+                        <h1 className="text-xl font-black text-white tracking-[0.2em] uppercase">{appData?.systemSettings?.appName || 'E-PROJET'}</h1>
                     </div>
                     
                     <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 no-scrollbar">
                         {sortedMenuItems.filter(item => item.visible).map(item => (
                             <NavItem 
                                 key={item.id} 
+                                view={item.view}
                                 iconName={item.iconName} 
                                 label={item.label} 
                                 isActive={view === item.view} 
