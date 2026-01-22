@@ -149,21 +149,34 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
     const handleServiceChange = (id: number, field: string, value: string) => {
         setContractTypes(prev => prev.map(ct => {
             if (ct.id !== id) return ct;
-            const upperValue = value.toUpperCase();
-            const updated = { ...ct, [field]: upperValue };
             
-            // Buscar o serviço no catálogo comparando em uppercase para garantir o match
-            const s = [...appData.servicePrices, ...appData.hourlyRates].find(srv => srv.name.toUpperCase() === upperValue);
-            
-            if (field === 'serviceName' && s) {
-                updated.calculationMethod = s.unit === 'm²' ? 'metragem' : s.unit === 'hora' ? 'hora' : 'manual';
-                // Recalcular valor se houver preço base
-                if (updated.calculationMethod === 'metragem' && s.price) {
-                    updated.value = (parseFloat(updated.area || '0') * s.price).toFixed(2);
-                } else if (updated.calculationMethod === 'hora' && s.price) {
-                    updated.value = (parseFloat(updated.hours || '0') * s.price).toFixed(2);
+            // Atualizar o campo que mudou
+            const updated = { ...ct, [field]: value };
+
+            // Sempre buscar os dados do catálogo baseados no nome do serviço selecionado (que agora está em updated.serviceName)
+            const serviceNameUpper = updated.serviceName.toUpperCase();
+            const catalogService = [...appData.servicePrices, ...appData.hourlyRates].find(srv => srv.name.toUpperCase() === serviceNameUpper);
+
+            // Se mudou o nome do serviço, atualiza o método de cálculo automaticamente baseado no catálogo
+            if (field === 'serviceName' && catalogService) {
+                updated.calculationMethod = catalogService.unit === 'm²' ? 'metragem' : catalogService.unit === 'hora' ? 'hora' : 'manual';
+            }
+
+            // Recalcular o VALOR TOTAL DO ITEM sempre que o serviço ou a quantidade mudar
+            if (catalogService && catalogService.price) {
+                if (updated.calculationMethod === 'metragem') {
+                    const areaNum = parseFloat(updated.area || '0');
+                    updated.value = (areaNum * catalogService.price).toFixed(2);
+                } else if (updated.calculationMethod === 'hora') {
+                    const hoursNum = parseFloat(updated.hours || '0');
+                    updated.value = (hoursNum * catalogService.price).toFixed(2);
+                }
+                // Se for manual, o usuário digita o valor, então não sobrescrevemos se o campo alterado foi o 'value'
+                else if (updated.calculationMethod === 'manual' && field !== 'value') {
+                    updated.value = (catalogService.price).toFixed(2);
                 }
             }
+
             return updated;
         }));
     };
@@ -317,7 +330,7 @@ const NewContract: React.FC<NewContractProps> = ({ appData, onAddContract, onAdd
                                 <button type="button" onClick={() => setContractTypes(prev => prev.filter(i => i.id !== ct.id))} className="h-14 px-4 text-red-500 font-black text-[10px] uppercase hover:bg-red-50 rounded-xl transition-colors">REMOVER</button>
                             </div>
                         ))}
-                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-slate-300 bg-slate-50/50 text-[var(--primary-color)] font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-white transition-all">
+                        <button type="button" onClick={() => setContractTypes([...contractTypes, {id: Date.now(), serviceName: '', calculationMethod: 'metragem', area: '0', hours: '0', value: '0.00'}])} className="w-full py-4 border-2 border-dashed border-slate-300 bg-slate-50/50 text-[var(--primary-color)] font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-white transition-all">
                             + ADICIONAR NOVO ITEM AO ESCOPO
                         </button>
                     </div>
