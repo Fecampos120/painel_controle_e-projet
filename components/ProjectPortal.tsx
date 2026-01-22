@@ -74,7 +74,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                     <ChevronLeftIcon className="w-4 h-4 mr-1" /> VOLTAR
                 </button>
                 <div className="flex gap-2">
-                    <button onClick={() => setIsReceiptModalOpen(true)} className="px-4 py-2 bg-[var(--primary-color)] text-white rounded-xl font-black text-[10px] tracking-widest shadow-lg flex items-center"><ReceiptIcon className="w-4 h-4 mr-2" /> EXTRATO COMPACTO</button>
+                    <button onClick={() => setIsReceiptModalOpen(true)} className="px-4 py-2 bg-[var(--primary-color)] text-white rounded-xl font-black text-[10px] tracking-widest shadow-lg flex items-center"><ReceiptIcon className="w-4 h-4 mr-2" /> RELATÓRIO COMPLETO (PDF)</button>
                     <button onClick={generateWhatsAppReport} className="px-4 py-2 bg-green-600 text-white rounded-xl font-black text-[10px] tracking-widest shadow-lg flex items-center"><SendIcon className="w-4 h-4 mr-2" /> WHATSAPP</button>
                 </div>
             </div>
@@ -270,7 +270,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                     <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-8">CHECKLIST DE ANDAMENTO</h2>
                         <div className="space-y-6">
-                            {checklist?.items?.map(item => (
+                            {(checklist?.items || []).map(item => (
                                 <div key={item.id} className={`flex items-center gap-6 p-5 rounded-2xl border-2 transition-all ${item.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-100'}`}>
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 ${item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200 text-slate-200'}`}>
                                         <CheckCircleIcon className="w-5 h-5" />
@@ -377,69 +377,206 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                         @media print {
                             body * { visibility: hidden; }
                             .print-content, .print-content * { visibility: visible; }
-                            .print-content { position: absolute; left: 0; top: 0; width: 100%; padding: 1cm; background: white; font-size: 10pt; }
+                            .print-content { 
+                                position: absolute; left: 0; top: 0; width: 100%; 
+                                padding: 1.5cm; background: white !important; color: black;
+                            }
                             .no-print { display: none !important; }
+                            .page-break { page-break-before: always; }
+                            .report-section { break-inside: avoid; margin-bottom: 2rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
+                            @page { margin: 1cm; }
                         }
                     `}</style>
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto print-content">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto print-content no-scrollbar">
                         <div className="p-6 bg-slate-900 text-white flex justify-between items-center no-print">
-                            <h2 className="font-black text-sm tracking-widest">EXTRATO CONSOLIDADO</h2>
+                            <h2 className="font-black text-sm tracking-widest uppercase">Relatório Consolidado de Projeto</h2>
                             <div className="flex gap-2">
-                                <button onClick={() => window.print()} className="px-4 py-2 bg-blue-600 rounded-lg text-[9px] font-black"><PrinterIcon className="w-4 h-4 inline mr-1"/> IMPRIMIR</button>
-                                <button onClick={() => setIsReceiptModalOpen(false)} className="p-2 text-slate-400"><XIcon className="w-6 h-6"/></button>
+                                <button onClick={() => window.print()} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center"><PrinterIcon className="w-4 h-4 inline mr-2"/> Gerar PDF / Imprimir</button>
+                                <button onClick={() => setIsReceiptModalOpen(false)} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"><XIcon className="w-6 h-6 text-white"/></button>
                             </div>
                         </div>
 
-                        <div className="p-8 space-y-6">
-                            <div className="flex justify-between border-b-2 border-slate-900 pb-4">
-                                <div>
-                                    <h3 className="text-lg font-black">{systemSettings?.companyName}</h3>
-                                    <p className="text-[9px] text-slate-500">{systemSettings?.professionalName}</p>
+                        <div className="p-10 space-y-10">
+                            {/* CABEÇALHO DO RELATÓRIO */}
+                            <div className="flex justify-between border-b-4 border-slate-900 pb-8">
+                                <div className="flex items-center gap-6">
+                                    <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl print:shadow-none">
+                                        <ArchitectIcon className="w-12 h-12" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-3xl font-black tracking-tighter uppercase">{systemSettings?.companyName || 'E-PROJET STUDIO'}</h3>
+                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{systemSettings?.professionalName || 'Arquiteto Responsável'}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">Relatório Gerado em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
+                                    </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="font-black text-sm uppercase">{contract.projectName}</p>
-                                    <p className="text-[9px] text-slate-500 italic">DATA: {new Date().toLocaleDateString()}</p>
+                                    <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">{contract.projectName}</p>
+                                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mt-2">Portfólio ID: #{contract.id.toString().slice(-6)}</p>
                                 </div>
                             </div>
 
-                            <section>
-                                <h4 className="text-[10px] font-black bg-slate-100 p-1 mb-2">DADOS DO CLIENTE</h4>
-                                <p className="font-bold text-sm">{contract.clientName}</p>
-                                <p className="text-[9px] text-slate-500">{contract.clientEmail} | {contract.clientPhone}</p>
-                            </section>
+                            {/* DADOS DO CLIENTE E CONTRATO */}
+                            <div className="grid grid-cols-2 gap-8 report-section">
+                                <div className="bg-slate-50 p-6 rounded-2xl">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Informações do Cliente</h4>
+                                    <p className="text-lg font-black text-slate-800 uppercase">{contract.clientName}</p>
+                                    <p className="text-sm font-bold text-slate-500 mt-1">{contract.clientEmail} | {contract.clientPhone}</p>
+                                    <div className="mt-4 pt-4 border-t border-slate-200">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Local da Obra</p>
+                                        <p className="text-sm font-bold text-slate-700">{contract.projectAddress.street}, {contract.projectAddress.number}</p>
+                                        <p className="text-xs text-slate-500 uppercase">{contract.projectAddress.district} - {contract.projectAddress.city}/{contract.projectAddress.state}</p>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-50 p-6 rounded-2xl flex flex-col justify-between">
+                                    <div>
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Status de Execução</h4>
+                                        <div className="flex justify-between items-end mb-2">
+                                            <span className="text-3xl font-black text-slate-900">{progressPercent}%</span>
+                                            <span className="text-[10px] font-black text-green-600 uppercase tracking-widest">Ativo e no Prazo</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-blue-600" style={{ width: `${progressPercent}%` }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 flex gap-6">
+                                        <div><p className="text-[9px] font-black text-slate-400 uppercase">Visitas</p><p className="font-black text-slate-800">{visitsDone} / {visitsTotal}</p></div>
+                                        <div><p className="text-[9px] font-black text-slate-400 uppercase">Tipo</p><p className="font-black text-slate-800 uppercase">{contract.serviceType}</p></div>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <section>
-                                <h4 className="text-[10px] font-black bg-slate-100 p-1 mb-2">RESUMO FINANCEIRO</h4>
-                                <table className="w-full text-[11px]">
-                                    <tbody>
-                                        <tr className="border-b font-bold">
-                                            <td className="py-2">VALOR TOTAL DO CONTRATO:</td>
-                                            <td className="py-2 text-right">{formatCurrency(contract.totalValue)}</td>
+                            {/* MURAL DE ATUALIZAÇÕES */}
+                            <div className="report-section">
+                                <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-blue-50 p-2 rounded">
+                                    <CameraIcon className="w-4 h-4 mr-2" /> Mural de Atualizações de Obra
+                                </h4>
+                                {updates.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {updates.map(u => (
+                                            <div key={u.id} className="border-l-4 border-slate-100 pl-4 py-1">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-[10px] font-black text-slate-400">{formatDate(u.date)}</span>
+                                                </div>
+                                                <p className="text-sm font-black text-slate-800 uppercase">{u.description}</p>
+                                                {u.nextSteps && <p className="text-xs font-bold text-blue-500 mt-1 italic lowercase">Próximos Passos: {u.nextSteps}</p>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : <p className="text-xs text-slate-400 italic">Nenhuma atualização publicada no mural.</p>}
+                            </div>
+
+                            {/* CHECKLIST TÉCNICO */}
+                            <div className="report-section">
+                                <h4 className="text-[11px] font-black text-purple-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-purple-50 p-2 rounded">
+                                    <CheckCircleIcon className="w-4 h-4 mr-2" /> Checklist de Execução Técnica
+                                </h4>
+                                <div className="grid grid-cols-2 gap-x-12 gap-y-2">
+                                    {(checklist?.items || []).map(item => (
+                                        <div key={item.id} className="flex items-center gap-3 py-1 border-b border-slate-50">
+                                            <div className={`w-3 h-3 rounded-sm border ${item.completed ? 'bg-green-500 border-green-500' : 'border-slate-300'}`}></div>
+                                            <div className="flex-1">
+                                                <p className={`text-[10px] font-black uppercase ${item.completed ? 'text-slate-800' : 'text-slate-400'}`}>{item.text}</p>
+                                            </div>
+                                            {item.completed && <span className="text-[8px] font-bold text-slate-400">{item.completionDate}</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="page-break"></div>
+
+                            {/* HISTÓRICO DE VISITAS E ANOTAÇÕES */}
+                            <div className="grid grid-cols-2 gap-10 report-section">
+                                <div>
+                                    <h4 className="text-[11px] font-black text-orange-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-orange-50 p-2 rounded">
+                                        <MapPinIcon className="w-4 h-4 mr-2" /> Atas de Visita Técnica
+                                    </h4>
+                                    <div className="space-y-4">
+                                        {projectVisits.map(v => (
+                                            <div key={v.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <p className="text-[9px] font-black text-slate-400 mb-1">{formatDate(v.date)}</p>
+                                                <p className="text-xs font-bold text-slate-700 italic">"{v.notes}"</p>
+                                            </div>
+                                        ))}
+                                        {projectVisits.length === 0 && <p className="text-xs text-slate-300 italic uppercase">Sem visitas registradas.</p>}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="text-[11px] font-black text-sky-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-sky-50 p-2 rounded">
+                                        <NotepadIcon className="w-4 h-4 mr-2" /> Histórico de Notas e Alertas
+                                    </h4>
+                                    <div className="space-y-4">
+                                        {notes.map(n => (
+                                            <div key={n.id} className={`p-3 rounded-xl border ${n.completed ? 'bg-green-50 border-green-100 opacity-60' : 'bg-slate-50 border-slate-100'}`}>
+                                                <p className="text-[10px] font-black text-slate-800 uppercase">{n.title}</p>
+                                                <p className="text-[10px] text-slate-500 mt-1 line-clamp-3">{n.content}</p>
+                                            </div>
+                                        ))}
+                                        {notes.length === 0 && <p className="text-xs text-slate-300 italic uppercase">Sem anotações no histórico.</p>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* RESUMO FINANCEIRO DETALHADO */}
+                            <div className="report-section">
+                                <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-6 flex items-center bg-emerald-50 p-2 rounded">
+                                    <DollarIcon className="w-4 h-4 mr-2" /> Demonstrativo Financeiro de Contrato
+                                </h4>
+                                <table className="w-full text-left text-[11px]">
+                                    <thead className="bg-slate-900 text-white font-black uppercase tracking-widest">
+                                        <tr>
+                                            <th className="p-3">Parcela</th>
+                                            <th className="p-3">Vencimento</th>
+                                            <th className="p-3">Pagamento</th>
+                                            <th className="p-3">Valor</th>
+                                            <th className="p-3 text-right">Status</th>
                                         </tr>
-                                        <tr className="border-b text-green-600 font-black">
-                                            <td className="py-2">TOTAL PAGO ATÉ O MOMENTO:</td>
-                                            <td className="py-2 text-right">{formatCurrency(financialSummary.totalPaid)}</td>
-                                        </tr>
-                                        <tr className="border-b text-blue-600 font-black">
-                                            <td className="py-2">SALDO REMANESCENTE:</td>
-                                            <td className="py-2 text-right">{formatCurrency(financialSummary.totalPending)}</td>
-                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 border border-slate-100">
+                                        {installments.map(inst => (
+                                            <tr key={inst.id} className="font-bold">
+                                                <td className="p-3 text-slate-800">{inst.installment.toUpperCase()}</td>
+                                                <td className="p-3 text-slate-500">{formatDate(inst.dueDate)}</td>
+                                                <td className="p-3 text-slate-900">{inst.paymentDate ? formatDate(inst.paymentDate) : '---'}</td>
+                                                <td className="p-3 text-blue-600">{formatCurrency(inst.value)}</td>
+                                                <td className="p-3 text-right">
+                                                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${inst.status.includes('Pago') ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {inst.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
+                                    <tfoot>
+                                        <tr className="bg-slate-50 font-black">
+                                            <td colSpan={3} className="p-4 text-right uppercase text-[9px] text-slate-400">Total Pago até o momento:</td>
+                                            <td colSpan={2} className="p-4 text-green-600 text-lg">{formatCurrency(financialSummary.totalPaid)}</td>
+                                        </tr>
+                                        <tr className="bg-white font-black">
+                                            <td colSpan={3} className="p-4 text-right uppercase text-[9px] text-slate-400">Saldo Remanescente (A Pagar):</td>
+                                            <td colSpan={2} className="p-4 text-blue-600 text-lg">{formatCurrency(financialSummary.totalPending)}</td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
-                            </section>
-
-                            <section>
-                                <h4 className="text-[10px] font-black bg-slate-100 p-1 mb-2">STATUS DE EXECUÇÃO</h4>
-                                <div className="flex justify-between items-center text-[11px] font-bold">
-                                    <span>PROGRESSO TÉCNICO:</span>
-                                    <span>{progressPercent}% CONCLUÍDO</span>
-                                </div>
-                            </section>
-
-                            <div className="mt-12 pt-8 border-t border-slate-200 flex justify-between text-[9px] font-black">
-                                <div className="w-40 border-t border-slate-400 pt-1 text-center">ASSINATURA CLIENTE</div>
-                                <div className="w-40 border-t border-slate-400 pt-1 text-center">ARQUITETO(A)</div>
                             </div>
+
+                            {/* RODAPÉ DE ASSINATURAS */}
+                            <div className="mt-20 pt-16 border-t border-slate-100 flex justify-between gap-20">
+                                <div className="flex-1 text-center">
+                                    <div className="border-t-2 border-slate-900 pt-3">
+                                        <p className="text-[10px] font-black uppercase tracking-widest">{contract.clientName}</p>
+                                        <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Contratante / Proprietário</p>
+                                    </div>
+                                </div>
+                                <div className="flex-1 text-center">
+                                    <div className="border-t-2 border-slate-900 pt-3">
+                                        <p className="text-[10px] font-black uppercase tracking-widest">{systemSettings?.professionalName || 'O Profissional'}</p>
+                                        <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">Arquiteto(a) Responsável</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-center text-[7px] font-bold text-slate-300 uppercase mt-12 tracking-widest">Documento gerado eletronicamente pelo sistema E-Projet. Todas as informações técnicas e financeiras foram registradas pelo escritório responsável.</p>
                         </div>
                     </div>
                 </div>

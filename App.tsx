@@ -94,7 +94,6 @@ const ICON_COMPONENTS: Record<string, React.ReactNode> = {
     ChartPieIcon: <ChartPieIcon />,
 };
 
-// Mapeamento de cores vibrantes para os menus
 const MENU_ICON_COLORS: Record<string, string> = {
     dashboard: 'text-blue-400',
     agenda: 'text-purple-400',
@@ -173,6 +172,60 @@ const App: React.FC = () => {
         });
     };
 
+    // NOVA LÓGICA DE REGISTRO FINANCEIRO COM RECALQUE
+    const handleRegisterInstallment = (id: number, date: Date, newValue?: number) => {
+        setAppData(prev => {
+            const installmentToPay = prev.installments.find(i => i.id === id);
+            if (!installmentToPay) return prev;
+
+            const contractId = installmentToPay.contractId;
+            const originalValue = installmentToPay.value;
+            const paidValue = newValue !== undefined ? newValue : originalValue;
+            const difference = originalValue - paidValue;
+
+            // 1. Atualizar a parcela atual como paga
+            const updatedInstallments = prev.installments.map(i => {
+                if (i.id === id) {
+                    const dueDate = new Date(i.dueDate);
+                    const isLate = date > dueDate;
+                    return { 
+                        ...i, 
+                        status: isLate ? 'Pago com atraso' : 'Pago em dia' as any, 
+                        paymentDate: date, 
+                        value: paidValue 
+                    };
+                }
+                return i;
+            });
+
+            // 2. Se houve diferença, recalcular as próximas parcelas pendentes do MESMO contrato
+            if (Math.abs(difference) > 0.01) {
+                const pendingInstallments = updatedInstallments.filter(i => 
+                    i.contractId === contractId && 
+                    i.status === 'Pendente' && 
+                    i.id !== id
+                );
+
+                if (pendingInstallments.length > 0) {
+                    const adjustmentPerInstallment = difference / pendingInstallments.length;
+                    
+                    return {
+                        ...prev,
+                        installments: updatedInstallments.map(i => {
+                            const isPendingOfSameContract = pendingInstallments.some(p => p.id === i.id);
+                            if (isPendingOfSameContract) {
+                                return { ...i, value: Math.max(0, i.value + adjustmentPerInstallment) };
+                            }
+                            return i;
+                        })
+                    };
+                }
+            }
+
+            return { ...prev, installments: updatedInstallments };
+        });
+    };
+
     const sortedMenuItems = [...(appData.systemSettings.menuOrder || DEFAULT_SYSTEM_SETTINGS.menuOrder)].sort((a, b) => a.sequence - b.sequence);
 
     const renderView = () => {
@@ -230,7 +283,7 @@ const App: React.FC = () => {
             case 'progress':
                 return <Progress schedules={schedules} setSchedules={(s) => setAppData(prev => ({...prev, schedules: s}))} contracts={contracts} />;
             case 'projections':
-                return <Projections installments={installments} otherPayments={otherPayments} contracts={contracts} onRegisterInstallment={(id, date, newValue) => setAppData(prev => ({ ...prev, installments: prev.installments.map(i => { if (i.id === id) { const dueDate = new Date(i.dueDate); const isLate = date > dueDate; return { ...i, status: isLate ? 'Pago com atraso' : 'Pago em dia', paymentDate: date, value: newValue !== undefined ? newValue : i.value }; } return i; }) }))} onRegisterOther={(desc, date, val) => setAppData(prev => ({...prev, otherPayments: [...prev.otherPayments, {id: Date.now() + Math.random(), description: desc, paymentDate: date, value: val}]}))} />;
+                return <Projections installments={installments} otherPayments={otherPayments} contracts={contracts} onRegisterInstallment={handleRegisterInstallment} onRegisterOther={(desc, date, val) => setAppData(prev => ({...prev, otherPayments: [...prev.otherPayments, {id: Date.now() + Math.random(), description: desc, paymentDate: date, value: val}]}))} />;
             case 'expenses':
                 return <Expenses expenses={expenses} fixedExpenseTemplates={appData.fixedExpenseTemplates || []} onAddBulkExpenses={(newExps) => setAppData(prev => { const enhancedExps = newExps.map(e => ({ ...e, id: Date.now() + Math.random() })); return { ...prev, expenses: [...prev.expenses, ...enhancedExps] }; })} onAddExpense={(e) => setAppData(prev => ({...prev, expenses: [...prev.expenses, {...e, id: Date.now() + Math.random()}]}))} onDeleteExpense={(id) => setAppData(p => ({...p, expenses: p.expenses.filter(e => e.id !== id)}))} onUpdateExpense={(e) => setAppData(prev => { const newExpenses = prev.expenses.map(exp => exp.id === e.id ? { ...exp, ...e } : exp); return { ...prev, expenses: newExpenses }; })} onAddFixedExpenseTemplate={(t) => setAppData(prev => ({...prev, fixedExpenseTemplates: [...prev.fixedExpenseTemplates, {...t, id: Date.now() + Math.random()}]}))} onDeleteFixedExpenseTemplate={(id) => setAppData(p => ({...p, fixedExpenseTemplates: p.fixedExpenseTemplates.filter(t => t.id !== id)}))} />;
             case 'notes':
@@ -241,7 +294,6 @@ const App: React.FC = () => {
                 return <Settings appData={appData} setAppData={setAppData} />;
             case 'construction-checklist':
                 return <ConstructionChecklist contracts={contracts} checklists={appData.checklists || []} onUpdateChecklist={handleUpdateChecklist} />;
-            // Added missing receipts case to allow rendering the Receipts component
             case 'receipts':
                 return <Receipts contracts={contracts} installments={installments} systemSettings={settings} />;
             default:
