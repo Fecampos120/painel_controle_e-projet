@@ -34,7 +34,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
     const visitsDone = projectVisits.length;
 
     const progressPercent = useMemo(() => {
-        if (!schedule || schedule.stages.length === 0) return 0;
+        if (!schedule || !schedule.stages || schedule.stages.length === 0) return 0;
         const completed = schedule.stages.filter(s => s.completionDate).length;
         return Math.round((completed / schedule.stages.length) * 100);
     }, [schedule]);
@@ -48,7 +48,6 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
-        // Fix: Explicitly type 'file' as 'File' to resolve 'unknown' assignment error in readAsDataURL
         Array.from(files).forEach((file: File) => {
             const reader = new FileReader();
             reader.onloadend = () => setUpdateForm(prev => ({ ...prev, photos: [...prev.photos, reader.result as string] }));
@@ -115,7 +114,7 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                                 <TrendingUpIcon className="w-5 h-5 mr-3 text-[var(--primary-color)]" /> CRONOGRAMA DE ETAPAS
                             </h3>
                             <div className="space-y-6">
-                                {schedule?.stages.map((stage, idx) => (
+                                {schedule?.stages?.map((stage, idx) => (
                                     <div key={stage.id} className="flex items-center gap-6">
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${stage.completionDate ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
                                             {stage.completionDate ? <CheckCircleIcon className="w-5 h-5" /> : idx + 1}
@@ -271,20 +270,23 @@ const ProjectPortal: React.FC<ProjectPortalProps> = ({ contract, schedule, check
                     <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
                         <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-8">CHECKLIST DE ANDAMENTO</h2>
                         <div className="space-y-6">
-                            {checklist.items.map(item => (
+                            {checklist?.items?.map(item => (
                                 <div key={item.id} className={`flex items-center gap-6 p-5 rounded-2xl border-2 transition-all ${item.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-100'}`}>
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center border-2 ${item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-slate-200 text-slate-200'}`}>
                                         <CheckCircleIcon className="w-5 h-5" />
                                     </div>
                                     <div className="flex-1">
                                         <p className={`text-sm font-bold uppercase ${item.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{item.text}</p>
-                                        <p className="text-[9px] font-black text-slate-400 mt-1">{item.stage.toUpperCase()}</p>
+                                        <p className="text-[9px] font-black text-slate-400 mt-1">{item?.stage?.toUpperCase()}</p>
                                     </div>
                                     {item.completed && item.completionDate && (
                                         <span className="text-[10px] font-black text-green-600 bg-green-50 px-3 py-1 rounded-full">{item.completionDate}</span>
                                     )}
                                 </div>
                             ))}
+                            {(!checklist?.items || checklist.items.length === 0) && (
+                                <div className="text-center py-10 opacity-40 italic">Nenhum item de checklist configurado para este projeto.</div>
+                            )}
                         </div>
                     </div>
                 </div>

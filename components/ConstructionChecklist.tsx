@@ -22,7 +22,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
         if (selectedContractId) {
             // FIX: Use Number instead of parseInt to match float IDs
             const savedChecklist = (checklists || []).find(c => c.contractId === Number(selectedContractId));
-            if (savedChecklist) {
+            if (savedChecklist && savedChecklist.items) {
                 setLocalItems(savedChecklist.items);
             } else {
                 setLocalItems(INITIAL_CHECKLIST_TEMPLATE.map(t => ({
@@ -40,7 +40,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
     }, [selectedContractId, checklists]);
 
     const handleToggleCheck = (itemId: number) => {
-        setLocalItems(prev => prev.map(item => {
+        setLocalItems(prev => (prev || []).map(item => {
             if (item.id !== itemId) return item;
             const isNowCompleted = !item.completed;
             return { 
@@ -59,26 +59,25 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
             stage: stageName,
             completed: false
         };
-        setLocalItems(prev => [...prev, newItem]);
+        setLocalItems(prev => [...(prev || []), newItem]);
         setHasUnsavedChanges(true);
         setEditingItem(newItem);
     };
 
     const handleUpdateItemText = (id: number, newText: string) => {
-        setLocalItems(prev => prev.map(i => i.id === id ? { ...i, text: newText } : i));
+        setLocalItems(prev => (prev || []).map(i => i.id === id ? { ...i, text: newText } : i));
         setHasUnsavedChanges(true);
     };
 
     const handleDeleteItem = (id: number) => {
         if (window.confirm('Remover este item do checklist?')) {
-            setLocalItems(prev => prev.filter(i => i.id !== id));
+            setLocalItems(prev => (prev || []).filter(i => i.id !== id));
             setHasUnsavedChanges(true);
         }
     };
 
     const handleSave = () => {
         if (!selectedContractId) return;
-        // FIX: Use Number instead of parseInt to preserve full ID precision
         onUpdateChecklist({
             contractId: Number(selectedContractId),
             items: localItems
@@ -89,7 +88,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
 
     const groupedItems = useMemo(() => {
         const groups: { [key: string]: ProjectChecklistItem[] } = {};
-        if (localItems.length === 0) return groups;
+        if (!localItems || localItems.length === 0) return groups;
         localItems.forEach(item => {
             if (!groups[item.stage]) groups[item.stage] = [];
             groups[item.stage].push(item);
@@ -98,7 +97,7 @@ const ConstructionChecklist: React.FC<ConstructionChecklistProps> = ({ contracts
     }, [localItems]);
 
     const calculateProgress = () => {
-        if (localItems.length === 0) return 0;
+        if (!localItems || localItems.length === 0) return 0;
         const done = localItems.filter(s => s.completed).length;
         return Math.round((done / localItems.length) * 100);
     };
