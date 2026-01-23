@@ -87,15 +87,15 @@ export const INITIAL_CHECKLIST_TEMPLATE: ChecklistItemTemplate[] = [
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     appName: 'E-Projet',
-    companyName: 'STUDIO BATTELLI',
-    professionalName: 'Arquiteta Responsável',
+    companyName: 'MEU ESTÚDIO',
+    professionalName: 'Arquiteto(a) Responsável',
     phone: '(00) 00000-0000',
     address: {
         street: 'Rua Principal',
         number: '123',
         district: 'Centro',
-        city: 'Cidade Exemplo',
-        state: 'EX',
+        city: 'Sua Cidade',
+        state: 'UF',
         cep: '00000-000'
     },
     theme: {

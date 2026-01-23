@@ -115,7 +115,7 @@ const ProjectReportModal: React.FC<ProjectReportModalProps> = ({ contract, sched
                                 ) : (
                                     <ArchitectIcon className="w-6 h-6" />
                                 )}
-                                <span>{systemSettings?.companyName || "STUDIO BATTELLI"}</span>
+                                <span>{systemSettings?.companyName || "E-PROJET STUDIO"}</span>
                             </div>
                             <p className="text-xs text-slate-500">Arquitetura & Interiores</p>
                         </div>

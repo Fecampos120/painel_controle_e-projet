@@ -333,7 +333,7 @@ const App: React.FC = () => {
 
                     <div className="p-6 border-t border-white/5">
                         <p className="text-[9px] font-semibold text-white/20 text-center uppercase tracking-widest">
-                            &copy; Studio Battelli
+                            &copy; Gestão E-Projet
                         </p>
                     </div>
                 </div>

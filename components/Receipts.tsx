@@ -56,7 +56,7 @@ const Receipts: React.FC<ReceiptsProps> = ({ contracts, installments, systemSett
                                 <ArchitectIcon className="w-10 h-10" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-black uppercase tracking-tight">{systemSettings?.companyName || 'STUDIO BATTELLI'}</h2>
+                                <h2 className="text-2xl font-black uppercase tracking-tight">{systemSettings?.companyName || 'E-PROJET STUDIO'}</h2>
                                 <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{systemSettings?.professionalName}</p>
                             </div>
                         </div>
